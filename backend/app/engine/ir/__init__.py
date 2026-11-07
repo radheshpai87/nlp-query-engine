@@ -1,0 +1,43 @@
+from app.engine.ir.builder import LogicalPlanBuilder
+from app.engine.ir.explainer import explain_logical_plan
+from app.engine.ir.models import (
+    AggregateExpression,
+    AggregateFunction,
+    ColumnRef,
+    ComparisonOperator,
+    FilterExpression,
+    FilterPredicate,
+    JoinCondition,
+    JoinNode,
+    JoinType,
+    LogicalOperator,
+    LogicalQueryPlan,
+    PlanExplanation,
+    PlanValidationResult,
+    SafetyCheckResult,
+    SortDirection,
+    SortExpression,
+    SourceNode,
+)
+
+__all__ = [
+    "LogicalQueryPlan",
+    "SourceNode",
+    "JoinNode",
+    "ColumnRef",
+    "FilterPredicate",
+    "FilterExpression",
+    "AggregateExpression",
+    "SortExpression",
+    "JoinCondition",
+    "ComparisonOperator",
+    "LogicalOperator",
+    "AggregateFunction",
+    "SortDirection",
+    "JoinType",
+    "SafetyCheckResult",
+    "PlanValidationResult",
+    "PlanExplanation",
+    "LogicalPlanBuilder",
+    "explain_logical_plan",
+]
