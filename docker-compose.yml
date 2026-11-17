@@ -1,0 +1,163 @@
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Application Metadata Storage (Isolated from Target Query Databases)
+  # ----------------------------------------------------------------------------
+  metadata-db:
+    image: mongo:7.0
+    container_name: nlp_query_metadata_db
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: appsecret
+      MONGO_INITDB_DATABASE: nlp_query_engine_meta
+    volumes:
+      - metadata_db_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 2. Target Database 1: PostgreSQL (E-Commerce Schema & Relations)
+  # ----------------------------------------------------------------------------
+  postgres-target:
+    image: postgres:16-alpine
+    container_name: nlp_query_postgres_target
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: ecommerce_demo
+    volumes:
+      - postgres_target_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ecommerce_demo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 3. Target Database 2: MongoDB (User Events & Product Reviews)
+  # ----------------------------------------------------------------------------
+  mongo-target:
+    image: mongo:7.0
+    container_name: nlp_query_mongo_target
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: targetsecret
+      MONGO_INITDB_DATABASE: analytics_demo
+    volumes:
+      - mongo_target_data:/data/db
+      - ./docker/mongo/init.js:/docker-entrypoint-initdb.d/init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 4. Target Database 3: Elasticsearch (Product Catalog & Access Logs)
+  # ----------------------------------------------------------------------------
+  elasticsearch-target:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: nlp_query_elasticsearch_target
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_target_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  # ----------------------------------------------------------------------------
+  # 5. Application Backend (FastAPI + Query Engine)
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: nlp_query_backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      HOST: "0.0.0.0"
+      PORT: 8000
+      CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000"
+      SECRET_KEY: dev-secret-key-must-be-changed-in-production-min-32-chars
+      ENCRYPTION_KEY: dGhpcy1pcy1hLWR1bW15LWtleS1mb3ItZGV2LW9ubHk=
+      SEED_ON_STARTUP: "true"
+      APP_MONGO_URI: mongodb://root:appsecret@metadata-db:27017/nlp_query_engine_meta?authSource=admin
+      APP_MONGO_DB_NAME: nlp_query_engine_meta
+      LLM_PROVIDER: mock
+      DEMO_POSTGRES_URI: postgresql://postgres:postgrespassword@postgres-target:5432/ecommerce_demo
+      DEMO_MONGO_URI: mongodb://root:targetsecret@mongo-target:27017/analytics_demo?authSource=admin
+      DEMO_ELASTICSEARCH_URL: http://elasticsearch-target:9200
+    depends_on:
+      metadata-db:
+        condition: service_healthy
+      postgres-target:
+        condition: service_healthy
+      mongo-target:
+        condition: service_healthy
+      elasticsearch-target:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # 6. Application Frontend (Next.js App Router)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    container_name: nlp_query_frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  metadata_db_data:
+  postgres_target_data:
+  mongo_target_data:
+  elasticsearch_target_data:
