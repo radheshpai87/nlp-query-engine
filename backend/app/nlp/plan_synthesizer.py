@@ -10,9 +10,11 @@ from app.engine.ir.models import (
     LogicalQueryPlan,
     SortDirection,
 )
+from app.engine.schema_graph import SchemaGraph
 from app.models.connection import DatabaseConnection
 from app.models.schema import SchemaSnapshot, UserDefinedRelationship
 from app.nlp.intent_extractor import ExtractedIntent
+from app.nlp.semantic_lexicon import SemanticLexicon
 
 DISPLAY_COLUMNS: dict[str, list[str]] = {
     "customers": ["id", "name", "email", "country", "status"],
@@ -61,6 +63,15 @@ class LogicalPlanSynthesizer:
         for conn_id, snap in snapshots.items():
             for obj in snap.objects:
                 table_lookup[obj.name.lower()] = (conn_id, obj)
+
+        # 2. Build Schema Graph and Semantic Lexicon for Path A
+        schema_graph = SchemaGraph.build(snapshots, relationships)
+        lexicon = SemanticLexicon(snapshots)
+
+        # Ground additional semantic entities
+        for sem_ent in lexicon.resolve_entities(query):
+            if sem_ent in table_lookup and sem_ent not in intent.target_entities:
+                intent.target_entities.append(sem_ent)
 
         # --------------------------------------------------------------------
         # Pattern 1: Unpaid / Pending Orders
@@ -436,8 +447,8 @@ class LogicalPlanSynthesizer:
             )
 
             # Price comparison on item purchase price
-            price_limit_match = re.search(r"\b(?:less than|under|below|<)\s*(\d+(?:\.\d+)?)\b", lower_q)
-            price_limit_gt = re.search(r"\b(?:more than|over|above|>)\s*(\d+(?:\.\d+)?)\b", lower_q)
+            price_limit_match = re.search(r"\b(?:less than|under|below|cheaper than|fewer than|<)\s*[\$]?\s*(\d+(?:\.\d+)?)", lower_q)
+            price_limit_gt = re.search(r"\b(?:more than|over|above|greater than|exceeds?|>)\s*[\$]?\s*(\d+(?:\.\d+)?)", lower_q)
             if price_limit_match:
                 val = float(price_limit_match.group(1)) if "." in price_limit_match.group(1) else int(price_limit_match.group(1))
                 builder.filter("oi", "unit_price", ComparisonOperator.LT, val)
@@ -571,157 +582,55 @@ class LogicalPlanSynthesizer:
 
         joined_tables: dict[str, str] = {primary_table: primary_alias}
 
-        # Multi-table joins if multiple entities requested or if filters need them
-        for sec_conn_id, sec_table, _sec_obj in chosen_sources[1:]:
-            sec_alias = ALIAS_MAP.get(sec_table, sec_table[:3])
-            if sec_table in joined_tables:
+        # Multi-table joins using BFS Schema Graph pathfinding
+        sec_targets = [s_name for _, s_name, _ in chosen_sources[1:]]
+        for sem_ent in lexicon.resolve_entities(query):
+            if sem_ent in table_lookup and sem_ent not in sec_targets and sem_ent != primary_table:
+                sec_targets.append(sem_ent)
+
+        graph_edges = schema_graph.find_multi_entity_join_tree(primary_table, sec_targets)
+
+        for edge in graph_edges:
+            sec_table = edge.target_table
+            sec_norm = sec_table.lower()
+            if sec_table in joined_tables or sec_norm in joined_tables:
                 continue
 
-            # Check known joins
-            joined = False
-            for src_t, src_c, tgt_t, tgt_c, jtype in [
-                ("customers", "id", "orders", "customer_id", JoinType.INNER),
-                ("orders", "customer_id", "customers", "id", JoinType.INNER),
-                ("orders", "id", "order_items", "order_id", JoinType.INNER),
-                ("order_items", "order_id", "orders", "id", JoinType.INNER),
-                ("order_items", "product_id", "products", "id", JoinType.INNER),
-                ("products", "id", "order_items", "product_id", JoinType.INNER),
-                ("products", "id", "reviews", "product_id", JoinType.INNER),
-                ("reviews", "product_id", "products", "id", JoinType.INNER),
-                ("products", "id", "catalog", "product_id", JoinType.INNER),
-                ("catalog", "product_id", "products", "id", JoinType.INNER),
-            ]:
-                if src_t in joined_tables and tgt_t == sec_table:
-                    builder.join(
-                        right_connection_id=sec_conn_id,
-                        right_source_name=sec_table,
-                        left_col=(joined_tables[src_t], src_c),
-                        right_col=(sec_alias, tgt_c),
-                        join_type=jtype,
-                        right_alias=sec_alias,
-                        is_cross_database=primary_conn_id != sec_conn_id,
-                    )
-                    joined_tables[sec_table] = sec_alias
-                    joined = True
-                    break
+            if sec_norm not in table_lookup:
+                continue
+            sec_conn_id, sec_obj = table_lookup[sec_norm]
+            sec_alias = ALIAS_MAP.get(sec_norm, sec_norm[:3])
 
-            if not joined:
-                # Check introspected foreign keys on primary_obj and _sec_obj
-                for rel in getattr(primary_obj, "relationships", []):
-                    if rel.target_table == sec_table and rel.source_fields and rel.target_fields:
-                        builder.join(
-                            right_connection_id=sec_conn_id,
-                            right_source_name=sec_table,
-                            left_col=(primary_alias, rel.source_fields[0]),
-                            right_col=(sec_alias, rel.target_fields[0]),
-                            join_type=JoinType.INNER,
-                            right_alias=sec_alias,
-                            is_cross_database=primary_conn_id != sec_conn_id,
-                        )
-                        joined_tables[sec_table] = sec_alias
-                        joined = True
-                        break
-                    elif rel.source_table == sec_table and rel.source_fields and rel.target_fields:
-                        builder.join(
-                            right_connection_id=sec_conn_id,
-                            right_source_name=sec_table,
-                            left_col=(primary_alias, rel.target_fields[0]),
-                            right_col=(sec_alias, rel.source_fields[0]),
-                            join_type=JoinType.INNER,
-                            right_alias=sec_alias,
-                            is_cross_database=primary_conn_id != sec_conn_id,
-                        )
-                        joined_tables[sec_table] = sec_alias
-                        joined = True
-                        break
+            src_norm = edge.source_table.lower()
+            src_alias = joined_tables.get(
+                edge.source_table,
+                joined_tables.get(src_norm, ALIAS_MAP.get(src_norm, src_norm[:3])),
+            )
 
-            if not joined:
-                for rel in getattr(_sec_obj, "relationships", []):
-                    if rel.target_table == primary_table and rel.source_fields and rel.target_fields:
-                        builder.join(
-                            right_connection_id=sec_conn_id,
-                            right_source_name=sec_table,
-                            left_col=(primary_alias, rel.target_fields[0]),
-                            right_col=(sec_alias, rel.source_fields[0]),
-                            join_type=JoinType.INNER,
-                            right_alias=sec_alias,
-                            is_cross_database=primary_conn_id != sec_conn_id,
-                        )
-                        joined_tables[sec_table] = sec_alias
-                        joined = True
-                        break
-
-            if not joined and relationships:
-                for rel in relationships:
-                    if rel.source_table == primary_table and rel.target_table == sec_table:
-                        builder.join(
-                            right_connection_id=sec_conn_id,
-                            right_source_name=sec_table,
-                            left_col=(primary_alias, rel.source_fields[0]),
-                            right_col=(sec_alias, rel.target_fields[0]),
-                            join_type=JoinType.INNER,
-                            right_alias=sec_alias,
-                            is_cross_database=primary_conn_id != sec_conn_id,
-                        )
-                        joined_tables[sec_table] = sec_alias
-                        joined = True
-                        break
-                    elif rel.target_table == primary_table and rel.source_table == sec_table:
-                        builder.join(
-                            right_connection_id=sec_conn_id,
-                            right_source_name=sec_table,
-                            left_col=(primary_alias, rel.target_fields[0]),
-                            right_col=(sec_alias, rel.source_fields[0]),
-                            join_type=JoinType.INNER,
-                            right_alias=sec_alias,
-                            is_cross_database=primary_conn_id != sec_conn_id,
-                        )
-                        joined_tables[sec_table] = sec_alias
-                        joined = True
-                        break
-
-            if not joined:
-                # Common naming convention fallback: sec_table has primary_id or primary_table_id
-                sec_field_names = {f.name.lower(): f.name for f in _sec_obj.fields}
-                prim_field_names = {f.name.lower(): f.name for f in primary_obj.fields}
-
-                prim_singular = primary_table[:-1] if primary_table.endswith("s") else primary_table
-                sec_singular = sec_table[:-1] if sec_table.endswith("s") else sec_table
-
-                cand_fks = [f"{prim_singular}_id", f"{primary_table}_id"]
-                for fk in cand_fks:
-                    if fk in sec_field_names and "id" in prim_field_names:
-                        builder.join(
-                            right_connection_id=sec_conn_id,
-                            right_source_name=sec_table,
-                            left_col=(primary_alias, prim_field_names["id"]),
-                            right_col=(sec_alias, sec_field_names[fk]),
-                            join_type=JoinType.INNER,
-                            right_alias=sec_alias,
-                            is_cross_database=primary_conn_id != sec_conn_id,
-                        )
-                        joined_tables[sec_table] = sec_alias
-                        joined = True
-                        break
-
-                if not joined:
-                    rev_cand_fks = [f"{sec_singular}_id", f"{sec_table}_id"]
-                    for fk in rev_cand_fks:
-                        if fk in prim_field_names and "id" in sec_field_names:
-                            builder.join(
-                                right_connection_id=sec_conn_id,
-                                right_source_name=sec_table,
-                                left_col=(primary_alias, prim_field_names[fk]),
-                                right_col=(sec_alias, sec_field_names["id"]),
-                                join_type=JoinType.INNER,
-                                right_alias=sec_alias,
-                                is_cross_database=primary_conn_id != sec_conn_id,
-                            )
-                            joined_tables[sec_table] = sec_alias
-                            joined = True
-                            break
+            builder.join(
+                right_connection_id=sec_conn_id,
+                right_source_name=sec_table,
+                left_col=(src_alias, edge.source_column),
+                right_col=(sec_alias, edge.target_column),
+                join_type=edge.join_type,
+                right_alias=sec_alias,
+                is_cross_database=edge.is_cross_database,
+            )
+            joined_tables[sec_table] = sec_alias
+            joined_tables[sec_norm] = sec_alias
 
         # Ground Filters across primary and joined tables
+        lexicon_preds = lexicon.resolve_predicates(query, list(joined_tables.keys()))
+        for lp in lexicon_preds:
+            if not any(f.column.lower() == lp["column"].lower() for f in intent.filters):
+                intent.filters.append(
+                    ExtractedFilter(
+                        column=lp["column"],
+                        operator=lp["operator"].value.upper(),
+                        value=lp["value"],
+                    )
+                )
+
         for f in intent.filters:
             f_col = f.column.lower()
             target_alias = None
@@ -732,8 +641,8 @@ class LogicalPlanSynthesizer:
             else:
                 # Check joined tables
                 for t_name, t_alias in joined_tables.items():
-                    if t_name in table_lookup:
-                        _, t_obj = table_lookup[t_name]
+                    if t_name.lower() in table_lookup:
+                        _, t_obj = table_lookup[t_name.lower()]
                         if any(fld.name.lower() == f_col for fld in t_obj.fields):
                             target_alias = t_alias
                             break
@@ -768,6 +677,24 @@ class LogicalPlanSynthesizer:
         if not projected_any:
             for col in primary_obj.fields[:5]:
                 builder.project(primary_alias, col.name)
+
+        # Project key contextual fields from joined tables
+        for t_name, t_alias in joined_tables.items():
+            if t_alias == primary_alias or t_name.lower() not in table_lookup:
+                continue
+            _, t_obj = table_lookup[t_name.lower()]
+            t_fld_names = {f.name.lower(): f.name for f in t_obj.fields}
+            if t_name.lower() in ("products", "items"):
+                if "name" in t_fld_names:
+                    builder.project(t_alias, t_fld_names["name"], alias="item_name")
+            elif t_name.lower() == "order_items":
+                if "unit_price" in t_fld_names:
+                    builder.project(t_alias, t_fld_names["unit_price"])
+                if "quantity" in t_fld_names:
+                    builder.project(t_alias, t_fld_names["quantity"])
+            elif t_name.lower() == "orders":
+                if "order_date" in t_fld_names:
+                    builder.project(t_alias, t_fld_names["order_date"])
 
         # Order by
         ordered = False
