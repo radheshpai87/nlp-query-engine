@@ -47,6 +47,7 @@ export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  userQuery?: string;
   status?: "evaluating" | "clarifying" | "ready" | "executing" | "executed" | "error" | "conversational" | "guardrail";
   clarifications?: PendingClarification[];
   resolvedContext?: Record<string, unknown>;
@@ -141,6 +142,7 @@ export default function ChatPage() {
       content: "Inspecting schemas & evaluating ambiguity...",
       status: "evaluating",
       timestamp: "Just now",
+      userQuery: text,
     };
 
     setMessages((prev) => [...prev, userMessage, initialAssistantMessage]);
@@ -179,6 +181,7 @@ export default function ChatPage() {
       }
 
       let plan: Record<string, unknown> | undefined;
+      let planError: string | null = null;
       try {
         plan = await synthesizeLogicalPlan(
           currentWorkspace.id,
@@ -186,6 +189,7 @@ export default function ChatPage() {
           result.inferred_intent
         );
       } catch (err) {
+        planError = err instanceof Error ? err.message : "Failed to synthesize query plan.";
         console.warn("Synthesize plan fallback", err);
       }
 
@@ -203,6 +207,19 @@ export default function ChatPage() {
               resolvedContext: {},
               intent: result.inferred_intent,
               plan,
+            };
+          }
+
+          if (!plan) {
+            return {
+              ...msg,
+              status: "error",
+              content:
+                planError ||
+                `Could not generate a logical query plan for '${text}'. Please check the available database entities.`,
+              clarifications: [],
+              intent: result.inferred_intent,
+              plan: undefined,
             };
           }
 
@@ -312,30 +329,91 @@ export default function ChatPage() {
   };
 
   const handleCompilePlan = async (message: ChatMessage) => {
-    if (!message.plan) return;
+    // If dialect preview is already open, clicking toggles it closed
+    if (message.compilation) {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === message.id ? { ...msg, compilation: undefined } : msg
+        )
+      );
+      return;
+    }
+
     setActiveCompilingId(message.id);
     try {
-      const compilation = await compileLogicalPlan(currentWorkspace.id, message.plan);
+      let currentPlan = message.plan;
+      if (!currentPlan && message.userQuery) {
+        currentPlan = await synthesizeLogicalPlan(
+          currentWorkspace.id,
+          message.userQuery,
+          message.intent
+        );
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === message.id ? { ...msg, plan: currentPlan } : msg
+          )
+        );
+      }
+
+      if (!currentPlan) {
+        throw new Error("No logical query plan available to compile.");
+      }
+
+      const compilation = await compileLogicalPlan(currentWorkspace.id, currentPlan);
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === message.id ? { ...msg, compilation } : msg
         )
       );
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Compilation error", err);
+      const errorMessage = err instanceof Error ? err.message : "Dialect compilation failed.";
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === message.id
+            ? {
+                ...msg,
+                status: "error",
+                content: `${msg.content}\n\n⚠️ **Compilation Error:** ${errorMessage}`,
+              }
+            : msg
+        )
+      );
     } finally {
       setActiveCompilingId(null);
     }
   };
 
   const handleExecutePlan = async (message: ChatMessage) => {
-    if (!message.plan) return;
     setActiveExecutingId(message.id);
 
     try {
+      let currentPlan = message.plan;
+      if (!currentPlan && message.userQuery) {
+        currentPlan = await synthesizeLogicalPlan(
+          currentWorkspace.id,
+          message.userQuery,
+          message.intent
+        );
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === message.id ? { ...msg, plan: currentPlan } : msg
+          )
+        );
+      }
+
+      if (!currentPlan) {
+        throw new Error("No logical query plan available to execute.");
+      }
+
+      const queryText =
+        (currentPlan.query_text as string) ||
+        message.userQuery ||
+        "Executed query";
+
       const executionResult = await executeQueryPlan(currentWorkspace.id, {
-        logical_plan: message.plan,
-        natural_query: (message.plan.query_text as string) || "Executed query",
+        logical_plan: currentPlan,
+        natural_query: queryText,
       });
 
       setMessages((prev) =>
@@ -357,7 +435,7 @@ export default function ChatPage() {
             ? {
                 ...msg,
                 status: "error",
-                content: `Execution failed: ${errorMessage}`,
+                content: `${msg.content}\n\n⚠️ **Execution Error:** ${errorMessage}`,
               }
             : msg
         )
@@ -540,7 +618,7 @@ export default function ChatPage() {
                   )}
 
                   {/* Action Banner: View Dialect & Run Query */}
-                  {(message.status === "ready" || message.status === "executed") && (
+                  {(message.status === "ready" || message.status === "executed") && (message.plan || message.userQuery) && (
                     <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-[#10a37f]/30 bg-[#10a37f]/10 text-xs text-[#ececec]">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-[#10a37f] shrink-0" />
@@ -552,10 +630,20 @@ export default function ChatPage() {
                           variant="ghost"
                           onClick={() => handleCompilePlan(message)}
                           disabled={activeCompilingId === message.id}
-                          className="h-7 text-xs text-[#b4b4b4] hover:text-white hover:bg-[#2f2f2f] gap-1"
+                          className="h-7 text-xs text-[#b4b4b4] hover:text-white hover:bg-[#2f2f2f] gap-1.5"
                         >
-                          <Code2 className="h-3 w-3" />
-                          <span>{activeCompilingId === message.id ? "Compiling..." : "View Dialect"}</span>
+                          {activeCompilingId === message.id ? (
+                            <RefreshCw className="h-3 w-3 animate-spin text-[#10a37f]" />
+                          ) : (
+                            <Code2 className="h-3 w-3" />
+                          )}
+                          <span>
+                            {activeCompilingId === message.id
+                              ? "Compiling..."
+                              : message.compilation
+                              ? "Hide Dialect"
+                              : "View Dialect"}
+                          </span>
                         </Button>
 
                         {message.status !== "executed" && (
@@ -563,10 +651,14 @@ export default function ChatPage() {
                             size="sm"
                             onClick={() => handleExecutePlan(message)}
                             disabled={activeExecutingId === message.id}
-                            className="h-7 text-xs bg-[#10a37f] hover:bg-[#0d8a6c] text-white font-medium gap-1 rounded-lg"
+                            className="h-7 text-xs bg-[#10a37f] hover:bg-[#0d8a6c] text-white font-medium gap-1.5 rounded-lg shadow-sm"
                           >
-                            <Play className="h-3 w-3 fill-current" />
-                            <span>{activeExecutingId === message.id ? "Running..." : "Run Query"}</span>
+                            {activeExecutingId === message.id ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Play className="h-3 w-3 fill-current" />
+                            )}
+                            <span>{activeExecutingId === message.id ? "Running Query..." : "Run Query"}</span>
                           </Button>
                         )}
                       </div>

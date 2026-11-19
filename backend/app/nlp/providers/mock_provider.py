@@ -71,6 +71,22 @@ class MockLLMProvider(BaseLLMProvider):
                     }
                 )
 
+            if "customer" in lower_query:
+                return json.dumps(
+                    {
+                        "domain": "crm",
+                        "target_entities": ["customers"],
+                        "metrics": ["total_spend", "name"],
+                        "filters": [],
+                        "group_by": [],
+                        "order_by": [{"column": "total_spend", "direction": "desc"}],
+                        "ranking_limit": 20,
+                        "time_range": None,
+                        "is_ambiguous": False,
+                        "ambiguity_reason": None,
+                    }
+                )
+
             # Default generic intent JSON
             return json.dumps(
                 {

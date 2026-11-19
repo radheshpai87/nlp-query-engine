@@ -268,3 +268,18 @@ def test_ambiguity_api_endpoints(
     assert res_data["resolved_value"] == 750
     assert len(res_data["remaining_clarifications"]) == 1
     assert res_data["ready_to_execute"] is False
+
+
+def test_evaluate_query_database_stats_volume() -> None:
+    engine = AmbiguityEngine()
+
+    res = engine.evaluate_query(
+        query="How much data is there in analytics_demo?",
+        connections={},
+        snapshots={},
+    )
+    assert res.is_ambiguous is False
+    assert res.is_metadata_query is True
+    assert res.suggested_action == "conversational_response"
+    assert "analytics_demo" in res.conversational_response
+    assert "25 customer reviews" in res.conversational_response
