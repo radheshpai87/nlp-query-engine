@@ -8,18 +8,15 @@ import {
   Plus,
   Database,
   Network,
-  History,
   ShieldCheck,
   Settings,
   ChevronLeft,
   ChevronRight,
   Layers,
-  ChevronDown,
-  Check,
   Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useShellStore, type Workspace } from "@/lib/store";
+import { useShellStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusIndicator, type ConnectionStatus } from "@/components/ui/status-indicator";
@@ -45,11 +42,8 @@ export function Sidebar() {
     sidebarCollapsed,
     toggleSidebar,
     currentWorkspace,
-    workspaces,
-    setCurrentWorkspace,
   } = useShellStore();
 
-  const [workspaceDropdownOpen, setWorkspaceDropdownOpen] = React.useState(false);
   const [connections, setConnections] = React.useState<SidebarConnection[]>(defaultConnections);
 
   React.useEffect(() => {
@@ -91,52 +85,21 @@ export function Sidebar() {
           sidebarCollapsed ? "w-16" : "w-60"
         )}
       >
-        {/* Workspace Switcher Header */}
+        {/* Brand Header (Static & Clean - No Workspace Dropdown) */}
         <div className="flex h-14 items-center justify-between border-b border-[#262626] px-3">
           {!sidebarCollapsed ? (
-            <div className="relative w-full">
-              <button
-                type="button"
-                onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
-                className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-semibold text-[#ececec] hover:bg-[#212121] transition-colors"
-                aria-expanded={workspaceDropdownOpen}
-                aria-label="Switch workspace"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#212121] text-[#10a37f] border border-[#303030]">
-                    <Layers className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="truncate">{currentWorkspace.name}</span>
-                </div>
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#8e8e8e]" />
-              </button>
-
-              {/* Workspace Dropdown */}
-              {workspaceDropdownOpen && (
-                <div className="absolute left-0 top-12 z-50 w-52 rounded-lg border border-[#303030] bg-[#1e1e1e] p-1 shadow-xl animate-in fade-in-50">
-                  <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-[#8e8e8e]">
-                    Workspaces
-                  </div>
-                  {workspaces.map((ws: Workspace) => (
-                    <button
-                      key={ws.id}
-                      onClick={() => {
-                        setCurrentWorkspace(ws);
-                        setWorkspaceDropdownOpen(false);
-                      }}
-                      className={cn(
-                        "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs text-left transition-colors",
-                        ws.id === currentWorkspace.id
-                          ? "bg-[#2f2f2f] text-white font-medium"
-                          : "text-[#b4b4b4] hover:bg-[#262626] hover:text-white"
-                      )}
-                    >
-                      <span className="truncate">{ws.name}</span>
-                      {ws.id === currentWorkspace.id && <Check className="h-3.5 w-3.5 text-[#10a37f]" />}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="flex items-center gap-2.5 px-2 py-1.5 truncate">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#212121] text-[#10a37f] border border-[#303030]">
+                <Layers className="h-3.5 w-3.5" />
+              </div>
+              <div className="truncate">
+                <span className="text-xs font-semibold text-[#ececec] truncate block leading-tight">
+                  Enterprise Analytics
+                </span>
+                <span className="text-[10px] text-[#737373] block truncate">
+                  NLP Query Engine
+                </span>
+              </div>
             </div>
           ) : (
             <Tooltip>
@@ -146,8 +109,8 @@ export function Sidebar() {
                 </div>
               </TooltipTrigger>
               <TooltipContent side="right">
-                <p className="font-semibold">{currentWorkspace.name}</p>
-                <p className="text-xs text-[#8e8e8e]">Role: {currentWorkspace.role}</p>
+                <p className="font-semibold">Enterprise Analytics</p>
+                <p className="text-xs text-[#8e8e8e]">NLP Query Engine</p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -184,7 +147,7 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* Simplified Navigation List (Clean ChatGPT Style) */}
+        {/* Simplified Navigation List */}
         <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
           {navItems.map((item) => {
             const isActive =

@@ -360,19 +360,16 @@ export default function ChatPage() {
             <Menu className="h-4 w-4" />
           </Button>
 
-          {/* ChatGPT Model Selector Pill */}
-          <div className="flex items-center gap-2 rounded-xl px-2.5 py-1 hover:bg-[#2a2a2a] transition-colors cursor-pointer group">
+          {/* ChatGPT Model Badge */}
+          <div className="flex items-center gap-2 rounded-xl px-2.5 py-1 text-xs sm:text-sm font-semibold text-[#ececec]">
             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#10a37f] text-white">
               <Sparkles className="h-3 w-3" />
             </div>
-            <span className="text-xs sm:text-sm font-semibold text-[#ececec] group-hover:text-white">
-              Query Assistant
-            </span>
+            <span>Query Assistant</span>
             <span className="text-xs text-[#737373] hidden sm:inline">·</span>
             <span className="text-xs text-[#a3a3a3] font-normal hidden sm:inline">
-              {currentWorkspace.name}
+              Federated Engine
             </span>
-            <ChevronDown className="h-3 w-3 text-[#737373] group-hover:text-[#a3a3a3]" />
           </div>
         </div>
 
