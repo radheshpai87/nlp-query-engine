@@ -49,8 +49,8 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description="Ambiguity-Aware Natural Language Query Engine for Heterogeneous Databases",
         lifespan=lifespan,
-        docs_url="/docs" if settings.DEBUG or settings.APP_ENV != "production" else None,
-        redoc_url="/redoc" if settings.DEBUG or settings.APP_ENV != "production" else None,
+        docs_url="/docs",
+        redoc_url="/redoc",
     )
 
     # CORS configuration
