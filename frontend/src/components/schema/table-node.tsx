@@ -9,6 +9,7 @@ import { GraphNode } from "@/lib/schema-api";
 export type TableNodeProps = NodeProps & {
   data: GraphNode & {
     selectedField?: string;
+    connectedFields?: string[];
   };
 };
 
@@ -16,7 +17,7 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
   const isPostgres = data.database_type === "postgres";
   const isMongo = data.database_type === "mongodb";
 
-  const dbColor = isPostgres
+  const dbBadgeColor = isPostgres
     ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
     : isMongo
     ? "text-teal-400 bg-teal-500/10 border-teal-500/30"
@@ -24,46 +25,48 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
 
   const DbIcon = isPostgres ? Database : isMongo ? Layers : Search;
 
+  const connectedFieldsSet = new Set(data.connectedFields || []);
+
   return (
     <div
-      className={`min-w-[280px] max-w-[340px] rounded-xl border bg-[#181818] shadow-xl transition-all duration-200 ${
+      className={`w-[290px] min-w-[290px] max-w-[290px] rounded-xl border bg-[#14181c] shadow-2xl transition-all duration-200 select-none ${
         selected
-          ? "border-[#10a37f] ring-2 ring-[#10a37f]/30 shadow-[#10a37f]/10"
-          : "border-[#303030] hover:border-[#424242]"
+          ? "border-[#10a37f] ring-2 ring-[#10a37f]/40 shadow-[0_0_24px_rgba(16,163,127,0.2)]"
+          : "border-[#262d36] hover:border-[#38424d]"
       }`}
     >
-      {/* Target handle for incoming relationships */}
+      {/* Node-level target handle fallback */}
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-2.5 !h-2.5 !bg-[#10a37f] !border-2 !border-[#181818]"
+        className="!w-2.5 !h-2.5 !-left-[5px] !bg-[#10a37f] !border-2 !border-[#14181c] !opacity-0"
       />
 
       {/* Header */}
-      <div className="p-3.5 border-b border-[#2d2d2d] bg-[#1d1d1d] rounded-t-xl">
-        <div className="flex items-center justify-between gap-2 mb-1.5">
+      <div className="p-3 border-b border-[#262d36] bg-[#161a20] rounded-t-xl">
+        <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-2 truncate">
             <div
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${dbColor}`}
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${dbBadgeColor}`}
             >
               <DbIcon className="h-3.5 w-3.5" />
             </div>
-            <span className="font-mono text-xs font-bold text-[#ececec] truncate">
+            <span className="font-mono text-xs font-bold text-[#f4f4f5] truncate">
               {data.name}
             </span>
           </div>
 
           <Badge
             variant="outline"
-            className={`text-[9px] px-1.5 py-0 uppercase tracking-wider shrink-0 ${dbColor}`}
+            className={`text-[9px] px-1.5 py-0 uppercase font-mono font-bold tracking-wider shrink-0 ${dbBadgeColor}`}
           >
             {data.database_type}
           </Badge>
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-[#8e8e8e] px-0.5">
+        <div className="flex items-center justify-between text-[10px] text-[#71717a] px-0.5">
           <span className="truncate max-w-[150px]">{data.connection_name}</span>
-          <span>
+          <span className="font-mono">
             {data.row_count_estimate !== null && data.row_count_estimate !== undefined
               ? `${data.row_count_estimate.toLocaleString()} rows`
               : `${data.fields.length} cols`}
@@ -72,19 +75,35 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
       </div>
 
       {/* Fields List */}
-      <div className="divide-y divide-[#2a2a2a] max-h-[300px] overflow-y-auto">
+      <div className="divide-y divide-[#1e242c] max-h-[380px] overflow-y-auto">
         {data.fields.map((field) => {
           const isSelectedField = data.selectedField === field.name;
+          const isConnected =
+            connectedFieldsSet.has(field.name) ||
+            field.is_primary_key ||
+            field.is_foreign_key;
 
           return (
             <div
               key={field.name}
-              className={`relative flex items-center justify-between px-3.5 py-2 text-xs transition-colors ${
+              className={`relative flex items-center justify-between px-3.5 py-1.5 text-xs transition-colors group ${
                 isSelectedField
                   ? "bg-[#10a37f]/15 text-emerald-300 font-medium"
-                  : "hover:bg-[#242424] text-[#b4b4b4]"
+                  : "hover:bg-[#191e24] text-[#d4d4d8]"
               }`}
             >
+              {/* Individual Left Target Handle */}
+              <Handle
+                type="target"
+                position={Position.Left}
+                id={`${field.name}-target`}
+                className={`!w-2.5 !h-2.5 !-left-[5px] !rounded-full !border-2 !border-[#14181c] transition-all ${
+                  isConnected
+                    ? "!bg-[#10a37f] !shadow-[0_0_8px_rgba(16,163,127,0.7)] opacity-100"
+                    : "!bg-[#52525b] opacity-0 group-hover:opacity-100"
+                }`}
+              />
+
               <div className="flex items-center gap-1.5 truncate pr-2">
                 {field.is_primary_key && (
                   <Key className="h-3 w-3 shrink-0 text-amber-400" />
@@ -92,36 +111,34 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
                 {field.is_foreign_key && !field.is_primary_key && (
                   <LinkIcon className="h-3 w-3 shrink-0 text-emerald-400" />
                 )}
-                <span className="font-mono text-[11px] truncate text-[#ececec]">{field.name}</span>
+                <span className="font-mono text-[11px] truncate text-[#f4f4f5]">{field.name}</span>
               </div>
 
-              <span className="font-mono text-[10px] text-[#737373] shrink-0">
+              <span className="font-mono text-[10px] text-[#71717a] shrink-0 ml-auto">
                 {field.data_type}
               </span>
 
-              {/* Individual field handles for precise connection */}
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={`${field.name}-target`}
-                className="!w-2 !h-2 !-left-1 !bg-[#10a37f] !border !border-[#181818] opacity-0 group-hover:opacity-100"
-              />
+              {/* Individual Right Source Handle */}
               <Handle
                 type="source"
                 position={Position.Right}
                 id={`${field.name}-source`}
-                className="!w-2 !h-2 !-right-1 !bg-[#10a37f] !border !border-[#181818] opacity-0 group-hover:opacity-100"
+                className={`!w-2.5 !h-2.5 !-right-[5px] !rounded-full !border-2 !border-[#14181c] transition-all ${
+                  isConnected
+                    ? "!bg-[#10a37f] !shadow-[0_0_8px_rgba(16,163,127,0.7)] opacity-100"
+                    : "!bg-[#52525b] opacity-0 group-hover:opacity-100"
+                }`}
               />
             </div>
           );
         })}
       </div>
 
-      {/* Source handle for outgoing relationships */}
+      {/* Node-level source handle fallback */}
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-2.5 !h-2.5 !bg-[#10a37f] !border-2 !border-[#181818]"
+        className="!w-2.5 !h-2.5 !-right-[5px] !bg-[#10a37f] !border-2 !border-[#14181c] !opacity-0"
       />
     </div>
   );
