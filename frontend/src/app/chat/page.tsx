@@ -7,20 +7,20 @@ import {
   Sparkles,
   Send,
   RefreshCw,
-  Bot,
-  User,
-  CheckCircle2,
-  AlertTriangle,
   ShieldCheck,
   Play,
   Code2,
   Table as TableIcon,
   BarChart3,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Menu,
+  Terminal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/empty-state";
 import { useShellStore } from "@/lib/store";
 import {
   evaluateQueryAmbiguity,
@@ -71,7 +71,7 @@ function createMessageId(prefix: string): string {
 }
 
 export default function ChatPage() {
-  const currentWorkspace = useShellStore((state) => state.currentWorkspace);
+  const { currentWorkspace, setMobileSidebarOpen, mobileSidebarOpen } = useShellStore();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,6 +80,7 @@ export default function ChatPage() {
   const [activeCompilingId, setActiveCompilingId] = useState<string | null>(null);
   const [messageViewModes, setMessageViewModes] = useState<Record<string, "table" | "chart">>({});
   const [sourceCount, setSourceCount] = useState<number | null>(null);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     let ignore = false;
@@ -107,6 +108,12 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  React.useEffect(() => {
+    if (typeof messagesEndRef.current?.scrollIntoView === "function") {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
   const toggleMessageView = (messageId: string, mode: "table" | "chart") => {
     setMessageViewModes((prev) => ({ ...prev, [messageId]: mode }));
   };
@@ -129,7 +136,7 @@ export default function ChatPage() {
     const initialAssistantMessage: ChatMessage = {
       id: assistantMsgId,
       role: "assistant",
-      content: "Evaluating ambiguity and inspecting connected schemas...",
+      content: "Inspecting schemas & evaluating ambiguity...",
       status: "evaluating",
       timestamp: "Just now",
     };
@@ -250,26 +257,26 @@ export default function ChatPage() {
               ? {
                   ...c,
                   resolved: true,
-                  user_response: response.resolved_value,
+                  selected_value: response.resolved_value,
                 }
               : c
           );
 
-          const allDone = response.ready_to_execute;
+          const allResolved = updatedClarifications.every((c) => c.resolved);
 
           return {
             ...msg,
             clarifications: updatedClarifications,
             resolvedContext: updatedResolvedContext,
-            status: allDone ? "ready" : "clarifying",
             plan: updatedPlan,
-            content: allDone
+            status: allResolved ? "ready" : "clarifying",
+            content: allResolved
               ? "All parameters clarified. Ready to construct the logical query plan across your data sources."
               : msg.content,
           };
         })
       );
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Failed to resolve clarification", err);
     } finally {
       setResolvingId(null);
@@ -282,10 +289,12 @@ export default function ChatPage() {
     try {
       const compilation = await compileLogicalPlan(currentWorkspace.id, message.plan);
       setMessages((prev) =>
-        prev.map((m) => (m.id === message.id ? { ...m, compilation } : m))
+        prev.map((msg) =>
+          msg.id === message.id ? { ...msg, compilation } : msg
+        )
       );
     } catch (err) {
-      console.error("Compilation failed", err);
+      console.error("Compilation error", err);
     } finally {
       setActiveCompilingId(null);
     }
@@ -294,6 +303,7 @@ export default function ChatPage() {
   const handleExecutePlan = async (message: ChatMessage) => {
     if (!message.plan) return;
     setActiveExecutingId(message.id);
+
     try {
       const executionResult = await executeQueryPlan(currentWorkspace.id, {
         logical_plan: message.plan,
@@ -301,27 +311,27 @@ export default function ChatPage() {
       });
 
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === message.id
+        prev.map((msg) =>
+          msg.id === message.id
             ? {
-                ...m,
+                ...msg,
                 status: "executed",
                 executionResult,
               }
-            : m
+            : msg
         )
       );
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Execution failed";
+      const errorMessage = err instanceof Error ? err.message : "Execution failed";
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === message.id
+        prev.map((msg) =>
+          msg.id === message.id
             ? {
-                ...m,
+                ...msg,
                 status: "error",
-                content: `Execution error: ${msg}`,
+                content: `Execution failed: ${errorMessage}`,
               }
-            : m
+            : msg
         )
       );
     } finally {
@@ -335,25 +345,52 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#212121] text-[#ececec]">
-      {/* ChatGPT-style Subheader */}
-      <div className="flex h-12 items-center justify-between border-b border-[#2d2d2d] bg-[#212121] px-4 shrink-0">
+    <div className="flex flex-col h-full bg-[#212121] text-[#ececec] font-sans antialiased select-text">
+      {/* ChatGPT Single Sleek Topbar (No double headers!) */}
+      <header className="flex h-12 items-center justify-between border-b border-[#2d2d2d] bg-[#212121] px-3 sm:px-5 shrink-0 z-20">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2f2f2f] text-[#ececec]">
-            <Sparkles className="h-3.5 w-3.5 text-[#10a37f]" />
+          {/* Mobile sidebar toggle button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden h-8 w-8 text-[#ececec] hover:bg-[#2f2f2f]"
+            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            aria-label="Toggle navigation menu"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+
+          {/* ChatGPT Model Selector Pill */}
+          <div className="flex items-center gap-2 rounded-xl px-2.5 py-1 hover:bg-[#2a2a2a] transition-colors cursor-pointer group">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#10a37f] text-white">
+              <Sparkles className="h-3 w-3" />
+            </div>
+            <span className="text-xs sm:text-sm font-semibold text-[#ececec] group-hover:text-white">
+              Query Assistant
+            </span>
+            <span className="text-xs text-[#737373] hidden sm:inline">·</span>
+            <span className="text-xs text-[#a3a3a3] font-normal hidden sm:inline">
+              {currentWorkspace.name}
+            </span>
+            <ChevronDown className="h-3 w-3 text-[#737373] group-hover:text-[#a3a3a3]" />
           </div>
-          <span className="text-xs font-semibold text-[#ececec]">Query Assistant</span>
-          <span className="text-xs text-[#737373]">·</span>
-          <span className="text-xs text-[#b4b4b4]">{currentWorkspace.name}</span>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Read-Only Safety Badge */}
+          <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#10a37f]/10 border border-[#10a37f]/30 text-[#10a37f] text-[11px] font-medium">
+            <ShieldCheck className="h-3 w-3" />
+            <span>Read-Only Guard</span>
+          </div>
+
+          {/* Sources Count Pill */}
           <Badge
             variant="outline"
-            className={`text-[11px] font-normal py-0.5 border-[#383838] ${
+            className={`text-[11px] font-normal py-0.5 border-[#383838] hidden sm:flex ${
               sourceCount !== null && sourceCount > 0 ? "text-[#10a37f] bg-[#10a37f]/10" : "text-[#8e8e8e]"
             }`}
           >
-            <ShieldCheck className="h-3 w-3 mr-1 text-[#10a37f]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#10a37f] mr-1.5 animate-pulse" />
             <span>
               {sourceCount === null
                 ? "Checking sources..."
@@ -362,34 +399,50 @@ export default function ChatPage() {
                 : `${sourceCount} Connected Source${sourceCount > 1 ? "s" : ""}`}
             </span>
           </Badge>
+
+          {/* Single, Clear New Chat Button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleNewSession}
-            className="text-xs h-7 text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2f2f2f] gap-1.5"
+            className="text-xs h-7 text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2f2f2f] gap-1.5 rounded-lg px-2.5 transition-colors"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             <span>New Chat</span>
           </Button>
+
+          {/* API Docs Link */}
+          <a
+            href="http://localhost:8000/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:inline-flex text-[#8e8e8e] hover:text-white"
+          >
+            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#2f2f2f]">
+              <Terminal className="h-3.5 w-3.5" />
+            </Button>
+          </a>
         </div>
-      </div>
+      </header>
 
       {/* Main Conversation Stream */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto space-y-8 py-12">
+          /* Pure ChatGPT Empty State */
+          <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto space-y-8 py-10 animate-in fade-in duration-300">
             <div className="flex flex-col items-center space-y-3 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2f2f2f] text-[#10a37f] border border-[#383838] shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2a2a2a] text-[#10a37f] border border-[#383838] shadow-md">
                 <Sparkles className="h-6 w-6" />
               </div>
-              <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-[#ececec]">
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#ececec]">
                 What would you like to explore today?
               </h1>
-              <p className="text-xs md:text-sm text-[#8e8e8e] max-w-md">
+              <p className="text-xs sm:text-sm text-[#8e8e8e] max-w-md">
                 Ask any question across your connected databases. Ambiguities in metrics or dates will be clarified before execution.
               </p>
             </div>
 
+            {/* ChatGPT 2x2 Suggestion Cards */}
             <div className="w-full space-y-2.5">
               <p className="text-[11px] font-medium uppercase tracking-wider text-[#737373] text-center">
                 Suggested queries
@@ -400,20 +453,23 @@ export default function ChatPage() {
                     key={idx}
                     type="button"
                     onClick={() => handleSend(q)}
-                    className="p-3 text-left rounded-xl border border-[#303030] bg-[#212121] hover:bg-[#2a2a2a] hover:border-[#424242] text-xs text-[#b4b4b4] hover:text-[#ececec] transition-all"
+                    className="p-3.5 text-left rounded-2xl border border-[#2f2f2f] bg-[#212121] hover:bg-[#282828] hover:border-[#444444] text-xs text-[#b4b4b4] hover:text-[#ececec] transition-all shadow-xs group"
                   >
-                    {q}
+                    <div className="font-medium text-white group-hover:text-[#10a37f] transition-colors">
+                      {q}
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto space-y-6 pb-4">
+          /* Active Chat Thread */
+          <div className="max-w-3xl mx-auto space-y-6 pb-6">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex gap-3.5 ${
+                className={`flex gap-3.5 animate-in fade-in slide-in-from-bottom-2 duration-300 ${
                   message.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
@@ -424,22 +480,23 @@ export default function ChatPage() {
                 )}
 
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 space-y-3 ${
+                  className={`space-y-3 ${
                     message.role === "user"
-                      ? "bg-[#2f2f2f] text-[#ececec] rounded-tr-sm"
-                      : "bg-[#1e1e1e] border border-[#303030] text-[#ececec] rounded-tl-sm shadow-sm"
+                      ? "max-w-[80%] bg-[#2f2f2f] text-[#ececec] text-sm px-4 py-2.5 rounded-[22px] rounded-tr-md shadow-xs"
+                      : "flex-1 max-w-[90%] bg-[#1c1c1c] border border-[#2e2e2e] text-[#ececec] px-4 py-3.5 rounded-[22px] rounded-tl-md shadow-sm"
                   }`}
                 >
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
 
-                  {/* Status Banner */}
+                  {/* Thinking / Evaluating Animation */}
                   {message.status === "evaluating" && (
-                    <div className="flex items-center gap-2 text-xs text-[#8e8e8e] animate-pulse">
+                    <div className="flex items-center gap-2 text-xs text-[#8e8e8e] pt-1">
                       <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#10a37f]" />
                       <span>Inspecting schemas & ambiguity parameters...</span>
                     </div>
                   )}
 
+                  {/* Action Banner: View Dialect & Run Query */}
                   {(message.status === "ready" || message.status === "executed") && (
                     <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-[#10a37f]/30 bg-[#10a37f]/10 text-xs text-[#ececec]">
                       <div className="flex items-center gap-2">
@@ -463,7 +520,7 @@ export default function ChatPage() {
                             size="sm"
                             onClick={() => handleExecutePlan(message)}
                             disabled={activeExecutingId === message.id}
-                            className="h-7 text-xs bg-[#10a37f] hover:bg-[#0d8a6c] text-white font-medium gap-1"
+                            className="h-7 text-xs bg-[#10a37f] hover:bg-[#0d8a6c] text-white font-medium gap-1 rounded-lg"
                           >
                             <Play className="h-3 w-3 fill-current" />
                             <span>{activeExecutingId === message.id ? "Running..." : "Run Query"}</span>
@@ -473,6 +530,7 @@ export default function ChatPage() {
                     </div>
                   )}
 
+                  {/* Error Alert */}
                   {message.status === "error" && (
                     <div className="p-2.5 rounded-xl border border-red-500/40 bg-red-950/20 text-xs text-red-300 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
@@ -480,14 +538,14 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  {/* Dialect Preview if requested */}
+                  {/* Dialect Preview Drawer */}
                   {message.compilation && (
                     <div className="pt-2">
                       <QueryDialectPreview result={message.compilation} />
                     </div>
                   )}
 
-                  {/* Interactive Clarification Cards */}
+                  {/* Clarification Questions */}
                   {message.clarifications && message.clarifications.length > 0 && (
                     <div className="space-y-3 pt-2">
                       {message.clarifications.map((c) => (
@@ -570,12 +628,13 @@ export default function ChatPage() {
                 )}
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
 
-      {/* ChatGPT Minimalist Query Input Bar */}
-      <div className="p-4 bg-[#212121]">
+      {/* ChatGPT Signature Floating Input Pill Bar */}
+      <div className="p-4 bg-[#212121] border-t border-[#2a2a2a]/40">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -583,7 +642,7 @@ export default function ChatPage() {
           }}
           className="max-w-3xl mx-auto space-y-2"
         >
-          <div className="relative flex items-center rounded-2xl border border-[#383838] bg-[#2f2f2f] px-3 py-1 shadow-md focus-within:border-[#505050] transition-colors">
+          <div className="relative flex items-center rounded-[26px] border border-[#383838] bg-[#2f2f2f] px-3.5 py-1 shadow-lg focus-within:border-[#525252] transition-colors">
             <Input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -595,7 +654,7 @@ export default function ChatPage() {
               type="submit"
               disabled={isSubmitting || !inputValue.trim()}
               size="icon"
-              className="h-8 w-8 rounded-full bg-white text-black hover:bg-neutral-200 disabled:bg-[#404040] disabled:text-[#737373] shrink-0"
+              className="h-8 w-8 rounded-full bg-white text-black hover:bg-neutral-200 disabled:bg-[#404040] disabled:text-[#737373] shrink-0 transition-colors shadow-sm"
               aria-label="Send"
             >
               <Send className="h-3.5 w-3.5" />

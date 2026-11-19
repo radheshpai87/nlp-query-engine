@@ -18,14 +18,14 @@ export function AppShell({ children }: AppShellProps) {
   // Landing page at / is a standalone presentation
   if (pathname === "/") {
     return (
-      <div className="min-h-screen w-full overflow-y-auto overflow-x-hidden bg-[#171717] text-foreground font-sans">
+      <div className="min-h-screen w-full overflow-y-auto overflow-x-hidden bg-[#111111] text-foreground font-sans">
         {children}
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#212121] text-foreground">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex shrink-0">
         <Sidebar />
@@ -51,8 +51,9 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-        <Topbar />
-        <main className="flex-1 overflow-auto bg-background">
+        {/* On /chat, the chat page renders its own single ChatGPT header */}
+        {pathname !== "/chat" && <Topbar />}
+        <main className="flex-1 overflow-auto bg-[#212121]">
           {children}
         </main>
       </div>
