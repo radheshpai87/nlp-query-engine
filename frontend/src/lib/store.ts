@@ -26,13 +26,11 @@ export const useShellStore = create<ShellState>((set) => ({
   activeNav: "/chat",
   currentWorkspace: {
     id: "ws-default",
-    name: "Enterprise Analytics",
+    name: "Nexus Query",
     role: "admin",
   },
   workspaces: [
-    { id: "ws-default", name: "Enterprise Analytics", role: "admin" },
-    { id: "ws-finance", name: "Finance & Billing", role: "member" },
-    { id: "ws-ecommerce", name: "E-Commerce Operations", role: "member" },
+    { id: "ws-default", name: "Nexus Query", role: "admin" },
   ],
 
   toggleSidebar: () =>

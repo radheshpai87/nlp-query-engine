@@ -235,7 +235,7 @@ export default function LandingPage() {
             Core Architecture
           </div>
           <h2 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
-            Built for enterprise correctness & safety
+            Built for precision, correctness & safety
           </h2>
           <p className="text-xs text-[#777777]">
             Every query execution is grounded in deterministic metadata with zero silent assumptions.
@@ -390,7 +390,7 @@ export default function LandingPage() {
       <footer className="border-t border-[#202020] py-6 text-xs text-[#666666]">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-zinc-400 font-medium">Enterprise NLP Query Engine</span>
+            <span className="text-zinc-400 font-medium">Nexus Query</span>
             <span>·</span>
             <span>Local Instance (127.0.0.1)</span>
           </div>

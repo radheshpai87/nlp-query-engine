@@ -94,10 +94,10 @@ export function Sidebar() {
               </div>
               <div className="truncate">
                 <span className="text-xs font-semibold text-[#ececec] truncate block leading-tight">
-                  Enterprise Analytics
+                  Nexus Query
                 </span>
                 <span className="text-[10px] text-[#737373] block truncate">
-                  NLP Query Engine
+                  Natural Language Engine
                 </span>
               </div>
             </div>
@@ -109,8 +109,8 @@ export function Sidebar() {
                 </div>
               </TooltipTrigger>
               <TooltipContent side="right">
-                <p className="font-semibold">Enterprise Analytics</p>
-                <p className="text-xs text-[#8e8e8e]">NLP Query Engine</p>
+                <p className="font-semibold">Nexus Query</p>
+                <p className="text-xs text-[#8e8e8e]">Natural Language Engine</p>
               </TooltipContent>
             </Tooltip>
           )}

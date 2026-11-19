@@ -8,7 +8,7 @@ describe("Sidebar Component", () => {
     useShellStore.setState({ sidebarCollapsed: false });
     render(<Sidebar />);
 
-    expect(screen.getByText("Enterprise Analytics")).toBeInTheDocument();
+    expect(screen.getByText("Nexus Query")).toBeInTheDocument();
     expect(screen.getByText("New Chat")).toBeInTheDocument();
     expect(screen.getByText("New Conversation")).toBeInTheDocument();
     expect(screen.getByText("Schema Explorer")).toBeInTheDocument();
