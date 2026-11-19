@@ -16,36 +16,71 @@ class MockLLMProvider(BaseLLMProvider):
         """Register a custom trigger substring and corresponding response for deterministic testing."""
         self._custom_responses.append((pattern.lower(), response))
 
-    def _parse_query_intent(self, lower: str) -> dict[str, Any]:
+    def _parse_query_intent(self, lower: str, sys_msg: str = "") -> dict[str, Any]:
         """Dynamically extract structured query intent from any natural language question."""
         import re
 
+        # Discover any tables and columns passed dynamically from schema context
+        discovered_tables: list[str] = []
+        discovered_columns: list[str] = []
+        if sys_msg:
+            # Matches: - Table `customers`: id (integer ...), name (varchar ...), ...
+            for m in re.finditer(r"-\s+(?:Table|Collection|Index)\s+`([^`]+)`(?::\s*([^\n]+))?", sys_msg, re.IGNORECASE):
+                t_name = m.group(1).lower().strip()
+                discovered_tables.append(t_name)
+                cols_part = m.group(2) or ""
+                for col_m in re.finditer(r"(\w+)\s*\([^\)]+\)", cols_part):
+                    c_name = col_m.group(1).lower().strip()
+                    discovered_columns.append(c_name)
+
         # 1. Target entities
         entities: list[str] = []
+
+        # Check discovered tables from attached schemas first
+        for tbl in discovered_tables:
+            if (
+                tbl in lower
+                or (tbl.endswith("s") and tbl[:-1] in lower)
+                or (tbl.endswith("es") and tbl[:-2] in lower)
+                or f"{tbl}s" in lower
+            ):
+                if tbl not in entities:
+                    entities.append(tbl)
+
         if re.search(r"\b(customers?|users?|buyers?|clients?)\b", lower):
-            entities.append("customers")
+            if "customers" not in entities:
+                entities.append("customers")
         if re.search(r"\b(order_items?|line_items?)\b", lower):
-            entities.append("order_items")
+            if "order_items" not in entities:
+                entities.append("order_items")
         if re.search(r"\b(orders?|transactions?|checkouts?)\b", lower) or (
             re.search(r"\bpurchases?\b", lower) and "verified purchase" not in lower
         ):
-            entities.append("orders")
+            if "orders" not in entities:
+                entities.append("orders")
         if re.search(r"\b(products?|merchandise|goods|sku|items?)\b", lower):
             if "products" not in entities:
                 entities.append("products")
         if re.search(r"\b(reviews?|ratings?|feedback|comments?)\b", lower):
-            entities.append("reviews")
+            if "reviews" not in entities:
+                entities.append("reviews")
         if re.search(r"\b(catalog|search\s+index)\b", lower):
-            entities.append("catalog")
+            if "catalog" not in entities:
+                entities.append("catalog")
         if re.search(r"\b(access_logs?|server_logs?|status_code|response_time|endpoint)\b", lower) or (
             re.search(r"\blogs?\b", lower) and "catalog" not in lower
         ):
-            entities.append("access_logs")
+            if "access_logs" not in entities:
+                entities.append("access_logs")
         if re.search(r"\b(events?|telemetry)\b", lower):
-            entities.append("events")
+            if "events" not in entities:
+                entities.append("events")
 
         if not entities:
-            entities = ["products"]
+            if discovered_tables:
+                entities = [discovered_tables[0]]
+            else:
+                entities = ["products"]
 
         # 2. Filters
         filters: list[dict[str, Any]] = []
@@ -134,6 +169,27 @@ class MockLLMProvider(BaseLLMProvider):
                 break
 
         if not matched_col:
+            for col in discovered_columns:
+                if col in ("id", "created_at", "updated_at", "status", "category"):
+                    continue
+                m_col_num = re.search(rf"\b{re.escape(col)}\s*(>=|<=|>|<|=)\s*(\d+(?:\.\d+)?)", lower)
+                if m_col_num:
+                    op_sym = m_col_num.group(1)
+                    op_map = {">=": "gte", "<=": "lte", ">": "gt", "<": "lt", "=": "eq"}
+                    val = float(m_col_num.group(2)) if "." in m_col_num.group(2) else int(m_col_num.group(2))
+                    filters.append({"column": col, "operator": op_map.get(op_sym, "eq"), "value": val})
+                    matched_col = True
+                    break
+                # String equality: in department Sales, department = Sales, department is Sales
+                m_col_str = re.search(rf"\b(?:in\s+)?{re.escape(col)}\s*(?:=|is|\s)\s*['\"]?([a-zA-Z0-9_-]+)['\"]?", lower)
+                if m_col_str:
+                    val_str = m_col_str.group(1)
+                    if val_str not in ("is", "in", "the", "and", "or", "by", "from", "where", "group", "order", "asc", "desc", "of"):
+                        filters.append({"column": col, "operator": "eq", "value": val_str})
+                        matched_col = True
+                        break
+
+        if not matched_col:
             gen_m = re.search(r"\b(?:greater than|more than|over|above|>)\s*(\d+(?:\.\d+)?)\b", lower)
             if gen_m:
                 val = float(gen_m.group(1)) if "." in gen_m.group(1) else int(gen_m.group(1))
@@ -159,6 +215,13 @@ class MockLLMProvider(BaseLLMProvider):
             group_by.append("customer_id")
         if re.search(r"\b(?:by|per|each)\s+product\b", lower) and "category" not in lower:
             group_by.append("product_id")
+
+        # Dynamic group by for any discovered column
+        m_dynamic_group = re.search(r"\b(?:by|per|each)\s+([a-zA-Z_]\w*)\b", lower)
+        if m_dynamic_group:
+            col_cand = m_dynamic_group.group(1).lower()
+            if col_cand in discovered_columns and col_cand not in group_by:
+                group_by.append(col_cand)
 
         # Metrics
         metrics: list[str] = []
@@ -214,7 +277,7 @@ class MockLLMProvider(BaseLLMProvider):
 
         # Case 1: Intent Extraction (expects JSON)
         if "extract intent" in sys_msg.lower() or "json" in sys_msg.lower():
-            return json.dumps(self._parse_query_intent(lower_query))
+            return json.dumps(self._parse_query_intent(lower_query, sys_msg=sys_msg))
 
         # Case 2: Natural Language Explanation of Results
         if "explain result" in sys_msg.lower() or "explanation" in sys_msg.lower():

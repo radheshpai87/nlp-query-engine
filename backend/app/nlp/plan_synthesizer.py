@@ -106,9 +106,13 @@ class LogicalPlanSynthesizer:
         if intent.group_by:
             group_col = intent.group_by[0]
         else:
-            m_group = re.search(r"\b(?:by|per|each)\s+(country|category|status|rating|product|customer)\b", lower_q)
+            m_group = re.search(r"\b(?:by|per|each)\s+([a-zA-Z_]\w*)\b", lower_q)
             if m_group:
-                group_col = m_group.group(1)
+                cand = m_group.group(1).lower()
+                for t_name, (c_id, obj) in table_lookup.items():
+                    if any(f.name.lower() == cand for f in obj.fields):
+                        group_col = cand
+                        break
 
         if group_col:
             # 2a. Group by Category
@@ -208,6 +212,42 @@ class LogicalPlanSynthesizer:
                 builder.project("rev", "rating")
                 builder.aggregate(AggregateFunction.COUNT, "rev", "_id", "review_count")
                 builder.sort(("rev", "rating"), direction=SortDirection.DESC)
+                builder.limit(intent.ranking_limit or 20)
+                return builder.build()
+
+            # 2e. Universal Dynamic Group By for any arbitrary table and column
+            matching_table = None
+            for entity in intent.target_entities:
+                norm_ent = entity.lower().strip()
+                if norm_ent in table_lookup:
+                    c_id, obj = table_lookup[norm_ent]
+                    if any(f.name.lower() == group_col.lower() for f in obj.fields):
+                        matching_table = (c_id, obj.name, obj)
+                        break
+                elif norm_ent.endswith("s") and norm_ent[:-1] in table_lookup:
+                    c_id, obj = table_lookup[norm_ent[:-1]]
+                    if any(f.name.lower() == group_col.lower() for f in obj.fields):
+                        matching_table = (c_id, obj.name, obj)
+                        break
+            if not matching_table:
+                for t_name, (c_id, obj) in table_lookup.items():
+                    if any(f.name.lower() == group_col.lower() for f in obj.fields):
+                        matching_table = (c_id, obj.name, obj)
+                        break
+            if matching_table:
+                c_id, t_name, obj = matching_table
+                alias = ALIAS_MAP.get(t_name, t_name[:3])
+                builder.from_source(connection_id=c_id, source_name=t_name, alias=alias)
+                builder.group_by(alias, group_col)
+                builder.project(alias, group_col)
+                pk_col = next((f.name for f in obj.fields if f.is_primary_key), obj.fields[0].name)
+                builder.aggregate(AggregateFunction.COUNT, alias, pk_col, f"{t_name}_count")
+                for fld in obj.fields:
+                    f_name = fld.name.lower()
+                    if f_name != group_col.lower() and f_name in ("salary", "amount", "total", "price", "revenue", "cost", "quantity"):
+                        builder.aggregate(AggregateFunction.AVG, alias, fld.name, f"avg_{fld.name}")
+                        break
+                builder.sort(f"{t_name}_count", direction=SortDirection.DESC)
                 builder.limit(intent.ranking_limit or 20)
                 return builder.build()
 
@@ -448,9 +488,10 @@ class LogicalPlanSynthesizer:
                 c_id, s_obj = table_lookup[first_tbl]
                 chosen_sources.append((c_id, s_obj.name, s_obj))
             else:
+                available = ", ".join(table_lookup.keys()) if table_lookup else "None"
                 raise AppError(
                     f"No database tables or collections matched your query '{query}'. "
-                    "Available entities in your workspace: products, orders, customers, reviews, catalog, access_logs."
+                    f"Available entities in your workspace: {available}."
                 )
 
         primary_conn_id, primary_table, primary_obj = chosen_sources[0]
@@ -492,6 +533,53 @@ class LogicalPlanSynthesizer:
                     joined_tables[sec_table] = sec_alias
                     joined = True
                     break
+
+            if not joined:
+                # Check introspected foreign keys on primary_obj and _sec_obj
+                for rel in getattr(primary_obj, "relationships", []):
+                    if rel.target_table == sec_table and rel.source_fields and rel.target_fields:
+                        builder.join(
+                            right_connection_id=sec_conn_id,
+                            right_source_name=sec_table,
+                            left_col=(primary_alias, rel.source_fields[0]),
+                            right_col=(sec_alias, rel.target_fields[0]),
+                            join_type=JoinType.INNER,
+                            right_alias=sec_alias,
+                            is_cross_database=primary_conn_id != sec_conn_id,
+                        )
+                        joined_tables[sec_table] = sec_alias
+                        joined = True
+                        break
+                    elif rel.source_table == sec_table and rel.source_fields and rel.target_fields:
+                        builder.join(
+                            right_connection_id=sec_conn_id,
+                            right_source_name=sec_table,
+                            left_col=(primary_alias, rel.target_fields[0]),
+                            right_col=(sec_alias, rel.source_fields[0]),
+                            join_type=JoinType.INNER,
+                            right_alias=sec_alias,
+                            is_cross_database=primary_conn_id != sec_conn_id,
+                        )
+                        joined_tables[sec_table] = sec_alias
+                        joined = True
+                        break
+
+            if not joined:
+                for rel in getattr(_sec_obj, "relationships", []):
+                    if rel.target_table == primary_table and rel.source_fields and rel.target_fields:
+                        builder.join(
+                            right_connection_id=sec_conn_id,
+                            right_source_name=sec_table,
+                            left_col=(primary_alias, rel.target_fields[0]),
+                            right_col=(sec_alias, rel.source_fields[0]),
+                            join_type=JoinType.INNER,
+                            right_alias=sec_alias,
+                            is_cross_database=primary_conn_id != sec_conn_id,
+                        )
+                        joined_tables[sec_table] = sec_alias
+                        joined = True
+                        break
+
             if not joined and relationships:
                 for rel in relationships:
                     if rel.source_table == primary_table and rel.target_table == sec_table:
@@ -505,7 +593,62 @@ class LogicalPlanSynthesizer:
                             is_cross_database=primary_conn_id != sec_conn_id,
                         )
                         joined_tables[sec_table] = sec_alias
+                        joined = True
                         break
+                    elif rel.target_table == primary_table and rel.source_table == sec_table:
+                        builder.join(
+                            right_connection_id=sec_conn_id,
+                            right_source_name=sec_table,
+                            left_col=(primary_alias, rel.target_fields[0]),
+                            right_col=(sec_alias, rel.source_fields[0]),
+                            join_type=JoinType.INNER,
+                            right_alias=sec_alias,
+                            is_cross_database=primary_conn_id != sec_conn_id,
+                        )
+                        joined_tables[sec_table] = sec_alias
+                        joined = True
+                        break
+
+            if not joined:
+                # Common naming convention fallback: sec_table has primary_id or primary_table_id
+                sec_field_names = {f.name.lower(): f.name for f in _sec_obj.fields}
+                prim_field_names = {f.name.lower(): f.name for f in primary_obj.fields}
+
+                prim_singular = primary_table[:-1] if primary_table.endswith("s") else primary_table
+                sec_singular = sec_table[:-1] if sec_table.endswith("s") else sec_table
+
+                cand_fks = [f"{prim_singular}_id", f"{primary_table}_id"]
+                for fk in cand_fks:
+                    if fk in sec_field_names and "id" in prim_field_names:
+                        builder.join(
+                            right_connection_id=sec_conn_id,
+                            right_source_name=sec_table,
+                            left_col=(primary_alias, prim_field_names["id"]),
+                            right_col=(sec_alias, sec_field_names[fk]),
+                            join_type=JoinType.INNER,
+                            right_alias=sec_alias,
+                            is_cross_database=primary_conn_id != sec_conn_id,
+                        )
+                        joined_tables[sec_table] = sec_alias
+                        joined = True
+                        break
+
+                if not joined:
+                    rev_cand_fks = [f"{sec_singular}_id", f"{sec_table}_id"]
+                    for fk in rev_cand_fks:
+                        if fk in prim_field_names and "id" in sec_field_names:
+                            builder.join(
+                                right_connection_id=sec_conn_id,
+                                right_source_name=sec_table,
+                                left_col=(primary_alias, prim_field_names[fk]),
+                                right_col=(sec_alias, sec_field_names["id"]),
+                                join_type=JoinType.INNER,
+                                right_alias=sec_alias,
+                                is_cross_database=primary_conn_id != sec_conn_id,
+                            )
+                            joined_tables[sec_table] = sec_alias
+                            joined = True
+                            break
 
         # Ground Filters across primary and joined tables
         for f in intent.filters:

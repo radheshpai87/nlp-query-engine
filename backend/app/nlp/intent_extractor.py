@@ -213,6 +213,28 @@ class IntentExtractor:
                 elif isinstance(sort_val, list):
                     data["order_by"] = sort_val
 
-            return ExtractedIntent.model_validate(data)
+            extracted = ExtractedIntent.model_validate(data)
+
+            # Ground target entities with attached schema snapshots
+            snap_list: list[SchemaSnapshot] = []
+            if isinstance(snapshots, dict):
+                snap_list = list(snapshots.values())
+            elif isinstance(snapshots, list):
+                snap_list = snapshots
+
+            if snap_list:
+                known_tbls = {obj.name.lower(): obj.name for s in snap_list for obj in s.objects}
+                lower_q = query.lower()
+                for tbl_lower, real_name in known_tbls.items():
+                    if (
+                        tbl_lower in lower_q
+                        or (tbl_lower.endswith("s") and tbl_lower[:-1] in lower_q)
+                        or (tbl_lower.endswith("es") and tbl_lower[:-2] in lower_q)
+                        or f"{tbl_lower}s" in lower_q
+                    ):
+                        if real_name not in extracted.target_entities and tbl_lower not in extracted.target_entities:
+                            extracted.target_entities.insert(0, real_name)
+
+            return extracted
         except Exception:
             return self._rule_based_fallback(query=query, snapshots=snapshots)

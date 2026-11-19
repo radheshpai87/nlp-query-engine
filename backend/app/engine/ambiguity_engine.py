@@ -20,38 +20,70 @@ class AmbiguityEngine:
         connections: dict[str, DatabaseConnection],
         snapshots: dict[str, SchemaSnapshot],
     ) -> str:
-        count = len(connections) if connections else 3
-        return (
-            f"There are **{count} connected databases** currently active in your cluster:\n\n"
-            "1. **PostgreSQL 16** (`ecommerce_demo` on port 5432)\n"
-            "   • **Type**: Relational SQL Database\n"
-            "   • **Tables**: `customers`, `orders`, `order_items`, `products`\n"
-            "   • **Use Case**: Relational transactional records, foreign keys, customer profiles.\n\n"
-            "2. **MongoDB 7.0** (`analytics_demo` on port 27018)\n"
-            "   • **Type**: Document NoSQL Database\n"
-            "   • **Collections**: `reviews`\n"
-            "   • **Use Case**: Customer product reviews, ratings, and unstructured sentiment feedback.\n\n"
-            "3. **Elasticsearch 8.13** (`catalog_demo` on port 9200)\n"
-            "   • **Type**: Distributed Full-Text Search Engine\n"
-            "   • **Indices**: `catalog`\n"
-            "   • **Use Case**: High-performance full-text search, categories, and inventory stock.\n\n"
-            "💡 *You can ask me to query any of these databases or perform cross-database federated joins!*"
-        )
+        count = len(connections) if connections else len(snapshots)
+        if not connections and not snapshots:
+            return (
+                "There are currently **no connected databases** active in this workspace.\n\n"
+                "Use the Connections panel or API to attach PostgreSQL, MongoDB, or Elasticsearch data sources."
+            )
 
-    def _format_tables_response(self, snapshots: dict[str, SchemaSnapshot]) -> str:
-        return (
-            "Here are the active tables and collections across your connected databases:\n\n"
-            "• **PostgreSQL (`ecommerce_demo`)**:\n"
-            "  - `customers` (`id`, `name`, `email`, `country`, `created_at`)\n"
-            "  - `orders` (`id`, `customer_id`, `total_amount`, `payment_status`, `status`, `created_at`)\n"
-            "  - `order_items` (`id`, `order_id`, `product_id`, `quantity`, `unit_price`)\n"
-            "  - `products` (`id`, `sku`, `name`, `category`, `price`, `stock_quantity`, `created_at`)\n\n"
-            "• **MongoDB (`analytics_demo`)**:\n"
-            "  - `reviews` (`_id`, `product_id`, `customer_name`, `rating`, `title`, `comment`, `verified_purchase`)\n\n"
-            "• **Elasticsearch (`catalog_demo`)**:\n"
-            "  - `catalog` (`_id`, `product_id`, `sku`, `category`, `description`, `price`, `in_stock`, `ratings_average`)\n\n"
-            "💡 *You can query any table or ask for cross-database comparisons!*"
-        )
+        lines = [f"There are **{count} connected database{'s' if count != 1 else ''}** currently active in your cluster:\n"]
+        idx = 1
+        for conn_id, conn in connections.items():
+            snap = snapshots.get(conn_id)
+            db_type = conn.db_type.value.capitalize()
+            db_name = conn.name
+            host = conn.host
+            port = conn.port
+            objs = snap.objects if snap else []
+            table_names = [f"`{obj.name}`" for obj in objs]
+            tables_display = ", ".join(table_names) if table_names else "*No tables or collections discovered yet*"
+
+            type_label = (
+                "Relational SQL Database"
+                if conn.db_type.value == "postgres"
+                else ("Document NoSQL Database" if conn.db_type.value == "mongo" else "Distributed Full-Text Search Engine")
+            )
+
+            lines.append(
+                f"{idx}. **{db_name}** (`{conn.database or db_name}` on port {port})\n"
+                f"   • **Type**: {type_label}\n"
+                f"   • **Entities**: {tables_display}"
+            )
+            idx += 1
+
+        lines.append("\n💡 *You can ask me to query any of these databases or perform cross-database federated joins!*")
+        return "\n".join(lines)
+
+    def _format_tables_response(
+        self,
+        snapshots: dict[str, SchemaSnapshot],
+        connections: dict[str, DatabaseConnection] | None = None,
+    ) -> str:
+        if not snapshots:
+            return "No active tables or collections found. Please ensure your databases are connected and introspected."
+
+        conns = connections or {}
+        lines = ["Here are the active tables and collections across your connected databases:\n"]
+
+        for conn_id, snap in snapshots.items():
+            conn = conns.get(conn_id)
+            conn_display = conn.name if conn else conn_id
+            db_type = conn.db_type.value.capitalize() if conn else "Database"
+            lines.append(f"• **{db_type} (`{conn_display}`)**:")
+            if not snap.objects:
+                lines.append("  - *(No tables discovered)*")
+            else:
+                for obj in snap.objects:
+                    col_names = [f"`{f.name}`" for f in obj.fields[:7]]
+                    cols_str = ", ".join(col_names)
+                    if len(obj.fields) > 7:
+                        cols_str += f", +{len(obj.fields) - 7} more"
+                    lines.append(f"  - `{obj.name}` ({cols_str})")
+            lines.append("")
+
+        lines.append("💡 *You can query any table or ask for cross-database comparisons!*")
+        return "\n".join(lines)
 
     def evaluate_query(
         self,
@@ -132,7 +164,7 @@ class AmbiguityEngine:
         # Asking about tables / collections / schema
         if (
             re.search(
-                r"\b(what\s+tables?|show\s+tables?|list\s+tables?|which\s+tables?|available\s+tables?|what\s+collections?|show\s+collections?|list\s+collections?|show\s+schema|what\s+schema|available\s+entities|what\s+can\s+i\s+query)\b",
+                r"\b(what\s+tables?|show\s+tables?|list\s+tables?|which\s+tables?|available\s+tables?|what\s+collections?|show\s+collections?|list\s+collections?|show\s+schema|what\s+schema|available\s+entities|what\s+can\s+i\s+query|tables?\s+(exsist|exist|in|present)|what\s+tables?\s+(exsist|exist))\b",
                 lower_query,
             )
             or lower_query in ("tables", "tables?", "collections", "schema", "schemas")
@@ -144,31 +176,35 @@ class AmbiguityEngine:
                 inferred_intent={"raw_query": clean_query, "category": "metadata_tables"},
                 suggested_action="conversational_response",
                 is_metadata_query=True,
-                conversational_response=self._format_tables_response(snapshots),
+                conversational_response=self._format_tables_response(snapshots, connections),
             )
 
         # Database specific stats or data volume inquiries
         if (
             re.search(
-                r"\b(how\s+much\s+data|how\s+many\s+records|how\s+many\s+rows|how\s+many\s+documents|what\s+data|tell\s+me\s+about|data\s+in)\b",
+                r"\b(how\s+much\s+data|how\s+many\s+records|how\s+many\s+rows|how\s+many\s+documents|what\s+data|tell\s+me\s+about|data\s+in|cluster\s+data|total\s+data|data\s+volume|volume\s+of\s+data)\b",
                 lower_query,
             )
             or (
                 any(
-                    db_k in lower_query
-                    for db_k in (
-                        "analytics_demo",
-                        "ecommerce_demo",
-                        "catalog_demo",
-                    )
+                    c.name.lower() in lower_query or (c.database and c.database.lower() in lower_query)
+                    for c in connections.values()
                 )
                 and any(
                     stat_k in lower_query
                     for stat_k in ("how much", "how many", "count", "size", "data", "records", "volume")
                 )
             )
+            or any(db_k in lower_query for db_k in ("analytics_demo", "ecommerce_demo", "catalog_demo"))
         ):
-            if "analytics_demo" in lower_query or "analytics" in lower_query or "mongo" in lower_query:
+            # 1. Specialized support for demo databases if queried by name
+            if "analytics_demo" in lower_query or (lower_query.startswith("how much data") and "analytics" in lower_query):
+                reviews_count = "25"
+                for cid, conn in connections.items():
+                    if "analytics" in conn.name.lower() and cid in snapshots:
+                        for obj in snapshots[cid].objects:
+                            if "review" in obj.name.lower() and obj.row_count_estimate is not None:
+                                reviews_count = f"{obj.row_count_estimate:,}"
                 return AmbiguityEvaluationResult(
                     is_ambiguous=False,
                     confidence=1.0,
@@ -181,7 +217,7 @@ class AmbiguityEngine:
                         "Here is the data breakdown for the `analytics_demo` database:\n\n"
                         "• **Database Engine**: MongoDB 7.0 (NoSQL Document Store on port 27018)\n"
                         "• **Collection**: `reviews`\n"
-                        "• **Document Count**: **25 customer reviews**\n"
+                        f"• **Document Count**: **{reviews_count} customer reviews**\n"
                         "• **Attributes**: `product_id`, `customer_name`, `rating` (1–5), `title`, `comment`, `verified_purchase`\n"
                         "• **Average Rating**: **4.48 / 5.00** across all verified product reviews\n\n"
                         "💡 *Sample queries you can ask right now:*\n"
@@ -190,7 +226,8 @@ class AmbiguityEngine:
                         "• *\"Find customer reviews with rating below 3\"*"
                     ),
                 )
-            if "ecommerce_demo" in lower_query or "ecommerce" in lower_query or "postgres" in lower_query:
+
+            if "ecommerce_demo" in lower_query or (lower_query.startswith("how much data") and "ecommerce" in lower_query):
                 return AmbiguityEvaluationResult(
                     is_ambiguous=False,
                     confidence=1.0,
@@ -213,7 +250,8 @@ class AmbiguityEngine:
                         "• *\"What is total revenue across all completed orders?\"*"
                     ),
                 )
-            if "catalog_demo" in lower_query or "catalog" in lower_query or "elasticsearch" in lower_query:
+
+            if "catalog_demo" in lower_query or (lower_query.startswith("how much data") and "catalog" in lower_query):
                 return AmbiguityEvaluationResult(
                     is_ambiguous=False,
                     confidence=1.0,
@@ -233,6 +271,67 @@ class AmbiguityEngine:
                         "• *\"Show catalog items sorted by ratings_average descending\"*"
                     ),
                 )
+
+            # 2. Dynamic check for any newly attached database connection
+            target_conn_id = None
+            target_conn = None
+            for cid, conn in connections.items():
+                if (
+                    conn.name.lower() in lower_query
+                    or (conn.database and conn.database.lower() in lower_query)
+                    or (conn.db_type.value in lower_query and len(connections) == 1)
+                ):
+                    target_conn_id = cid
+                    target_conn = conn
+                    break
+
+            if target_conn and target_conn_id in snapshots:
+                snap = snapshots[target_conn_id]
+                total_recs = sum(obj.row_count_estimate or 0 for obj in snap.objects)
+                lines = [
+                    f"📊 **Database Breakdown: `{target_conn.name}`**\n",
+                    f"• **Database Engine**: {target_conn.db_type.value.capitalize()} on port {target_conn.port}",
+                    f"• **Estimated Total Records**: **{total_recs:,} records** across {len(snap.objects)} entities:\n",
+                ]
+                for obj in snap.objects:
+                    recs = f"{obj.row_count_estimate:,} rows/docs" if obj.row_count_estimate is not None else "discovered"
+                    fields_sample = ", ".join(f"`{f.name}`" for f in obj.fields[:5])
+                    lines.append(f"  - `{obj.name}`: **{recs}** (Fields: {fields_sample})")
+                lines.append(f"\n💡 *You can query `{target_conn.name}` directly or join with other sources!*")
+
+                return AmbiguityEvaluationResult(
+                    is_ambiguous=False,
+                    confidence=1.0,
+                    clarifications=[],
+                    inferred_intent={"raw_query": clean_query, "category": f"metadata_{target_conn.name}"},
+                    suggested_action="conversational_response",
+                    is_metadata_query=True,
+                    conversational_response="\n".join(lines),
+                )
+
+            # 3. Overall cluster volume across all connected databases
+            total_records = sum(
+                sum(obj.row_count_estimate or 0 for obj in snap.objects)
+                for snap in snapshots.values()
+            )
+            count = len(connections) if connections else len(snapshots)
+            lines = [
+                "📊 **Cluster Data Volume Breakdown**\n",
+                f"Your cluster contains **~{total_records:,} total records** distributed across {count} connected database(s):\n",
+            ]
+            c_idx = 1
+            for cid, conn in connections.items():
+                snap = snapshots.get(cid)
+                objs = snap.objects if snap else []
+                conn_recs = sum(obj.row_count_estimate or 0 for obj in objs)
+                lines.append(f"{c_idx}. **{conn.name}** ({conn.db_type.value.capitalize()}): **~{conn_recs:,} records**")
+                for obj in objs:
+                    r_str = f"~{obj.row_count_estimate:,} records" if obj.row_count_estimate is not None else ""
+                    lines.append(f"   • `{obj.name}`: {r_str}")
+                lines.append("")
+                c_idx += 1
+
+            lines.append("💡 *You can query any table or ask for cross-database analytics!*")
             return AmbiguityEvaluationResult(
                 is_ambiguous=False,
                 confidence=1.0,
@@ -240,20 +339,7 @@ class AmbiguityEngine:
                 inferred_intent={"raw_query": clean_query, "category": "metadata_cluster_volume"},
                 suggested_action="conversational_response",
                 is_metadata_query=True,
-                conversational_response=(
-                    "📊 **Cluster Data Volume Breakdown**\n\n"
-                    "Your cluster contains **125 total records** distributed across 3 heterogeneous databases:\n\n"
-                    "1. **PostgreSQL (`ecommerce_demo`)**: **80 rows**\n"
-                    "   • `customers`: 20 rows\n"
-                    "   • `orders`: 15 rows\n"
-                    "   • `order_items`: 25 rows\n"
-                    "   • `products`: 20 rows\n\n"
-                    "2. **MongoDB (`analytics_demo`)**: **25 documents**\n"
-                    "   • `reviews`: 25 customer feedback documents\n\n"
-                    "3. **Elasticsearch (`catalog_demo`)**: **20 documents**\n"
-                    "   • `catalog`: 20 search catalog documents\n\n"
-                    "💡 *You can query any table or ask for cross-database analytics!*"
-                ),
+                conversational_response="\n".join(lines),
             )
 
         # Friendly greeting or help
@@ -305,6 +391,14 @@ class AmbiguityEngine:
 
         if unknown_entity_match and not has_known_entity:
             missing_term = unknown_entity_match.group(1)
+            avail_lines = []
+            for cid, conn in connections.items():
+                snap = snapshots.get(cid)
+                if snap and snap.objects:
+                    tbl_list = ", ".join(f"`{obj.name}`" for obj in snap.objects)
+                    avail_lines.append(f"• **{conn.name}** ({conn.db_type.value.capitalize()}): {tbl_list}")
+            avail_str = "\n".join(avail_lines) if avail_lines else "• *No connected tables found*"
+
             return AmbiguityEvaluationResult(
                 is_ambiguous=False,
                 confidence=1.0,
@@ -316,9 +410,7 @@ class AmbiguityEngine:
                     "🔍 **Entity Not Found in Connected Databases**\n\n"
                     f"I cannot answer this question because no `{missing_term}` table or collection exists in your connected databases.\n\n"
                     "**Available entities in this workspace:**\n"
-                    "• **PostgreSQL**: `customers`, `orders`, `order_items`, `products`\n"
-                    "• **MongoDB**: `reviews`\n"
-                    "• **Elasticsearch**: `catalog`\n\n"
+                    f"{avail_str}\n\n"
                     "Please rephrase your query referencing one of the available data sources."
                 ),
             )
