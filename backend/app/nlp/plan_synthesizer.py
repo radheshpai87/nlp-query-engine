@@ -391,6 +391,77 @@ class LogicalPlanSynthesizer:
             return builder.build()
 
         # --------------------------------------------------------------------
+        # Pattern 4b: Customer Purchases of Specific Items / Price Thresholds
+        # e.g. "I want to know if a certain customer has bought an item less than 100?",
+        # "Customers who bought items under 50"
+        # --------------------------------------------------------------------
+        if (
+            ("customer" in lower_q or "customers" in lower_q or "buyer" in lower_q)
+            and any(k in lower_q for k in ("bought", "purchased", "ordered", "buy"))
+            and any(k in lower_q for k in ("item", "items", "product", "products", "goods", "less than", "under", "below", "cheaper", "<", ">", "more than"))
+            and "customers" in table_lookup
+            and "orders" in table_lookup
+            and "order_items" in table_lookup
+            and "products" in table_lookup
+        ):
+            cust_conn_id, _ = table_lookup["customers"]
+            orders_conn_id, _ = table_lookup["orders"]
+            oi_conn_id, _ = table_lookup["order_items"]
+            prod_conn_id, _ = table_lookup["products"]
+
+            builder.from_source(connection_id=cust_conn_id, source_name="customers", alias="c")
+            builder.join(
+                right_connection_id=orders_conn_id,
+                right_source_name="orders",
+                left_col=("c", "id"),
+                right_col=("o", "customer_id"),
+                join_type=JoinType.INNER,
+                right_alias="o",
+            )
+            builder.join(
+                right_connection_id=oi_conn_id,
+                right_source_name="order_items",
+                left_col=("o", "id"),
+                right_col=("oi", "order_id"),
+                join_type=JoinType.INNER,
+                right_alias="oi",
+            )
+            builder.join(
+                right_connection_id=prod_conn_id,
+                right_source_name="products",
+                left_col=("oi", "product_id"),
+                right_col=("p", "id"),
+                join_type=JoinType.INNER,
+                right_alias="p",
+            )
+
+            # Price comparison on item purchase price
+            price_limit_match = re.search(r"\b(?:less than|under|below|<)\s*(\d+(?:\.\d+)?)\b", lower_q)
+            price_limit_gt = re.search(r"\b(?:more than|over|above|>)\s*(\d+(?:\.\d+)?)\b", lower_q)
+            if price_limit_match:
+                val = float(price_limit_match.group(1)) if "." in price_limit_match.group(1) else int(price_limit_match.group(1))
+                builder.filter("oi", "unit_price", ComparisonOperator.LT, val)
+            elif price_limit_gt:
+                val = float(price_limit_gt.group(1)) if "." in price_limit_gt.group(1) else int(price_limit_gt.group(1))
+                builder.filter("oi", "unit_price", ComparisonOperator.GT, val)
+
+            # Specific customer filter if resolved in context or directly in query
+            cust_id_ctx = context.get("customer_identifier")
+            if cust_id_ctx and cust_id_ctx != "all_customers":
+                builder.filter("c", "name", ComparisonOperator.EQ, cust_id_ctx)
+
+            builder.project("c", "id")
+            builder.project("c", "name")
+            builder.project("p", "name", alias="item_name")
+            builder.project("oi", "unit_price")
+            builder.project("oi", "quantity")
+            builder.project("o", "order_date")
+
+            builder.sort(("oi", "unit_price"), direction=SortDirection.ASC)
+            builder.limit(intent.ranking_limit or 20)
+            return builder.build()
+
+        # --------------------------------------------------------------------
         # Pattern 5: Pure Aggregate without Group By
         # e.g. "Count completed orders", "What is the average price of products in Kitchen?",
         # "What is the total amount of all orders?"

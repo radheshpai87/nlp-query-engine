@@ -13,6 +13,7 @@ class AmbiguityType(StrEnum):
     MISSING_TIME_WINDOW = "missing_time_window"
     UNRESOLVED_JOIN = "unresolved_join"
     UNDERSPECIFIED_AGGREGATION = "underspecified_aggregation"
+    UNDERSPECIFIED_ENTITY = "underspecified_entity"
 
 
 class ClarificationOption(BaseModel):

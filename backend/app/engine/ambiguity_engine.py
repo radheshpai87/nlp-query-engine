@@ -417,6 +417,41 @@ class AmbiguityEngine:
 
         clarifications: list[PendingClarification] = []
 
+        # 0. Evaluate Underspecified Entity (e.g. "a certain customer", "a particular customer", "a specific customer")
+        if "customer_identifier" not in context:
+            certain_cust_match = re.search(
+                r"\b(?:a\s+certain|a\s+particular|a\s+specific|a\s+given|some)\s+customers?\b",
+                lower_query,
+            )
+            if certain_cust_match:
+                clarifications.append(
+                    PendingClarification(
+                        ambiguity_type=AmbiguityType.UNDERSPECIFIED_ENTITY,
+                        parameter_name="customer_identifier",
+                        question="Which customer would you like to check?",
+                        options=[
+                            ClarificationOption(
+                                label="Alice Smith (#1)",
+                                value="Alice Smith",
+                                is_recommended=True,
+                                description="Check purchase history for Alice Smith",
+                            ),
+                            ClarificationOption(
+                                label="Bob Jones (#2)",
+                                value="Bob Jones",
+                                description="Check purchase history for Bob Jones",
+                            ),
+                            ClarificationOption(
+                                label="Any / All Customers",
+                                value="all_customers",
+                                description="List all customers who have purchased matching items",
+                            ),
+                        ],
+                        default_value="all_customers",
+                        explanation="'A certain customer' is ambiguous without specifying a customer name or ID.",
+                    )
+                )
+
         # 1. Evaluate Vague Value Predicates (e.g., "high-value", "expensive", "cheap")
         if "high_value_threshold" not in context:
             high_val_match = re.search(
