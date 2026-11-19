@@ -41,6 +41,7 @@ import { ResultTable } from "@/components/chat/result-table";
 import { ResultChart } from "@/components/chat/result-chart";
 import { ProvenanceInspector } from "@/components/chat/provenance-inspector";
 import { QueryDialectPreview } from "@/components/chat/query-dialect-preview";
+import { MarkdownContent } from "@/components/chat/markdown-content";
 
 export interface ChatMessage {
   id: string;
@@ -524,7 +525,11 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                  {message.role === "assistant" ? (
+                    <MarkdownContent content={message.content} />
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                  )}
 
                   {/* Thinking / Evaluating Animation */}
                   {message.status === "evaluating" && (
