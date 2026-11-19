@@ -15,10 +15,10 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const { mobileSidebarOpen, setMobileSidebarOpen } = useShellStore();
 
-  // Landing page at / is a standalone presentation
-  if (pathname === "/") {
+  // Landing page and auth pages are standalone and scroll naturally with the document
+  if (pathname === "/" || pathname === "/login") {
     return (
-      <div className="min-h-screen w-full overflow-y-auto overflow-x-hidden bg-[#111111] text-foreground font-sans">
+      <div className="min-h-screen w-full bg-[#111111] text-foreground font-sans">
         {children}
       </div>
     );

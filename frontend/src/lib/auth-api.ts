@@ -4,6 +4,15 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const TOKEN_STORAGE_KEY = "nlp_query_auth_token";
+const USER_STORAGE_KEY = "nlp_query_auth_user";
+
+export const DEMO_CREDENTIALS = {
+  email: "admin@example.com",
+  password: "Admin123!",
+  fullName: "Demo Administrator",
+  role: "Administrator",
+  workspace: "Nexus Query",
+};
 
 export interface AuthUser {
   id: string;
@@ -45,13 +54,45 @@ export function setStoredToken(token: string | null): void {
   }
 }
 
+export function getStoredUser(): AuthUser | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = localStorage.getItem(USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredUser(user: AuthUser | null): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    if (user) {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(USER_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage quota or security errors
+  }
+}
+
+export function logout(): void {
+  setStoredToken(null);
+  setStoredUser(null);
+}
+
 /**
- * Log in using credentials (defaults to seeded demo administrator).
+ * Log in using credentials and persist session.
  */
-export async function login(
-  email = "admin@example.com",
-  password = "Admin123!"
-): Promise<string> {
+export async function loginWithCredentials(
+  email = DEMO_CREDENTIALS.email,
+  password = DEMO_CREDENTIALS.password
+): Promise<LoginResponse> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -59,12 +100,43 @@ export async function login(
   });
 
   if (!res.ok) {
-    throw new Error(`Authentication failed (${res.status}): ${res.statusText}`);
+    const errorBody = await res.json().catch(() => null);
+    const detail = errorBody?.detail || res.statusText;
+    throw new Error(detail || `Authentication failed (${res.status})`);
   }
 
   const data: LoginResponse = await res.json();
   setStoredToken(data.access_token);
+  setStoredUser(data.user);
+  return data;
+}
+
+/**
+ * Backward-compatible login function returning access_token.
+ */
+export async function login(
+  email = DEMO_CREDENTIALS.email,
+  password = DEMO_CREDENTIALS.password
+): Promise<string> {
+  const data = await loginWithCredentials(email, password);
   return data.access_token;
+}
+
+/**
+ * Fetch current user profile from /auth/me using active token.
+ */
+export async function fetchCurrentUser(): Promise<AuthUser | null> {
+  try {
+    const res = await authFetch(`${API_BASE}/auth/me`);
+    if (res.ok) {
+      const user: AuthUser = await res.json();
+      setStoredUser(user);
+      return user;
+    }
+    return null;
+  } catch {
+    return getStoredUser();
+  }
 }
 
 /**

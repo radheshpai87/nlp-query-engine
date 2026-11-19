@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Layers,
   Home,
+  LogOut,
+  LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/lib/store";
@@ -42,6 +44,8 @@ export function Sidebar() {
     sidebarCollapsed,
     toggleSidebar,
     currentWorkspace,
+    currentUser,
+    logoutUser,
   } = useShellStore();
 
   const [connections, setConnections] = React.useState<SidebarConnection[]>(defaultConnections);
@@ -225,26 +229,59 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* Sidebar Footer: Profile & Toggle Button */}
-        <div className="border-t border-[#262626] p-2 flex items-center justify-between">
+        {/* Sidebar Footer: Profile / Auth & Toggle Button */}
+        <div className="border-t border-[#262626] p-2 flex items-center justify-between gap-1">
           {!sidebarCollapsed ? (
-            <div className="flex items-center gap-2.5 px-2 py-1 truncate flex-1">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2f2f2f] text-[#ececec] shrink-0 text-xs font-semibold">
-                R
+            <div className="flex items-center justify-between gap-2 px-1.5 py-1 truncate flex-1 min-w-0">
+              <div className="flex items-center gap-2 truncate min-w-0">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2f2f2f] text-[#10a37f] shrink-0 text-xs font-semibold border border-[#3a3a3a]">
+                  {currentUser?.full_name ? currentUser.full_name.charAt(0).toUpperCase() : "A"}
+                </div>
+                <div className="truncate">
+                  <div className="text-xs font-medium text-[#ececec] truncate leading-tight">
+                    {currentUser?.full_name || "Demo Admin"}
+                  </div>
+                  <div className="text-[10px] text-[#737373] truncate">
+                    {currentUser?.email || "admin@example.com"}
+                  </div>
+                </div>
               </div>
-              <div className="truncate">
-                <div className="text-xs font-medium text-[#ececec] truncate leading-tight">Radhesh Pai</div>
-                <div className="text-[10px] text-[#737373] truncate">Workspace Admin</div>
-              </div>
+
+              {currentUser ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={logoutUser}
+                  title="Sign Out"
+                  className="h-7 w-7 text-[#737373] hover:text-red-400 hover:bg-[#212121] rounded-lg shrink-0"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <Link href="/login">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    title="Sign In"
+                    className="h-7 w-7 text-[#10a37f] hover:bg-[#212121] rounded-lg shrink-0"
+                  >
+                    <LogIn className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              )}
             </div>
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-full bg-[#2f2f2f] text-[#ececec] text-xs font-semibold">
-                  R
+                <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-full bg-[#2f2f2f] text-[#10a37f] text-xs font-semibold border border-[#3a3a3a]">
+                  {currentUser?.full_name ? currentUser.full_name.charAt(0).toUpperCase() : "A"}
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="right">Radhesh Pai (Admin)</TooltipContent>
+              <TooltipContent side="right">
+                {currentUser?.full_name || "Demo Admin"} ({currentUser?.email || "admin@example.com"})
+              </TooltipContent>
             </Tooltip>
           )}
 
@@ -254,7 +291,7 @@ export function Sidebar() {
             size="icon"
             onClick={toggleSidebar}
             data-testid="sidebar-toggle-btn"
-            className="h-7 w-7 text-[#8e8e8e] hover:bg-[#212121] hover:text-[#ececec] rounded-lg"
+            className="h-7 w-7 text-[#8e8e8e] hover:bg-[#212121] hover:text-[#ececec] rounded-lg shrink-0"
             aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {sidebarCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
