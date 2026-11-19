@@ -55,17 +55,13 @@ class LogicalPlanSynthesizer:
                     conn_id, obj = table_lookup[normalized_entity]
                     chosen_sources.append((conn_id, obj.name, obj))
 
-        # If no recognized entities, fallback to first table in first snapshot
+        # If no recognized entities matched the schema, do NOT fabricate a random table
         if not chosen_sources:
-            for conn_id, snap in snapshots.items():
-                if snap.objects:
-                    chosen_sources.append((conn_id, snap.objects[0].name, snap.objects[0]))
-                    break
-
-        # If still no sources (empty database snapshot), build minimal plan
-        if not chosen_sources:
-            fallback_conn_id = next(iter(connections.keys())) if connections else "conn-default"
-            return builder.from_source(fallback_conn_id, "default_source").build()
+            from app.core.exceptions import AppError
+            raise AppError(
+                f"No database tables or collections matched your query '{query}'. "
+                "Available entities in your workspace: products, orders, customers, reviews, catalog."
+            )
 
         # 2. Add primary source
         primary_conn_id, primary_table, primary_obj = chosen_sources[0]

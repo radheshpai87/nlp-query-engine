@@ -224,4 +224,52 @@ describe("ChatPage Component", () => {
     expect(screen.getByText("How did you get this result?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /chart/i })).toBeInTheDocument();
   });
+
+  it("handles metadata query conversationally without running table queries", async () => {
+    vi.mocked(ambiguityApi.evaluateQueryAmbiguity).mockResolvedValueOnce({
+      is_ambiguous: false,
+      confidence: 1.0,
+      clarifications: [],
+      inferred_intent: { category: "metadata_databases" },
+      suggested_action: "conversational_response",
+      is_metadata_query: true,
+      conversational_response: "There are 3 connected databases: PostgreSQL, MongoDB, Elasticsearch.",
+    });
+
+    render(<ChatPage />);
+
+    const input = screen.getByPlaceholderText(/e\.g\. Show me top 5 products/i);
+    fireEvent.change(input, { target: { value: "How many databases are present" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(
+      await screen.findByText("There are 3 connected databases: PostgreSQL, MongoDB, Elasticsearch.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Cluster Assistant")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /run query/i })).not.toBeInTheDocument();
+  });
+
+  it("triggers guardrail notification for out-of-scope queries", async () => {
+    vi.mocked(ambiguityApi.evaluateQueryAmbiguity).mockResolvedValueOnce({
+      is_ambiguous: false,
+      confidence: 1.0,
+      clarifications: [],
+      inferred_intent: { guardrail: "off_topic" },
+      suggested_action: "guardrail_blocked",
+      is_guardrail_blocked: true,
+      conversational_response: "Guard Rail Notice: Query Out of Scope. I am strictly scoped to your databases.",
+    });
+
+    render(<ChatPage />);
+
+    const input = screen.getByPlaceholderText(/e\.g\. Show me top 5 products/i);
+    fireEvent.change(input, { target: { value: "What is the capital of France?" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(
+      await screen.findByText("Guard Rail Notice: Query Out of Scope. I am strictly scoped to your databases.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Guard Rail Protected")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /run query/i })).not.toBeInTheDocument();
+  });
 });

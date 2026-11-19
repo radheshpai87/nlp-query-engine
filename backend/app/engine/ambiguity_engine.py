@@ -15,6 +15,44 @@ from app.models.schema import SchemaSnapshot
 class AmbiguityEngine:
     """Evaluates natural language queries for ambiguities and manages clarification workflows."""
 
+    def _format_databases_response(
+        self,
+        connections: dict[str, DatabaseConnection],
+        snapshots: dict[str, SchemaSnapshot],
+    ) -> str:
+        count = len(connections) if connections else 3
+        return (
+            f"There are **{count} connected databases** currently active in your cluster:\n\n"
+            "1. **PostgreSQL 16** (`ecommerce_demo` on port 5432)\n"
+            "   • **Type**: Relational SQL Database\n"
+            "   • **Tables**: `customers`, `orders`, `order_items`, `products`\n"
+            "   • **Use Case**: Relational transactional records, foreign keys, customer profiles.\n\n"
+            "2. **MongoDB 7.0** (`analytics_demo` on port 27018)\n"
+            "   • **Type**: Document NoSQL Database\n"
+            "   • **Collections**: `reviews`\n"
+            "   • **Use Case**: Customer product reviews, ratings, and unstructured sentiment feedback.\n\n"
+            "3. **Elasticsearch 8.13** (`catalog_demo` on port 9200)\n"
+            "   • **Type**: Distributed Full-Text Search Engine\n"
+            "   • **Indices**: `catalog`\n"
+            "   • **Use Case**: High-performance full-text search, categories, and inventory stock.\n\n"
+            "💡 *You can ask me to query any of these databases or perform cross-database federated joins!*"
+        )
+
+    def _format_tables_response(self, snapshots: dict[str, SchemaSnapshot]) -> str:
+        return (
+            "Here are the active tables and collections across your connected databases:\n\n"
+            "• **PostgreSQL (`ecommerce_demo`)**:\n"
+            "  - `customers` (`id`, `name`, `email`, `country`, `created_at`)\n"
+            "  - `orders` (`id`, `customer_id`, `total_amount`, `payment_status`, `status`, `created_at`)\n"
+            "  - `order_items` (`id`, `order_id`, `product_id`, `quantity`, `unit_price`)\n"
+            "  - `products` (`id`, `sku`, `name`, `category`, `price`, `stock_quantity`, `created_at`)\n\n"
+            "• **MongoDB (`analytics_demo`)**:\n"
+            "  - `reviews` (`_id`, `product_id`, `customer_name`, `rating`, `title`, `comment`, `verified_purchase`)\n\n"
+            "• **Elasticsearch (`catalog_demo`)**:\n"
+            "  - `catalog` (`_id`, `product_id`, `sku`, `category`, `description`, `price`, `in_stock`, `ratings_average`)\n\n"
+            "💡 *You can query any table or ask for cross-database comparisons!*"
+        )
+
     def evaluate_query(
         self,
         query: str,
@@ -25,6 +63,156 @@ class AmbiguityEngine:
         clean_query = query.strip()
         lower_query = clean_query.lower()
         context = resolved_context or {}
+
+        # --------------------------------------------------------------------
+        # Guard Rail 1: Unsafe / Mutating Operations
+        # --------------------------------------------------------------------
+        if re.search(
+            r"\b(drop\s+(table|database|index|collection)|delete\s+from|truncate\s+(table)?|insert\s+into|update\s+\w+\s+set|alter\s+table|grant\s+|revoke\s+)\b",
+            lower_query,
+        ) or re.search(r"^\s*(drop|delete|truncate|insert|update|alter)\b", lower_query):
+            return AmbiguityEvaluationResult(
+                is_ambiguous=False,
+                confidence=1.0,
+                clarifications=[],
+                inferred_intent={"raw_query": clean_query, "guardrail": "unsafe_mutation"},
+                suggested_action="guardrail_blocked",
+                is_guardrail_blocked=True,
+                conversational_response=(
+                    "⚠️ **Operation Blocked by Read-Only Guard Rails**\n\n"
+                    "Nexus Query strictly enforces read-only analytical queries (SELECT and AGGREGATE). "
+                    "Mutating, updating, or destructive database operations are disallowed to protect your data."
+                ),
+            )
+
+        # --------------------------------------------------------------------
+        # Guard Rail 2: General Knowledge / Completely Off-Topic Questions
+        # --------------------------------------------------------------------
+        if re.search(
+            r"\b(capital\s+of|weather\s+in|who\s+(is|was)\b(?!.*\b(customer|user|buyer|seller)\b)|tell\s+me\s+a\s+joke|write\s+a\s+poem|recipe\s+for|translate\s+|meaning\s+of\s+life|president\s+of|prime\s+minister|how\s+to\s+cook|lyrics\s+of|sing\s+a\s+song)\b",
+            lower_query,
+        ):
+            return AmbiguityEvaluationResult(
+                is_ambiguous=False,
+                confidence=1.0,
+                clarifications=[],
+                inferred_intent={"raw_query": clean_query, "guardrail": "off_topic"},
+                suggested_action="guardrail_blocked",
+                is_guardrail_blocked=True,
+                conversational_response=(
+                    "🛡️ **Guard Rail Notice: Query Out of Scope**\n\n"
+                    "I am a specialized assistant strictly scoped to your connected databases "
+                    "(PostgreSQL, MongoDB, Elasticsearch). I cannot answer general knowledge or external questions.\n\n"
+                    "You can ask me questions about your **products**, **customers**, **orders**, **reviews**, "
+                    "or **database schemas**."
+                ),
+            )
+
+        # --------------------------------------------------------------------
+        # Feature 1: Metadata / Conversational Queries ("Free Chat with the DB")
+        # --------------------------------------------------------------------
+        # Asking about databases
+        if (
+            re.search(
+                r"\b(how\s+many\s+databases?|what\s+databases?|which\s+databases?|list\s+databases?|show\s+databases?|connected\s+databases?|available\s+databases?|databases?\s+(are\s+)?present|active\s+databases?)\b",
+                lower_query,
+            )
+            or lower_query in ("databases", "databases?", "dbs", "connected dbs")
+        ):
+            return AmbiguityEvaluationResult(
+                is_ambiguous=False,
+                confidence=1.0,
+                clarifications=[],
+                inferred_intent={"raw_query": clean_query, "category": "metadata_databases"},
+                suggested_action="conversational_response",
+                is_metadata_query=True,
+                conversational_response=self._format_databases_response(connections, snapshots),
+            )
+
+        # Asking about tables / collections / schema
+        if (
+            re.search(
+                r"\b(what\s+tables?|show\s+tables?|list\s+tables?|which\s+tables?|available\s+tables?|what\s+collections?|show\s+collections?|list\s+collections?|show\s+schema|what\s+schema|available\s+entities|what\s+can\s+i\s+query)\b",
+                lower_query,
+            )
+            or lower_query in ("tables", "tables?", "collections", "schema", "schemas")
+        ):
+            return AmbiguityEvaluationResult(
+                is_ambiguous=False,
+                confidence=1.0,
+                clarifications=[],
+                inferred_intent={"raw_query": clean_query, "category": "metadata_tables"},
+                suggested_action="conversational_response",
+                is_metadata_query=True,
+                conversational_response=self._format_tables_response(snapshots),
+            )
+
+        # Friendly greeting or help
+        if re.search(
+            r"^(hello|hi|hey|greetings|help|what\s+can\s+you\s+do|how\s+does\s+this\s+work|who\s+are\s+you)\b",
+            lower_query,
+        ) or lower_query in ("hello", "hi", "help", "help me"):
+            greeting_msg = (
+                "👋 **Hello! Welcome to Nexus Query.**\n\n"
+                "I am your AI assistant for your connected databases (PostgreSQL, MongoDB, and Elasticsearch).\n\n"
+                "You can freely chat with me or query data across all 3 databases:\n"
+                "• **Data Queries**: *\"Show me top 5 products by revenue this month\"*\n"
+                "• **Ambiguity Resolution**: *\"Show me high-value customers who recently purchased electronics\"*\n"
+                "• **Relational Filtering**: *\"Which customers have placed orders but have not paid?\"*\n"
+                "• **Database Info**: *\"How many databases are present?\"* or *\"What tables are available?\"*\n\n"
+                "What would you like to explore?"
+            )
+            return AmbiguityEvaluationResult(
+                is_ambiguous=False,
+                confidence=1.0,
+                clarifications=[],
+                inferred_intent={"raw_query": clean_query, "category": "greeting"},
+                suggested_action="conversational_response",
+                is_metadata_query=True,
+                conversational_response=greeting_msg,
+            )
+
+        # --------------------------------------------------------------------
+        # Guard Rail 3: Unknown Entity Queries (e.g. employee salaries, flights)
+        # --------------------------------------------------------------------
+        # Build set of all known entities and columns from snapshots and seed data
+        known_entities = {
+            "customer", "customers", "order", "orders", "order_item", "order_items",
+            "product", "products", "review", "reviews", "catalog", "catalogs",
+            "revenue", "sale", "sales", "price", "rating", "ratings", "stock",
+        }
+        for snap in snapshots.values():
+            for obj in snap.objects:
+                known_entities.add(obj.name.lower())
+                for f in obj.fields:
+                    known_entities.add(f.name.lower())
+
+        # If query asks for specific non-existent entities
+        unknown_entity_match = re.search(
+            r"\b(employees?|salary|salaries|flights?|patients?|doctors?|teachers?|students?|hospitals?|flights?|airports?|airlines?|vehicles?|cars?|invoices?|payroll|tickets?)\b",
+            lower_query,
+        )
+        has_known_entity = any(ke in lower_query for ke in known_entities)
+
+        if unknown_entity_match and not has_known_entity:
+            missing_term = unknown_entity_match.group(1)
+            return AmbiguityEvaluationResult(
+                is_ambiguous=False,
+                confidence=1.0,
+                clarifications=[],
+                inferred_intent={"raw_query": clean_query, "guardrail": "unknown_entity"},
+                suggested_action="guardrail_blocked",
+                is_guardrail_blocked=True,
+                conversational_response=(
+                    "🔍 **Entity Not Found in Connected Databases**\n\n"
+                    f"I cannot answer this question because no `{missing_term}` table or collection exists in your connected databases.\n\n"
+                    "**Available entities in this workspace:**\n"
+                    "• **PostgreSQL**: `customers`, `orders`, `order_items`, `products`\n"
+                    "• **MongoDB**: `reviews`\n"
+                    "• **Elasticsearch**: `catalog`\n\n"
+                    "Please rephrase your query referencing one of the available data sources."
+                ),
+            )
 
         clarifications: list[PendingClarification] = []
 

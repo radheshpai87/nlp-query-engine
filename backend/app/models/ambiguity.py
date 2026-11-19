@@ -41,7 +41,10 @@ class AmbiguityEvaluationResult(BaseModel):
     confidence: float = 1.0
     clarifications: list[PendingClarification] = Field(default_factory=list)
     inferred_intent: dict[str, Any] = Field(default_factory=dict)
-    suggested_action: str = "proceed_to_plan"  # proceed_to_plan or request_clarification
+    suggested_action: str = "proceed_to_plan"  # proceed_to_plan, request_clarification, conversational_response, guardrail_blocked
+    conversational_response: str | None = None
+    is_metadata_query: bool = False
+    is_guardrail_blocked: bool = False
 
 
 class ClarificationResolutionRequest(BaseModel):

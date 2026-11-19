@@ -17,6 +17,7 @@ import {
   ChevronDown,
   Menu,
   Terminal,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,7 @@ export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  status?: "evaluating" | "clarifying" | "ready" | "executing" | "executed" | "error";
+  status?: "evaluating" | "clarifying" | "ready" | "executing" | "executed" | "error" | "conversational" | "guardrail";
   clarifications?: PendingClarification[];
   resolvedContext?: Record<string, unknown>;
   intent?: Record<string, unknown>;
@@ -149,6 +150,32 @@ export default function ChatPage() {
         currentWorkspace.id,
         text
       );
+
+      // Handle Conversational / System Queries and Guard Rails directly
+      if (
+        result.conversational_response ||
+        result.is_metadata_query ||
+        result.is_guardrail_blocked ||
+        result.suggested_action === "conversational_response" ||
+        result.suggested_action === "guardrail_blocked"
+      ) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  status: result.is_guardrail_blocked ? "guardrail" : "conversational",
+                  content:
+                    result.conversational_response ||
+                    "I am your dedicated query assistant for the connected databases (PostgreSQL, MongoDB, Elasticsearch).",
+                  clarifications: [],
+                  plan: undefined,
+                }
+              : msg
+          )
+        );
+        return;
+      }
 
       let plan: Record<string, unknown> | undefined;
       try {
@@ -483,6 +510,20 @@ export default function ChatPage() {
                       : "flex-1 max-w-[90%] bg-[#1c1c1c] border border-[#2e2e2e] text-[#ececec] px-4 py-3.5 rounded-[22px] rounded-tl-md shadow-sm"
                   }`}
                 >
+                  {message.status === "guardrail" && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-medium">
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      <span>Guard Rail Protected</span>
+                    </div>
+                  )}
+
+                  {message.status === "conversational" && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#10a37f]/10 border border-[#10a37f]/20 text-[#10a37f] text-[11px] font-medium">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>Cluster Assistant</span>
+                    </div>
+                  )}
+
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
 
                   {/* Thinking / Evaluating Animation */}

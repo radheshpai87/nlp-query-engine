@@ -33,7 +33,14 @@ export interface AmbiguityEvaluationResult {
   confidence: number;
   clarifications: PendingClarification[];
   inferred_intent: Record<string, unknown>;
-  suggested_action: "proceed_to_plan" | "request_clarification";
+  suggested_action:
+    | "proceed_to_plan"
+    | "request_clarification"
+    | "conversational_response"
+    | "guardrail_blocked";
+  conversational_response?: string | null;
+  is_metadata_query?: boolean;
+  is_guardrail_blocked?: boolean;
 }
 
 export interface ClarificationResolutionRequest {
