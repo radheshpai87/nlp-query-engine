@@ -74,14 +74,17 @@ class LogicalPlanSynthesizer:
             lower_q = query.lower()
             if "analytics_demo" in lower_q or "analytics" in lower_q:
                 if "reviews" in table_lookup:
-                    chosen_sources.append(table_lookup["reviews"])
+                    c_id, s_obj = table_lookup["reviews"]
+                    chosen_sources.append((c_id, s_obj.name, s_obj))
             elif "catalog_demo" in lower_q:
                 if "catalog" in table_lookup:
-                    chosen_sources.append(table_lookup["catalog"])
+                    c_id, s_obj = table_lookup["catalog"]
+                    chosen_sources.append((c_id, s_obj.name, s_obj))
             elif "ecommerce_demo" in lower_q:
                 for cand in ("products", "orders", "customers"):
                     if cand in table_lookup:
-                        chosen_sources.append(table_lookup[cand])
+                        c_id, s_obj = table_lookup[cand]
+                        chosen_sources.append((c_id, s_obj.name, s_obj))
                         break
 
         # If no recognized entities matched the schema, do NOT fabricate a random table

@@ -14,8 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark h-full antialiased scroll-smooth">
-      <body className="min-h-full bg-background text-foreground font-sans relative">
-        <div className="grain-overlay" aria-hidden="true" />
+      <body className="min-h-full bg-background text-foreground font-sans">
         <AppShell>{children}</AppShell>
       </body>
     </html>
