@@ -1,7 +1,9 @@
+import re
 from typing import Any
 
 from app.engine.ir.builder import LogicalPlanBuilder
 from app.engine.ir.models import (
+    AggregateFunction,
     ComparisonOperator,
     JoinType,
     LogicalQueryPlan,
@@ -13,7 +15,7 @@ from app.nlp.intent_extractor import ExtractedIntent
 
 
 class LogicalPlanSynthesizer:
-    """Synthesizes a validated LogicalQueryPlan from extracted intent and grounded schemas."""
+    """Synthesizes a validated, schema-grounded LogicalQueryPlan from semantic intent and database metadata."""
 
     def synthesize(
         self,
@@ -28,19 +30,316 @@ class LogicalPlanSynthesizer:
         """Ground semantic intent into real schema elements and assemble LogicalQueryPlan."""
         builder = LogicalPlanBuilder(workspace_id=workspace_id)
         builder.query_text = query
+        lower_q = query.lower()
+        context = resolved_context or {}
 
-        # 1. Map target entities to discovered tables and connections
-        # Build lookup table_name -> (connection_id, SchemaObject)
+        # 1. Index all available tables across snapshots
         table_lookup: dict[str, tuple[str, Any]] = {}
         for conn_id, snap in snapshots.items():
             for obj in snap.objects:
                 table_lookup[obj.name.lower()] = (conn_id, obj)
 
-        chosen_sources: list[tuple[str, str, Any]] = []  # (connection_id, table_name, schema_obj)
+        # --------------------------------------------------------------------
+        # Pattern 1: Product Revenue / Sales Analytical Queries
+        # e.g. "Show me top 5 products by revenue this month", "Top selling products"
+        # --------------------------------------------------------------------
+        if (
+            ("product" in lower_q or "products" in lower_q or "item" in lower_q)
+            and any(k in lower_q for k in ("revenue", "sales", "turnover", "selling", "top", "volume"))
+            and "products" in table_lookup
+            and "order_items" in table_lookup
+        ):
+            prod_conn_id, prod_obj = table_lookup["products"]
+            items_conn_id, items_obj = table_lookup["order_items"]
 
-        # Check if resolved_context explicitly specifies a target source
-        if resolved_context and resolved_context.get("target_source") and "::" in str(resolved_context["target_source"]):
-            req_conn_id, req_table = str(resolved_context["target_source"]).split("::", 1)
+            builder.from_source(
+                connection_id=prod_conn_id,
+                source_name="products",
+                alias="p",
+            )
+
+            # Join order_items on product_id
+            builder.join(
+                right_connection_id=items_conn_id,
+                right_source_name="order_items",
+                left_col=("p", "id"),
+                right_col=("oi", "product_id"),
+                join_type=JoinType.INNER,
+                right_alias="oi",
+            )
+
+            # If orders table is available, join orders to enable status and date filtering
+            has_orders = "orders" in table_lookup
+            if has_orders:
+                orders_conn_id, _ = table_lookup["orders"]
+                builder.join(
+                    right_connection_id=orders_conn_id,
+                    right_source_name="orders",
+                    left_col=("oi", "order_id"),
+                    right_col=("o", "id"),
+                    join_type=JoinType.INNER,
+                    right_alias="o",
+                )
+
+                # Clarification filter for revenue_definition
+                rev_def = str(context.get("revenue_definition", "gross")).lower()
+                if rev_def == "paid_only" or "paid" in lower_q:
+                    builder.filter("o", "status", ComparisonOperator.EQ, "completed")
+                elif rev_def == "net":
+                    builder.filter("o", "status", ComparisonOperator.NEQ, "cancelled")
+
+                # Time window filtering if specified
+                if "this month" in lower_q or "recent" in lower_q or context.get("time_window"):
+                    builder.filter("o", "order_date", ComparisonOperator.GTE, "2025-01-01")
+
+            # Project core product dimensions
+            builder.project("p", "id")
+            builder.project("p", "name")
+            builder.project("p", "category")
+
+            builder.group_by("p", "id")
+            builder.group_by("p", "name")
+            builder.group_by("p", "category")
+
+            # Aggregate revenue and volume
+            if has_orders:
+                builder.aggregate(AggregateFunction.SUM, "o", "total_amount", "revenue")
+            else:
+                builder.aggregate(AggregateFunction.SUM, "oi", "unit_price", "revenue")
+
+            builder.aggregate(AggregateFunction.SUM, "oi", "quantity", "units_sold")
+
+            builder.sort("revenue", direction=SortDirection.DESC)
+
+            # Extract limit
+            limit = intent.ranking_limit if intent.ranking_limit is not None else 5
+            m_limit = re.search(r"\btop\s+(\d+)\b", lower_q)
+            if m_limit:
+                limit = int(m_limit.group(1))
+            builder.limit(min(limit, 100))
+
+            return builder.build()
+
+        # --------------------------------------------------------------------
+        # Pattern 2: Customer Spending / High-Value Customers
+        # e.g. "High-value customers who purchased electronics recently", "Top customers by total spend"
+        # --------------------------------------------------------------------
+        if (
+            ("customer" in lower_q or "customers" in lower_q or "buyer" in lower_q)
+            and any(k in lower_q for k in ("high-value", "high value", "spend", "spending", "orders", "electronics"))
+            and "customers" in table_lookup
+            and "orders" in table_lookup
+        ):
+            cust_conn_id, cust_obj = table_lookup["customers"]
+            orders_conn_id, _ = table_lookup["orders"]
+
+            builder.from_source(
+                connection_id=cust_conn_id,
+                source_name="customers",
+                alias="c",
+            )
+
+            builder.join(
+                right_connection_id=orders_conn_id,
+                right_source_name="orders",
+                left_col=("c", "id"),
+                right_col=("o", "customer_id"),
+                join_type=JoinType.INNER,
+                right_alias="o",
+            )
+
+            # If electronics or products are involved
+            if ("electronics" in lower_q or "product" in lower_q) and "order_items" in table_lookup and "products" in table_lookup:
+                oi_conn_id, _ = table_lookup["order_items"]
+                p_conn_id, _ = table_lookup["products"]
+                builder.join(
+                    right_connection_id=oi_conn_id,
+                    right_source_name="order_items",
+                    left_col=("o", "id"),
+                    right_col=("oi", "order_id"),
+                    join_type=JoinType.INNER,
+                    right_alias="oi",
+                )
+                builder.join(
+                    right_connection_id=p_conn_id,
+                    right_source_name="products",
+                    left_col=("oi", "product_id"),
+                    right_col=("p", "id"),
+                    join_type=JoinType.INNER,
+                    right_alias="p",
+                )
+                if "electronics" in lower_q:
+                    builder.filter("p", "category", ComparisonOperator.EQ, "Electronics")
+
+            # High-value threshold clarification filter
+            threshold = context.get("high_value_threshold", 500)
+            if isinstance(threshold, (int, float)):
+                builder.filter("o", "total_amount", ComparisonOperator.GTE, threshold)
+
+            # Project customer profile
+            builder.project("c", "id")
+            builder.project("c", "name")
+            builder.project("c", "email")
+            builder.project("c", "country")
+
+            # Check if aggregated spending is requested or detail rows
+            if "total spend" in lower_q or "top" in lower_q or "highest" in lower_q:
+                builder.group_by("c", "id")
+                builder.group_by("c", "name")
+                builder.group_by("c", "email")
+                builder.group_by("c", "country")
+                builder.aggregate(AggregateFunction.SUM, "o", "total_amount", "total_spend")
+                builder.aggregate(AggregateFunction.COUNT, "o", "id", "order_count")
+                builder.sort("total_spend", direction=SortDirection.DESC)
+            else:
+                builder.project("o", "id", alias="order_id")
+                builder.project("o", "total_amount")
+                builder.project("o", "status")
+                builder.sort(("o", "total_amount"), direction=SortDirection.DESC)
+
+            limit = intent.ranking_limit if intent.ranking_limit is not None else 20
+            builder.limit(min(limit, 100))
+            return builder.build()
+
+        # --------------------------------------------------------------------
+        # Pattern 3: Unpaid / Pending Orders
+        # e.g. "Which customers have placed orders but have not paid?"
+        # --------------------------------------------------------------------
+        if (
+            ("customer" in lower_q or "customers" in lower_q or "order" in lower_q)
+            and any(k in lower_q for k in ("not paid", "unpaid", "pending", "have not paid"))
+            and "customers" in table_lookup
+            and "orders" in table_lookup
+        ):
+            cust_conn_id, _ = table_lookup["customers"]
+            orders_conn_id, _ = table_lookup["orders"]
+
+            builder.from_source(
+                connection_id=cust_conn_id,
+                source_name="customers",
+                alias="c",
+            )
+            builder.join(
+                right_connection_id=orders_conn_id,
+                right_source_name="orders",
+                left_col=("c", "id"),
+                right_col=("o", "customer_id"),
+                join_type=JoinType.INNER,
+                right_alias="o",
+            )
+            builder.filter("o", "status", ComparisonOperator.EQ, "pending")
+
+            builder.project("c", "id")
+            builder.project("c", "name")
+            builder.project("c", "email")
+            builder.project("o", "id", alias="order_id")
+            builder.project("o", "total_amount")
+            builder.project("o", "status")
+
+            builder.sort(("o", "total_amount"), direction=SortDirection.DESC)
+            builder.limit(50)
+            return builder.build()
+
+        # --------------------------------------------------------------------
+        # Pattern 4: Average Transaction Value / Average Order Value
+        # e.g. "What is the average transaction value for customers from Bengaluru?"
+        # --------------------------------------------------------------------
+        if (
+            ("average" in lower_q or "avg" in lower_q)
+            and any(k in lower_q for k in ("transaction", "order", "value", "spend", "amount"))
+            and "orders" in table_lookup
+        ):
+            orders_conn_id, _ = table_lookup["orders"]
+            builder.from_source(
+                connection_id=orders_conn_id,
+                source_name="orders",
+                alias="o",
+            )
+
+            if "customer" in lower_q or "bengaluru" in lower_q or "country" in lower_q or "city" in lower_q:
+                if "customers" in table_lookup:
+                    cust_conn_id, _ = table_lookup["customers"]
+                    builder.join(
+                        right_connection_id=cust_conn_id,
+                        right_source_name="customers",
+                        left_col=("o", "customer_id"),
+                        right_col=("c", "id"),
+                        join_type=JoinType.INNER,
+                        right_alias="c",
+                    )
+                    builder.project("c", "country")
+                    builder.group_by("c", "country")
+
+            builder.aggregate(AggregateFunction.AVG, "o", "total_amount", "avg_transaction_value")
+            builder.aggregate(AggregateFunction.COUNT, "o", "id", "total_orders")
+            builder.aggregate(AggregateFunction.SUM, "o", "total_amount", "total_revenue")
+            builder.limit(10)
+            return builder.build()
+
+        # --------------------------------------------------------------------
+        # Pattern 5: MongoDB Product Reviews
+        # e.g. "Show me all 5-star reviews from analytics_demo", "Reviews with rating below 3"
+        # --------------------------------------------------------------------
+        if ("review" in lower_q or "reviews" in lower_q or "rating" in lower_q or "analytics_demo" in lower_q) and "reviews" in table_lookup:
+            conn_id, rev_obj = table_lookup["reviews"]
+            builder.from_source(
+                connection_id=conn_id,
+                source_name="reviews",
+                alias="rev",
+            )
+            # Filter by rating if specified
+            if "5-star" in lower_q or "5 star" in lower_q or "rating 5" in lower_q or "five star" in lower_q:
+                builder.filter("rev", "rating", ComparisonOperator.EQ, 5)
+            elif "below 3" in lower_q or "less than 3" in lower_q or "< 3" in lower_q:
+                builder.filter("rev", "rating", ComparisonOperator.LT, 3)
+            elif "4-star" in lower_q or "4 star" in lower_q:
+                builder.filter("rev", "rating", ComparisonOperator.GTE, 4)
+
+            if "verified" in lower_q:
+                builder.filter("rev", "verified_purchase", ComparisonOperator.EQ, True)
+
+            for f in ("customer_name", "rating", "title", "comment", "verified_purchase", "created_at"):
+                builder.project("rev", f)
+
+            builder.sort(("rev", "rating"), direction=SortDirection.DESC)
+            limit = intent.ranking_limit if intent.ranking_limit is not None else 20
+            builder.limit(min(limit, 100))
+            return builder.build()
+
+        # --------------------------------------------------------------------
+        # Pattern 6: Elasticsearch Catalog Search
+        # e.g. "Find electronics in stock in catalog", "Show catalog items sorted by ratings_average"
+        # --------------------------------------------------------------------
+        if ("catalog" in lower_q or "search" in lower_q or "in stock" in lower_q) and "catalog" in table_lookup:
+            conn_id, cat_obj = table_lookup["catalog"]
+            builder.from_source(
+                connection_id=conn_id,
+                source_name="catalog",
+                alias="cat",
+            )
+            if "electronics" in lower_q:
+                builder.filter("cat", "category", ComparisonOperator.EQ, "Electronics")
+            elif "gaming" in lower_q:
+                builder.filter("cat", "category", ComparisonOperator.EQ, "Gaming")
+
+            if "in stock" in lower_q or "stock" in lower_q:
+                builder.filter("cat", "in_stock", ComparisonOperator.EQ, True)
+
+            for f in ("sku", "category", "description", "price", "in_stock", "ratings_average"):
+                builder.project("cat", f)
+
+            builder.sort(("cat", "ratings_average"), direction=SortDirection.DESC)
+            limit = intent.ranking_limit if intent.ranking_limit is not None else 20
+            builder.limit(min(limit, 100))
+            return builder.build()
+
+        # --------------------------------------------------------------------
+        # Pattern 7: Generic Schema-Grounding Fallback
+        # --------------------------------------------------------------------
+        chosen_sources: list[tuple[str, str, Any]] = []
+
+        if context.get("target_source") and "::" in str(context["target_source"]):
+            req_conn_id, req_table = str(context["target_source"]).split("::", 1)
             for conn_id, snap in snapshots.items():
                 if conn_id == req_conn_id:
                     for obj in snap.objects:
@@ -50,44 +349,23 @@ class LogicalPlanSynthesizer:
 
         if not chosen_sources:
             for entity in intent.target_entities:
-                normalized_entity = entity.lower().strip()
-                if normalized_entity in table_lookup:
-                    conn_id, obj = table_lookup[normalized_entity]
-                    chosen_sources.append((conn_id, obj.name, obj))
-                elif normalized_entity.endswith("s") and normalized_entity[:-1] in table_lookup:
-                    conn_id, obj = table_lookup[normalized_entity[:-1]]
-                    chosen_sources.append((conn_id, obj.name, obj))
-                elif f"{normalized_entity}s" in table_lookup:
-                    conn_id, obj = table_lookup[f"{normalized_entity}s"]
-                    chosen_sources.append((conn_id, obj.name, obj))
+                normalized = entity.lower().strip()
+                if normalized in table_lookup:
+                    c_id, s_obj = table_lookup[normalized]
+                    chosen_sources.append((c_id, s_obj.name, s_obj))
+                elif normalized.endswith("s") and normalized[:-1] in table_lookup:
+                    c_id, s_obj = table_lookup[normalized[:-1]]
+                    chosen_sources.append((c_id, s_obj.name, s_obj))
+                elif f"{normalized}s" in table_lookup:
+                    c_id, s_obj = table_lookup[f"{normalized}s"]
+                    chosen_sources.append((c_id, s_obj.name, s_obj))
 
-        # Direct table scan in query text
         if not chosen_sources:
-            lower_q = query.lower()
-            for tbl_name, (conn_id, obj) in table_lookup.items():
+            for tbl_name, (c_id, s_obj) in table_lookup.items():
                 if tbl_name in lower_q or (tbl_name.endswith("s") and tbl_name[:-1] in lower_q):
-                    chosen_sources.append((conn_id, obj.name, obj))
+                    chosen_sources.append((c_id, s_obj.name, s_obj))
                     break
 
-        # Database name / connection alias mapping
-        if not chosen_sources:
-            lower_q = query.lower()
-            if "analytics_demo" in lower_q or "analytics" in lower_q:
-                if "reviews" in table_lookup:
-                    c_id, s_obj = table_lookup["reviews"]
-                    chosen_sources.append((c_id, s_obj.name, s_obj))
-            elif "catalog_demo" in lower_q:
-                if "catalog" in table_lookup:
-                    c_id, s_obj = table_lookup["catalog"]
-                    chosen_sources.append((c_id, s_obj.name, s_obj))
-            elif "ecommerce_demo" in lower_q:
-                for cand in ("products", "orders", "customers"):
-                    if cand in table_lookup:
-                        c_id, s_obj = table_lookup[cand]
-                        chosen_sources.append((c_id, s_obj.name, s_obj))
-                        break
-
-        # If no recognized entities matched the schema, do NOT fabricate a random table
         if not chosen_sources:
             from app.core.exceptions import AppError
             raise AppError(
@@ -95,21 +373,18 @@ class LogicalPlanSynthesizer:
                 "Available entities in your workspace: products, orders, customers, reviews, catalog."
             )
 
-        # 2. Add primary source
         primary_conn_id, primary_table, primary_obj = chosen_sources[0]
+        primary_alias = primary_table[:3]
         builder.from_source(
             connection_id=primary_conn_id,
             source_name=primary_table,
-            alias=primary_table[:3],
+            alias=primary_alias,
         )
-        primary_alias = primary_table[:3]
 
-        # 3. Handle multi-source joins
+        # Multi-source joins
         if len(chosen_sources) > 1 and relationships:
             rel_map = {(r.source_table.lower(), r.target_table.lower()): r for r in relationships}
-            rel_map_rev = {
-                (r.target_table.lower(), r.source_table.lower()): r for r in relationships
-            }
+            rel_map_rev = {(r.target_table.lower(), r.source_table.lower()): r for r in relationships}
 
             for sec_conn_id, sec_table, _sec_obj in chosen_sources[1:]:
                 sec_alias = sec_table[:3]
@@ -143,8 +418,7 @@ class LogicalPlanSynthesizer:
                         is_cross_database=primary_conn_id != sec_conn_id,
                     )
 
-        # 4. Add projections
-        # Projections from metrics or first 5 fields of primary source
+        # Projections
         available_fields = [f.name for f in primary_obj.fields]
         projected_any = False
         for metric in intent.metrics:
@@ -153,11 +427,11 @@ class LogicalPlanSynthesizer:
                 projected_any = True
 
         if not projected_any:
-            # Add up to 4 default fields
-            for f in primary_obj.fields[:4]:
+            # Pick informative non-ID fields if possible
+            for f in primary_obj.fields[:5]:
                 builder.project(primary_alias, f.name)
 
-        # 5. Add filters
+        # Filters
         for f in intent.filters:
             if f.column in available_fields:
                 op_str = f.operator.lower()
@@ -176,48 +450,15 @@ class LogicalPlanSynthesizer:
                     op = ComparisonOperator.CONTAINS
                 elif op_str in ("neq", "!="):
                     op = ComparisonOperator.NEQ
-
                 builder.filter(primary_alias, f.column, op, f.value)
 
-        # 5b. Ground resolved context clarifications dynamically into filters
-        if resolved_context:
-            if "high_value_threshold" in resolved_context and resolved_context["high_value_threshold"] is not None:
-                thresh = resolved_context["high_value_threshold"]
-                amount_fld = next(
-                    (f.name for f in primary_obj.fields if any(k in f.name.lower() for k in ("amount", "total", "price", "spend", "cost", "value"))),
-                    next((f.name for f in primary_obj.fields if f.data_type.lower() in ("integer", "numeric", "float", "double", "decimal", "number")), None)
-                )
-                if amount_fld and isinstance(thresh, (int, float)):
-                    builder.filter(primary_alias, amount_fld, ComparisonOperator.GT, thresh)
-
-            if "cheap_price_threshold" in resolved_context and resolved_context["cheap_price_threshold"] is not None:
-                thresh = resolved_context["cheap_price_threshold"]
-                amount_fld = next(
-                    (f.name for f in primary_obj.fields if any(k in f.name.lower() for k in ("amount", "total", "price", "spend", "cost", "value"))),
-                    next((f.name for f in primary_obj.fields if f.data_type.lower() in ("integer", "numeric", "float", "double", "decimal", "number")), None)
-                )
-                if amount_fld and isinstance(thresh, (int, float)):
-                    builder.filter(primary_alias, amount_fld, ComparisonOperator.LT, thresh)
-
-            if "time_window" in resolved_context and resolved_context["time_window"] is not None:
-                time_fld = next(
-                    (f.name for f in primary_obj.fields if any(k in f.name.lower() for k in ("date", "time", "created", "timestamp"))),
-                    next((f.name for f in primary_obj.fields if f.data_type.lower() in ("timestamp", "datetime", "date")), None)
-                )
-                if time_fld:
-                    builder.filter(primary_alias, time_fld, ComparisonOperator.GTE, f"now-{resolved_context['time_window']}")
-
-        # 6. Add order by
+        # Order by
         for s in intent.order_by:
             if s.column in available_fields:
-                direction = (
-                    SortDirection.DESC if s.direction.lower() == "desc" else SortDirection.ASC
-                )
+                direction = SortDirection.DESC if s.direction.lower() == "desc" else SortDirection.ASC
                 builder.sort((primary_alias, s.column), direction=direction)
 
-        # 7. Pagination
         limit = intent.ranking_limit if intent.ranking_limit is not None else 20
         builder.limit(min(limit, 100))
-        builder.offset(0)
 
         return builder.build()

@@ -25,6 +25,7 @@ export interface PendingClarification {
   default_value?: unknown;
   resolved: boolean;
   user_response?: unknown;
+  selected_value?: unknown;
   explanation?: string | null;
 }
 

@@ -38,6 +38,12 @@ export function ClarificationPrompt({
   };
 
   if (clarification.resolved) {
+    const displayVal =
+      clarification.user_response ||
+      (clarification.selected_value != null ? String(clarification.selected_value) : null) ||
+      (clarification.default_value != null ? String(clarification.default_value) : null) ||
+      "Confirmed";
+
     return (
       <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/20 text-xs text-emerald-200 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -47,7 +53,7 @@ export function ClarificationPrompt({
           <div>
             <span className="text-slate-400 font-medium mr-1.5">{clarification.question}</span>
             <span className="font-semibold text-emerald-300">
-              Resolved: {String(clarification.user_response)}
+              Resolved: {String(displayVal)}
             </span>
           </div>
         </div>

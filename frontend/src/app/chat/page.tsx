@@ -284,9 +284,13 @@ export default function ChatPage() {
 
       let updatedPlan = targetMsg.plan;
       try {
+        const queryText =
+          targetMsg.userQuery ||
+          (targetMsg.plan?.query_text as string) ||
+          "Query";
         updatedPlan = await synthesizeLogicalPlan(
           currentWorkspace.id,
-          (targetMsg.plan?.query_text as string) || "Query",
+          queryText,
           updatedResolvedContext
         );
       } catch (err) {
@@ -297,15 +301,22 @@ export default function ChatPage() {
         prev.map((msg) => {
           if (msg.id !== messageId) return msg;
 
-          const updatedClarifications = (msg.clarifications || []).map((c) =>
-            c.id === clarificationId
-              ? {
-                  ...c,
-                  resolved: true,
-                  selected_value: response.resolved_value,
-                }
-              : c
-          );
+          const updatedClarifications = (msg.clarifications || []).map((c) => {
+            if (c.id === clarificationId) {
+              const matchingOpt = c.options?.find((o) => o.value === response.resolved_value);
+              const label =
+                customInput ||
+                matchingOpt?.label ||
+                (response.resolved_value != null ? String(response.resolved_value) : "Confirmed");
+              return {
+                ...c,
+                resolved: true,
+                selected_value: response.resolved_value,
+                user_response: label,
+              };
+            }
+            return c;
+          });
 
           const allResolved = updatedClarifications.every((c) => c.resolved);
 

@@ -340,7 +340,14 @@ class PostgresAdapter(BaseDatabaseAdapter):
                 with conn.cursor(row_factory=dict_row) as cur:
                     # Enforce session/transaction level read-only and statement timeout
                     cur.execute(f"SET statement_timeout = '{timeout_ms}ms';")
-                    cur.execute(sql_text, combined_params if combined_params else None)
+
+                    # Convert :param to psycopg %(param)s placeholder format
+                    exec_sql = sql_text
+                    if combined_params:
+                        for p_name in combined_params.keys():
+                            exec_sql = re.sub(rf":{re.escape(p_name)}\b", f"%({p_name})s", exec_sql)
+
+                    cur.execute(exec_sql, combined_params if combined_params else None)
                     raw_rows = cur.fetchmany(limit)
 
             normalized_rows: list[dict[str, Any]] = []
