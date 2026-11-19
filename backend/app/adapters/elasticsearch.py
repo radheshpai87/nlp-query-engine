@@ -1,3 +1,4 @@
+import json
 import time
 from typing import Any
 
@@ -201,8 +202,13 @@ class ElasticsearchAdapter(BaseDatabaseAdapter):
         else:
             raise AppError("Query must specify 'index' and 'query_body' dictionary.")
 
-        # Safety: disallow scripts
-        if "script" in str(query_body).lower() and not self.options.get("allow_scripts", False):
+        # Safety: disallow scripts (without false-positive matching on field names like 'description')
+        qb_lower = json.dumps(query_body).lower()
+        if (
+            '"script"' in qb_lower
+            or '"script_fields"' in qb_lower
+            or '"script_score"' in qb_lower
+        ) and not self.options.get("allow_scripts", False):
             raise AppError("Inline scripting is disallowed for security reasons.")
 
         try:

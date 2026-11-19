@@ -262,8 +262,14 @@ class QuerySecurityScanner:
 
         body_str = json.dumps(query_body).lower()
 
-        # Reject scripts
-        if "script" in body_str or "inline" in body_str or "source" in query_body.get("script", {}):
+        # Reject scripts without false-positive matching on field names like "description"
+        if (
+            '"script"' in body_str
+            or '"script_fields"' in body_str
+            or '"script_score"' in body_str
+            or '"inline"' in body_str
+            or "source" in query_body.get("script", {})
+        ):
             return SecurityCheckResult(
                 passed=False, message="Elasticsearch inline scripting is prohibited."
             )
