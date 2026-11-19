@@ -545,22 +545,23 @@ export default function ChatPage() {
               </p>
             </div>
 
-            {/* ChatGPT 2x2 Suggestion Cards */}
-            <div className="w-full space-y-2.5">
+            {/* Sleek Floating Query Chips */}
+            <div className="w-full space-y-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-[#737373] text-center">
                 Suggested queries
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="flex flex-wrap gap-2 justify-center max-w-xl mx-auto">
                 {SAMPLE_QUERIES.map((q, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => handleSend(q)}
-                    className="p-3.5 text-left rounded-2xl border border-[#2f2f2f] bg-[#212121] hover:bg-[#282828] hover:border-[#444444] text-xs text-[#b4b4b4] hover:text-[#ececec] transition-all shadow-xs group"
+                    className="px-3.5 py-2 text-left rounded-xl border border-white/[0.08] bg-[#2a2a2a]/50 hover:bg-[#2f2f2f] hover:border-white/[0.15] text-xs text-[#b4b4b4] hover:text-[#ececec] transition-all shadow-xs flex items-center gap-2 group"
                   >
-                    <div className="font-medium text-white group-hover:text-[#10a37f] transition-colors">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#10a37f] shrink-0 opacity-70 group-hover:opacity-100" />
+                    <span className="font-medium text-white/90 group-hover:text-white">
                       {q}
-                    </div>
+                    </span>
                   </button>
                 ))}
               </div>
@@ -586,7 +587,7 @@ export default function ChatPage() {
                   className={`space-y-3 ${
                     message.role === "user"
                       ? "max-w-[80%] bg-[#2f2f2f] text-[#ececec] text-sm px-4 py-2.5 rounded-[22px] rounded-tr-md shadow-xs"
-                      : "flex-1 max-w-[90%] bg-[#1c1c1c] border border-[#2e2e2e] text-[#ececec] px-4 py-3.5 rounded-[22px] rounded-tl-md shadow-sm"
+                      : "flex-1 max-w-[90%] text-[#ececec] px-1 py-0.5"
                   }`}
                 >
                   {message.status === "guardrail" && (

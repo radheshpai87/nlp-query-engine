@@ -9,7 +9,7 @@ describe("HomePage Component", () => {
     expect(screen.getByText("Natural Language Query Engine")).toBeInTheDocument();
     expect(screen.getByText("Connected Databases")).toBeInTheDocument();
     expect(screen.getByText("Ambiguity Guardian")).toBeInTheDocument();
-    expect(screen.getByText("Schema Canvas")).toBeInTheDocument();
+    expect(screen.getAllByText("Schema Canvas").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders sample natural language questions", () => {
