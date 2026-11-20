@@ -4,38 +4,36 @@ import { Sidebar } from "./sidebar";
 import { useShellStore } from "@/lib/store";
 
 describe("Sidebar Component", () => {
-  it("renders workspace name and primary navigation links", () => {
+  it("renders the brand and grouped navigation", () => {
     useShellStore.setState({ sidebarCollapsed: false });
     render(<Sidebar />);
 
     expect(screen.getByText("Nexus Query")).toBeInTheDocument();
-    expect(screen.getByText("New Chat")).toBeInTheDocument();
-    expect(screen.getByText("New Conversation")).toBeInTheDocument();
-    expect(screen.getByText("Schema Explorer")).toBeInTheDocument();
+    expect(screen.getByText("New chat")).toBeInTheDocument();
+    expect(screen.getByText("Assistant")).toBeInTheDocument();
+    expect(screen.getByText("Schema")).toBeInTheDocument();
     expect(screen.getByText("Connections")).toBeInTheDocument();
+    expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 
-  it("toggles collapsed state when toggle button is clicked", () => {
+  it("toggles collapsed state when the toggle button is clicked", () => {
     useShellStore.setState({ sidebarCollapsed: false });
     render(<Sidebar />);
 
     const toggleBtn = screen.getByTestId("sidebar-toggle-btn");
-    expect(toggleBtn).toBeInTheDocument();
-
     fireEvent.click(toggleBtn);
     expect(useShellStore.getState().sidebarCollapsed).toBe(true);
 
-    fireEvent.click(toggleBtn);
+    fireEvent.click(screen.getByTestId("sidebar-toggle-btn"));
     expect(useShellStore.getState().sidebarCollapsed).toBe(false);
   });
 
-  it("renders active target connection indicators", () => {
+  it("does not show fabricated data sources when none are connected", () => {
     useShellStore.setState({ sidebarCollapsed: false });
     render(<Sidebar />);
 
-    expect(screen.getByText("PostgreSQL Orders")).toBeInTheDocument();
-    expect(screen.getByText("MongoDB Events")).toBeInTheDocument();
-    expect(screen.getByText("Elasticsearch Logs")).toBeInTheDocument();
+    expect(screen.queryByText("PostgreSQL Orders")).not.toBeInTheDocument();
+    expect(screen.queryByText("MongoDB Events")).not.toBeInTheDocument();
   });
 });

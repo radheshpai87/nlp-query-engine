@@ -3,43 +3,251 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  Sparkles,
-  Database,
-  ShieldCheck,
-  Network,
   ArrowRight,
-  Terminal,
-  Zap,
-  Code2,
-  CheckCircle2,
-  Lock,
-  Layers,
-  FileText,
-  BarChart3,
-  Users,
-  Briefcase,
-  TrendingUp,
   ChevronDown,
-  ExternalLink,
-  Search,
-  Check,
+  Database,
+  Layers,
+  LockKeyhole,
   Menu,
+  Network,
+  Search,
+  ShieldCheck,
+  Sparkle,
   X,
-  Boxes,
-  Copy,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getStoredUser } from "@/lib/auth-api";
 import { useShellStore } from "@/lib/store";
 
+const SOURCES = [
+  {
+    name: "PostgreSQL",
+    kind: "Relational",
+    description: "Joins, constraints and foreign keys mapped automatically.",
+    icon: Database,
+  },
+  {
+    name: "MongoDB",
+    kind: "Document",
+    description: "Collections and nested fields, with inferred links labelled honestly.",
+    icon: Layers,
+  },
+  {
+    name: "Elasticsearch",
+    kind: "Search",
+    description: "Index mappings and full-text fields, queried with read-only DSL.",
+    icon: Zap,
+  },
+];
+
+const FEATURES = [
+  {
+    icon: Search,
+    title: "Ask in plain language",
+    body: "No SQL, no JSON, no knowledge of table names required. Ask the question the way you would ask a colleague.",
+  },
+  {
+    icon: Sparkle,
+    title: "Clarify before guessing",
+    body: "Vague thresholds, loose date ranges and competing columns are surfaced as a short, answerable question.",
+  },
+  {
+    icon: Network,
+    title: "See the whole schema",
+    body: "An infinite canvas maps every connected database, table and relationship in one navigable view.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Read-only by construction",
+    body: "Generated queries are parsed and validated against a read-only policy before a connection is ever touched.",
+  },
+  {
+    icon: Layers,
+    title: "Provenance on every answer",
+    body: "Each result shows the sources, fields, filters and plan behind it — so the number can be defended.",
+  },
+  {
+    icon: LockKeyhole,
+    title: "Credentials stay server-side",
+    body: "Connection secrets are encrypted at rest and never returned to the browser after they are saved.",
+  },
+];
+
+const FAQS = [
+  {
+    question: "How is this different from asking a chatbot to write SQL?",
+    answer:
+      "The assistant never sends raw model output to a database. A typed intermediate plan is validated against real, introspected schema metadata, compiled per dialect, and passed through a read-only policy layer before execution. If the request is underspecified, the engine asks instead of inventing a filter.",
+  },
+  {
+    question: "Can a query modify or delete my data?",
+    answer:
+      "No. Write and administrative statements are rejected by the validation layer rather than trusted to the model. We still recommend connecting with a database user that only holds read privileges, so the boundary does not depend on application code alone.",
+  },
+  {
+    question: "Does it really query across databases?",
+    answer:
+      "Yes, for the cases the engine can express explicitly. It runs bounded read-only subqueries per source and combines them in memory. Cross-source relationships are shown as inferred or user-defined, never as guaranteed foreign keys.",
+  },
+  {
+    question: "What happens when the model is unavailable?",
+    answer:
+      "The pipeline fails visibly with a retryable error. It does not fall back to fabricated answers or silently execute a guessed plan.",
+  },
+];
+
+function Preview() {
+  return (
+    <div className="relative mx-auto mt-16 max-w-5xl">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]">
+        {/* Window chrome */}
+        <div className="flex h-10 items-center justify-between border-b border-border bg-background/60 px-4">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-border" />
+            <span className="h-2 w-2 rounded-full bg-border" />
+            <span className="h-2 w-2 rounded-full bg-border" />
+          </div>
+          <span className="text-[11px] text-muted-foreground">Nexus Query · New conversation</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+            <LockKeyhole className="h-2.5 w-2.5" />
+            Read-only
+          </span>
+        </div>
+
+        <div className="grid min-h-[420px] grid-cols-1 md:grid-cols-[190px_1fr]">
+          {/* App rail */}
+          <div className="hidden flex-col gap-5 border-r border-border bg-sidebar p-3 md:flex">
+            <div className="flex items-center gap-2 px-1.5 py-1">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-[10px] font-semibold text-background">
+                N
+              </span>
+              <span className="text-xs font-medium">Nexus</span>
+            </div>
+            <div className="space-y-0.5">
+              {["Assistant", "Schema", "Connections"].map((item, index) => (
+                <div
+                  key={item}
+                  className={`rounded-md px-2.5 py-1.5 text-[11px] ${
+                    index === 0
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+            <div className="mt-auto space-y-1.5">
+              <p className="px-2 text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                Sources
+              </p>
+              {["Production PG", "Events", "Search"].map((source) => (
+                <div
+                  key={source}
+                  className="flex items-center justify-between px-2 text-[10px] text-muted-foreground"
+                >
+                  <span className="truncate">{source}</span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/80" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Conversation */}
+          <div className="space-y-5 p-5 sm:p-7">
+            <div className="flex justify-end">
+              <p className="max-w-md rounded-2xl rounded-tr-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-foreground">
+                Show me high-value customers who bought electronics recently.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-md border border-border bg-background text-[9px] font-semibold">
+                  N
+                </span>
+                <span className="text-[11px] font-medium text-muted-foreground">Nexus</span>
+              </div>
+              <p className="max-w-lg text-[13px] leading-relaxed text-foreground/90">
+                Before I run this, two values need a definition. High-value and recently
+                are not specified in your schema.
+              </p>
+
+              <div className="max-w-lg rounded-lg border border-border bg-background/50">
+                <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                  <span className="text-[11px] font-medium">Define high-value</span>
+                  <span className="text-[10px] text-muted-foreground">1 of 2</span>
+                </div>
+                <div className="space-y-1.5 p-3">
+                  {["Lifetime spend above $1,000", "Single order above $1,000", "Top 10% of spend"].map(
+                    (option, index) => (
+                      <div
+                        key={option}
+                        className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-[11px] ${
+                          index === 0
+                            ? "border-brand/40 bg-brand-muted text-foreground"
+                            : "border-border text-muted-foreground"
+                        }`}
+                      >
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full border ${
+                            index === 0 ? "border-brand bg-brand" : "border-border"
+                          }`}
+                        />
+                        {option}
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Result preview */}
+              <div className="overflow-hidden rounded-lg border border-border">
+                <div className="flex items-center justify-between px-3 py-2 text-[10px] text-muted-foreground">
+                  <span>Result preview · customers</span>
+                  <span>Read-only</span>
+                </div>
+                <table className="w-full text-left text-[11px]">
+                  <thead className="border-y border-border bg-muted/60 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-1.5 font-medium">Customer</th>
+                      <th className="px-3 py-1.5 font-medium">Spend</th>
+                      <th className="hidden px-3 py-1.5 font-medium sm:table-cell">Source</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/70">
+                    {[
+                      ["A. Sharma", "$4,250", "PostgreSQL"],
+                      ["M. Okafor", "$3,100", "PostgreSQL"],
+                      ["L. Chen", "$2,890", "PostgreSQL"],
+                    ].map(([name, spend, source]) => (
+                      <tr key={name}>
+                        <td className="px-3 py-1.5 text-foreground/90">{name}</td>
+                        <td className="px-3 py-1.5 tabular-nums text-foreground/90">{spend}</td>
+                        <td className="hidden px-3 py-1.5 text-muted-foreground sm:table-cell">
+                          {source}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="mt-3 text-center text-[11px] text-muted-foreground">
+        Illustrative interface. Figures are example data, not results from your databases.
+      </p>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const { currentUser, setCurrentUser } = useShellStore();
-
-  const [activeQueryIndex, setActiveQueryIndex] = React.useState<number>(0);
-  const [activeTab, setActiveTab] = React.useState<"results" | "sql" | "mql" | "provenance">("results");
   const [openFaq, setOpenFaq] = React.useState<number | null>(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState<boolean>(false);
-  const [copied, setCopied] = React.useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
     const existing = getStoredUser();
@@ -48,231 +256,50 @@ export default function LandingPage() {
     }
   }, [setCurrentUser]);
 
-  const demos = [
-    {
-      label: "Revenue Leaders",
-      query: "Show me the top five products by revenue this month.",
-      badge: "PostgreSQL 16 · In-Memory Join",
-      latency: "4.2ms",
-      status: "Execution Verified",
-      columns: ["Product Name", "Category", "Units Sold", "Revenue", "Customer Sentiment"],
-      rows: [
-        { product: "Pro Noise-Cancelling Buds", category: "Audio", units: "420", revenue: "$14,250.00", rating: "4.9 ★ (128 reviews)" },
-        { product: 'Ultra-Wide 34" Curved Monitor', category: "Display", units: "119", revenue: "$11,890.00", rating: "4.7 ★ (89 reviews)" },
-        { product: "Mechanical Wireless Deck", category: "Peripherals", units: "210", revenue: "$8,420.00", rating: "4.8 ★ (204 reviews)" },
-        { product: "Ergonomic Desk Riser", category: "Office", units: "95", revenue: "$6,150.00", rating: "4.6 ★ (62 reviews)" },
-        { product: "Thunderbolt 4 Hub Pro", category: "Accessories", units: "148", revenue: "$5,890.00", rating: "4.8 ★ (95 reviews)" },
-      ],
-      sql: `SELECT 
-  p.name AS product_name,
-  p.category,
-  SUM(oi.quantity) AS units_sold,
-  SUM(oi.quantity * oi.unit_price) AS total_revenue
-FROM orders o
-JOIN order_items oi ON o.id = oi.order_id
-JOIN products p ON oi.product_id = p.id
-WHERE o.order_date >= '2025-01-01'
-GROUP BY p.id, p.name, p.category
-ORDER BY total_revenue DESC
-LIMIT 5;`,
-      mql: `db.reviews.aggregate([
-  { "$match": { "rating": { "$gte": 4.5 } } },
-  { "$group": { 
-      "_id": "$product_id", 
-      "avg_rating": { "$avg": "$rating" },
-      "total_reviews": { "$sum": 1 }
-    }
-  },
-  { "$sort": { "avg_rating": -1 } }
-]);`,
-      provenance: {
-        sources: ["PostgreSQL (ecommerce_demo)", "MongoDB (reviews)"],
-        lineage: "orders ➔ order_items ➔ products ➔ reviews",
-        strategy: "In-memory hash join on product_id with time-window predicate",
-        readOnly: "Verified 100% Read-Only AST",
-      },
-    },
-    {
-      label: "Ambiguity Clarification",
-      query: "Show me high-value customers who recently purchased electronics.",
-      badge: "Ambiguity Clarification · 4-Table Path",
-      latency: "Interactive",
-      status: "Clarification Resolved",
-      columns: ["Customer Name", "Orders Placed", "Country", "Lifetime Value", "Resolution Provenance"],
-      rows: [
-        { product: "Alice Smith", category: "8", units: "US", revenue: "$4,250.00", rating: "Resolved: threshold >= $1,000" },
-        { product: "Bob Jones", category: "5", units: "CA", revenue: "$3,100.00", rating: "Resolved: threshold >= $1,000" },
-        { product: "Diana Prince", category: "6", units: "US", revenue: "$2,890.00", rating: "Resolved: threshold >= $1,000" },
-        { product: "Evan Wright", category: "4", units: "DE", revenue: "$2,450.00", rating: "Resolved: threshold >= $1,000" },
-        { product: "Fiona Gallagher", category: "4", units: "FR", revenue: "$2,100.00", rating: "Resolved: threshold >= $1,000" },
-      ],
-      sql: `SELECT 
-  c.id,
-  c.name AS customer_name,
-  c.country,
-  COUNT(DISTINCT o.id) AS total_orders,
-  SUM(o.total_amount) AS customer_ltv
-FROM customers c
-JOIN orders o ON c.id = o.customer_id
-JOIN order_items oi ON o.id = oi.order_id
-JOIN products p ON oi.product_id = p.id
-WHERE p.category = 'Electronics'
-  AND o.order_date >= NOW() - INTERVAL '30 days'
-GROUP BY c.id, c.name, c.country
-HAVING SUM(o.total_amount) >= 1000
-ORDER BY customer_ltv DESC;`,
-      mql: `GET catalog/_search
-{
-  "query": {
-    "bool": {
-      "must": [
-        { "term": { "category.keyword": "Electronics" } },
-        { "range": { "price": { "gte": 250 } } }
-      ]
-    }
-  }
-}`,
-      provenance: {
-        sources: ["PostgreSQL (customers, orders, order_items, products)"],
-        lineage: "customers ➔ orders ➔ order_items ➔ products",
-        strategy: "Clarified: High-Value defined as Total Spend >= $1,000",
-        readOnly: "Verified 100% Read-Only AST",
-      },
-    },
-    {
-      label: "Multi-Hop Traversal",
-      query: "Which buyers purchased goods cheaper than 30?",
-      badge: "BFS Multi-Hop Path · Under $30",
-      latency: "3.7ms",
-      status: "Pathfinding Verified",
-      columns: ["Buyer Name", "Item Purchased", "SKU", "Unit Price", "Predicate Verification"],
-      rows: [
-        { product: "Alice Smith", category: "USB-C Braided Cable", units: "ACC-CAB-002", revenue: "$19.99", rating: "unit_price < $30.00" },
-        { product: "Evan Wright", category: "Ceramic Coffee Mug", units: "HOME-MUG-001", revenue: "$14.50", rating: "unit_price < $30.00" },
-        { product: "Fiona Gallagher", category: "Ergonomic Mousepad", units: "ACC-PAD-005", revenue: "$18.25", rating: "unit_price < $30.00" },
-        { product: "Hannah Abbott", category: "Screen Cleaning Kit", units: "ACC-CLN-001", revenue: "$12.99", rating: "unit_price < $30.00" },
-        { product: "Ian Malcolm", category: "Cable Organizer Set", units: "ACC-ORG-003", revenue: "$24.99", rating: "unit_price < $30.00" },
-      ],
-      sql: `SELECT 
-  c.name AS buyer_name,
-  p.name AS item_name,
-  p.sku,
-  oi.unit_price,
-  oi.quantity
-FROM customers c
-JOIN orders o ON c.id = o.customer_id
-JOIN order_items oi ON o.id = oi.order_id
-JOIN products p ON oi.product_id = p.id
-WHERE oi.unit_price < 30.00
-ORDER BY oi.unit_price ASC
-LIMIT 20;`,
-      mql: `// Graph Routing Summary:
-// Path Cost: 3 edges (0 cross-source barriers)
-// Traversal: customers [c] -> orders [o] -> order_items [oi] -> products [p]
-// Filter: oi.unit_price < 30.00 applied during inner scan`,
-      provenance: {
-        sources: ["PostgreSQL (ecommerce_demo)"],
-        lineage: "customers ➔ orders ➔ order_items ➔ products",
-        strategy: "Automated 3-Hop Relational Traversal",
-        readOnly: "Verified 100% Read-Only AST",
-      },
-    },
-  ];
-
-  const currentDemo = demos[activeQueryIndex];
-
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const faqs = [
-    {
-      question: "How does the ambiguity detection engine work?",
-      answer:
-        "Unlike generic LLM wrappers that guess missing parameters silently, our engine analyzes your query against connected schema snapshots. If an entity is underspecified ('a certain customer'), a column name is ambiguous across databases, or a business metric is undefined ('revenue'), the engine pauses execution and presents an interactive clarification card with one-click choices before any database is touched.",
-    },
-    {
-      question: "Are database write operations (INSERT, UPDATE, DELETE, DROP) possible?",
-      answer:
-        "No. The engine is strictly read-only. All generated queries pass through multi-layer AST and dialect validators that block all DDL and DML operations. Furthermore, database connections should be configured with read-only database user privileges as an independent security boundary.",
-    },
-    {
-      question: "Can it join tables across different databases?",
-      answer:
-        "Yes. The engine builds an in-memory SchemaGraph that connects relational tables (PostgreSQL), collections (MongoDB), and indices (Elasticsearch). It executes parallel subqueries against each database and performs in-memory joining within a bounded memory budget.",
-    },
-    {
-      question: "How is query execution auditable and tamper-evident?",
-      answer:
-        "Every single query, ambiguity resolution, generated SQL/MQL/DSL dialect, and execution outcome is appended to a cryptographic SHA-256 hash-chained audit ledger. Any retroactive alteration or deletion of audit logs breaks the cryptographic chain and is immediately detectable.",
-    },
-  ];
-
   return (
-    <div className="min-h-screen bg-[#090A0E] text-[#F3F4F6] flex flex-col font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
-      {/* 1. Minimalist Navigation Bar */}
-      <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-[#090A0E]/90 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-background text-foreground antialiased">
+      <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400">
-              <Boxes className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm tracking-tight text-white">Nexus Query</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                  Enterprise
-                </span>
-              </div>
-              <span className="text-[10px] text-zinc-400">
-                Natural Language Query Engine
-              </span>
-            </div>
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-[11px] font-semibold text-background">
+              N
+            </span>
+            <span className="text-[13px] font-medium tracking-tight">Nexus Query</span>
           </Link>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-7 text-xs text-zinc-400">
-            <a href="#demo" className="hover:text-white transition-colors">
-              Product Demo
+          <nav className="hidden items-center gap-7 text-[13px] text-muted-foreground md:flex">
+            <a href="#product" className="transition-colors hover:text-foreground">
+              Product
             </a>
-            <a href="#integrations" className="hover:text-white transition-colors">
-              Databases
+            <a href="#sources" className="transition-colors hover:text-foreground">
+              Sources
             </a>
-            <a href="#features" className="hover:text-white transition-colors">
-              Capabilities
+            <a href="#security" className="transition-colors hover:text-foreground">
+              Security
             </a>
-            <a href="#how-it-works" className="hover:text-white transition-colors">
-              How It Works
-            </a>
-            <a href="#use-cases" className="hover:text-white transition-colors">
-              Use Cases
-            </a>
-            <a href="#faq" className="hover:text-white transition-colors">
+            <a href="#faq" className="transition-colors hover:text-foreground">
               FAQ
             </a>
           </nav>
 
-          {/* Actions */}
-          <div className="hidden sm:flex items-center gap-3">
+          <div className="hidden items-center gap-2 md:flex">
             {currentUser ? (
               <Link href="/chat">
-                <Button className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs px-3.5 h-8.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5">
-                  <span>Enter Console</span>
+                <Button size="sm" className="h-8 gap-1.5 px-3 text-xs">
+                  Open workspace
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </Link>
             ) : (
               <>
                 <Link href="/login">
-                  <Button variant="ghost" className="text-xs text-zinc-400 hover:text-white h-8.5 px-3">
-                    Sign In
+                  <Button variant="ghost" size="sm" className="h-8 px-3 text-xs text-muted-foreground">
+                    Sign in
                   </Button>
                 </Link>
                 <Link href="/register">
-                  <Button className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs px-3.5 h-8.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5">
-                    <span>Get Started</span>
+                  <Button size="sm" className="h-8 gap-1.5 px-3 text-xs">
+                    Get started
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </Link>
@@ -280,760 +307,412 @@ LIMIT 20;`,
             )}
           </div>
 
-          {/* Mobile menu toggle */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-1.5 rounded-md text-zinc-400 hover:text-white sm:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden"
             aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
         </div>
 
         {mobileMenuOpen && (
-          <div className="sm:hidden border-b border-zinc-800 bg-[#0F1117] px-4 py-4 space-y-3 text-xs">
-            <div className="flex flex-col space-y-2 text-zinc-300">
-              <a href="#demo" onClick={() => setMobileMenuOpen(false)}>Product Demo</a>
-              <a href="#integrations" onClick={() => setMobileMenuOpen(false)}>Databases</a>
-              <a href="#features" onClick={() => setMobileMenuOpen(false)}>Capabilities</a>
-              <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
-              <a href="#use-cases" onClick={() => setMobileMenuOpen(false)}>Use Cases</a>
-              <a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
+          <div className="space-y-4 border-t border-border px-5 py-4 md:hidden">
+            <div className="flex flex-col gap-3 text-sm text-muted-foreground">
+              <a href="#product" onClick={() => setMobileMenuOpen(false)}>
+                Product
+              </a>
+              <a href="#sources" onClick={() => setMobileMenuOpen(false)}>
+                Sources
+              </a>
+              <a href="#security" onClick={() => setMobileMenuOpen(false)}>
+                Security
+              </a>
+              <a href="#faq" onClick={() => setMobileMenuOpen(false)}>
+                FAQ
+              </a>
             </div>
-            <div className="pt-3 border-t border-zinc-800 flex gap-2">
+            <div className="flex gap-2 pt-1">
               <Link href="/login" className="flex-1">
-                <Button variant="outline" className="w-full text-xs h-8 border-zinc-700 bg-transparent text-white">Sign In</Button>
+                <Button variant="outline" size="sm" className="w-full">
+                  Sign in
+                </Button>
               </Link>
               <Link href="/register" className="flex-1">
-                <Button className="w-full text-xs h-8 bg-emerald-500 text-zinc-950 font-semibold">Get Started</Button>
+                <Button size="sm" className="w-full">
+                  Get started
+                </Button>
               </Link>
             </div>
           </div>
         )}
       </header>
 
-      {/* 2. Hero Section */}
-      <section className="relative pt-20 pb-16 md:pt-28 md:pb-24 border-b border-zinc-800/80">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span className="font-mono text-[11px] tracking-wide uppercase">
-              Ambiguity-Aware · Multi-Database · Read-Only Assurance
-            </span>
-          </div>
+      <main>
+        <section className="hero-wash relative overflow-hidden">
+          <div className="mx-auto max-w-6xl px-5 pb-16 pt-20 sm:px-6 sm:pt-28">
+            <div className="mx-auto max-w-3xl text-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+                Ambiguity-aware, read-only querying
+              </span>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1] max-w-4xl mx-auto">
-            Your entire data infrastructure. <br />
-            <span className="text-emerald-400">One conversation.</span>
-          </h1>
+              <h1 className="mt-6 text-4xl font-medium leading-[1.06] tracking-[-0.045em] sm:text-6xl lg:text-[64px]">
+                Ask your data a question.
+                <br />
+                <span className="text-muted-foreground">Get an answer you can trust.</span>
+              </h1>
 
-          <p className="max-w-2xl mx-auto text-sm sm:text-base text-zinc-400 leading-relaxed font-normal">
-            Connect PostgreSQL, MongoDB, Elasticsearch and more. Ask questions in plain English and receive intelligent, explainable answers backed by real database queries.
-          </p>
+              <p className="mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
+                Nexus turns plain English into validated, read-only queries across
+                PostgreSQL, MongoDB and Elasticsearch — and asks before it assumes.
+              </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
-            <Link href="/chat">
-              <Button className="w-full sm:w-auto h-10 px-6 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold rounded-lg shadow-xs transition-colors flex items-center justify-center gap-2">
-                <span>Explore the Platform</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            </Link>
-            <a href="#how-it-works">
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto h-10 px-6 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 text-xs font-medium rounded-lg transition-colors"
-              >
-                <span>See How It Works</span>
-              </Button>
-            </a>
-          </div>
-
-          <div className="pt-6 flex flex-wrap items-center justify-center gap-8 text-xs text-zinc-400 border-t border-zinc-800/60 max-w-2xl mx-auto">
-            <div className="flex items-center gap-2">
-              <Lock className="h-3.5 w-3.5 text-zinc-400" />
-              <span>Strict Read-Only Guardrails</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-3.5 w-3.5 text-zinc-400" />
-              <span>Ambiguity Interception</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <FileText className="h-3.5 w-3.5 text-zinc-400" />
-              <span>Cryptographic Audit Ledger</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. Interactive Product Demonstration */}
-      <section id="demo" className="py-16 md:py-20 border-b border-zinc-800/80 bg-[#0B0D13]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10 max-w-2xl mx-auto space-y-2">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
-              Interactive Engine Preview
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Test Real Engine Translations
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400">
-              Select sample natural language inquiries to inspect plan synthesis, native dialects, and verifiable provenance.
-            </p>
-          </div>
-
-          {/* Simple Query Selector Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-            {demos.map((d, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  setActiveQueryIndex(idx);
-                  setActiveTab("results");
-                }}
-                className={`text-left p-4 rounded-xl border text-xs transition-all ${
-                  activeQueryIndex === idx
-                    ? "bg-zinc-900 border-emerald-500/60 text-white shadow-xs"
-                    : "bg-[#0F1117] border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-semibold">
-                    {d.badge}
-                  </span>
-                  <span className="text-[10px] font-mono text-zinc-500">{d.latency}</span>
-                </div>
-                <p className="font-medium text-xs text-white line-clamp-2 leading-snug">
-                  {d.query}
-                </p>
-              </button>
-            ))}
-          </div>
-
-          {/* Clean Application Preview Window */}
-          <div className="rounded-xl border border-zinc-800 bg-[#0F1117] shadow-xl overflow-hidden">
-            {/* Window Header */}
-            <div className="px-4 py-3 bg-[#131620] border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                <span className="font-mono text-zinc-300 text-xs">
-                  nexus-engine :: <span className="text-emerald-400">{currentDemo.status}</span>
-                </span>
-                <span className="text-zinc-600 hidden sm:inline">|</span>
-                <span className="text-zinc-400 text-[11px] hidden sm:inline">
-                  Latency: {currentDemo.latency}
-                </span>
-              </div>
-
-              {/* Dialect Tabs */}
-              <div className="flex items-center gap-1 bg-zinc-900 p-0.5 rounded-lg border border-zinc-800">
-                {(
-                  [
-                    { id: "results", label: "Results Table" },
-                    { id: "sql", label: "Compiled SQL" },
-                    { id: "mql", label: "MQL / DSL" },
-                    { id: "provenance", label: "Provenance" },
-                  ] as const
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                      activeTab === tab.id
-                        ? "bg-zinc-800 text-white font-semibold"
-                        : "text-zinc-400 hover:text-zinc-200"
-                    }`}
+              <div className="mt-8 flex flex-col items-center justify-center gap-2 sm:flex-row">
+                <Link href={currentUser ? "/chat" : "/register"} className="w-full sm:w-auto">
+                  <Button className="h-9 w-full gap-2 px-4 text-[13px] sm:w-auto">
+                    {currentUser ? "Open workspace" : "Start querying"}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+                <a href="#product" className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="h-9 w-full px-4 text-[13px] text-muted-foreground sm:w-auto"
                   >
-                    {tab.label}
-                  </button>
-                ))}
+                    See how it works
+                  </Button>
+                </a>
               </div>
+
+              <p className="mt-4 text-[11px] text-muted-foreground">
+                No pipelines to build. No schema exports. Read-only by default.
+              </p>
             </div>
 
-            {/* Split Interface: Left Clusters Sidebar + Right Work Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[380px]">
-              {/* Left Sidebar */}
-              <div className="lg:col-span-3 border-b lg:border-b-0 lg:border-r border-zinc-800 bg-[#0D0F15] p-4 text-xs space-y-4">
-                <div>
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold mb-2">
-                    Active Clusters
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="p-2.5 rounded-lg bg-[#11141D] border border-zinc-800 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Database className="h-3.5 w-3.5 text-blue-400" />
-                        <span className="text-white font-medium text-[11px]">PostgreSQL 16</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-emerald-400">online</span>
-                    </div>
+            <Preview />
+          </div>
+        </section>
 
-                    <div className="p-2.5 rounded-lg bg-[#11141D] border border-zinc-800 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Layers className="h-3.5 w-3.5 text-emerald-400" />
-                        <span className="text-white font-medium text-[11px]">MongoDB 7.0</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-emerald-400">online</span>
-                    </div>
-
-                    <div className="p-2.5 rounded-lg bg-[#11141D] border border-zinc-800 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Zap className="h-3.5 w-3.5 text-amber-400" />
-                        <span className="text-white font-medium text-[11px]">Elasticsearch 8.13</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-emerald-400">online</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-zinc-800/80">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold mb-2">
-                    Security & Engine State
-                  </div>
-                  <div className="space-y-1 text-[11px] font-mono text-zinc-400">
-                    <div className="flex justify-between">
-                      <span>Execution:</span>
-                      <span className="text-emerald-400">Read-Only</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Audit Chaining:</span>
-                      <span className="text-zinc-200">SHA-256</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Ambiguity Pass:</span>
-                      <span className="text-emerald-400">Active</span>
-                    </div>
-                  </div>
-                </div>
+        {/* Sources */}
+        <section id="sources" className="border-t border-border">
+          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+              <div>
+                <h2 className="text-[22px] font-medium tracking-[-0.02em]">
+                  One question, every store
+                </h2>
+                <p className="mt-1.5 max-w-lg text-sm leading-relaxed text-muted-foreground">
+                  Connect the databases you already run. Nexus introspects them and keeps
+                  the schema map current.
+                </p>
               </div>
+              <Link
+                href="/connections"
+                className="inline-flex items-center gap-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Manage connections
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
 
-              {/* Right Output Area */}
-              <div className="lg:col-span-9 p-5 flex flex-col justify-between">
-                {/* Query Display Bar */}
-                <div className="mb-4 pb-3 border-b border-zinc-800/80 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 text-xs text-white">
-                    <Terminal className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span className="font-medium text-sm text-white">&gt; {currentDemo.query}</span>
+            <div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
+              {SOURCES.map((source) => {
+                const Icon = source.icon;
+                return (
+                  <div key={source.name} className="bg-card p-5">
+                    <div className="flex items-center justify-between">
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                        {source.kind}
+                      </span>
+                    </div>
+                    <h3 className="mt-6 text-sm font-medium">{source.name}</h3>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                      {source.description}
+                    </p>
                   </div>
-                  <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">
-                    Validated Plan
-                  </span>
-                </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-                {/* View 1: Results Table */}
-                {activeTab === "results" && (
-                  <div className="overflow-x-auto flex-1">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-zinc-800 text-zinc-400 font-medium">
-                          {currentDemo.columns.map((col, idx) => (
-                            <th key={idx} className="pb-2.5">
-                              {col}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-800/60 font-sans">
-                        {currentDemo.rows.map((r, i) => (
-                          <tr key={i} className="hover:bg-zinc-800/30 transition-colors">
-                            <td className="py-2.5 text-white font-medium">{r.product}</td>
-                            <td className="py-2.5 text-zinc-400 font-mono text-[11px]">{r.category}</td>
-                            <td className="py-2.5 text-zinc-400 font-mono text-[11px]">{r.units}</td>
-                            <td className="py-2.5 text-zinc-100 font-mono font-medium">{r.revenue}</td>
-                            <td className="py-2.5 text-[11px] text-zinc-400">{r.rating}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+        {/* Product */}
+        <section id="product" className="border-t border-border bg-card/30">
+          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
+            <div className="max-w-2xl">
+              <h2 className="text-[22px] font-medium tracking-[-0.02em] sm:text-[28px]">
+                Built for questions that don&apos;t fit a dashboard
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                A query engine that shows its work: what it understood, which schema it
+                used, and where every number came from.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map((feature) => {
+                const Icon = feature.icon;
+                return (
+                  <div key={feature.title}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background">
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                    <h3 className="mt-4 text-[13px] font-medium">{feature.title}</h3>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                      {feature.body}
+                    </p>
                   </div>
-                )}
+                );
+              })}
+            </div>
 
-                {/* View 2: SQL */}
-                {activeTab === "sql" && (
-                  <div className="relative flex-1">
-                    <pre className="p-4 rounded-lg bg-[#0A0C12] border border-zinc-800 text-zinc-200 font-mono text-xs leading-relaxed overflow-x-auto select-all">
-                      {currentDemo.sql}
-                    </pre>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyCode(currentDemo.sql)}
-                      className="absolute top-3 right-3 p-1.5 rounded bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700 transition-colors"
-                      title="Copy SQL"
+            {/* Two-up detail */}
+            <div className="mt-14 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-lg border border-border bg-background p-6">
+                <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Clarification
+                </span>
+                <h3 className="mt-3 text-lg font-medium tracking-[-0.01em]">
+                  &ldquo;Recently&rdquo; is not a date range
+                </h3>
+                <p className="mt-2 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+                  When a request leaves a threshold, period or join path undefined, the
+                  engine pauses the workflow and asks one targeted question. Your answer
+                  is merged into the pending query, and the context survives a refresh.
+                </p>
+
+                <div className="mt-6 space-y-2">
+                  {[
+                    { label: "Last 30 days", active: true },
+                    { label: "Last 90 days", active: false },
+                    { label: "Calendar month to date", active: false },
+                  ].map((option) => (
+                    <div
+                      key={option.label}
+                      className={`flex items-center justify-between rounded-md border px-3 py-2 text-[12px] ${
+                        option.active
+                          ? "border-brand/40 bg-brand-muted"
+                          : "border-border text-muted-foreground"
+                      }`}
                     >
-                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
-                )}
-
-                {/* View 3: MQL */}
-                {activeTab === "mql" && (
-                  <div className="relative flex-1">
-                    <pre className="p-4 rounded-lg bg-[#0A0C12] border border-zinc-800 text-zinc-200 font-mono text-xs leading-relaxed overflow-x-auto select-all">
-                      {currentDemo.mql}
-                    </pre>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyCode(currentDemo.mql)}
-                      className="absolute top-3 right-3 p-1.5 rounded bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700 transition-colors"
-                      title="Copy Code"
-                    >
-                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
-                )}
-
-                {/* View 4: Provenance */}
-                {activeTab === "provenance" && (
-                  <div className="flex-1 p-4 rounded-lg bg-[#0A0C12] border border-zinc-800 space-y-3 font-mono text-xs">
-                    <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>Tamper-Evident Ledger Provenance</span>
+                      <span>{option.label}</span>
+                      {option.active && <span className="text-[10px] text-brand">Selected</span>}
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] pt-1">
-                      <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                        <span className="text-zinc-500">Participating Sources</span>
-                        <div className="text-white font-medium">{currentDemo.provenance.sources.join(", ")}</div>
-                      </div>
-                      <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
-                        <span className="text-zinc-500">Schema Lineage</span>
-                        <div className="text-white font-medium">{currentDemo.provenance.lineage}</div>
-                      </div>
-                      <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1 sm:col-span-2">
-                        <span className="text-zinc-500">Resolution Strategy</span>
-                        <div className="text-white font-medium">
-                          {currentDemo.provenance.strategy} · {currentDemo.provenance.readOnly}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Status Bar */}
-                <div className="mt-4 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between text-[11px] font-mono text-zinc-500">
-                  <div className="flex items-center gap-2 text-emerald-400">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span className="text-zinc-400">AST Validation Passed</span>
-                    <span className="text-zinc-700">·</span>
-                    <span>Read-Only Execution Enforced</span>
-                  </div>
-                  <div>
-                    Audit Hash: <span className="text-zinc-400">sha256:7f8a42...e91c</span>
-                  </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* 4. Connected Databases */}
-      <section id="integrations" className="py-20 border-b border-zinc-800/80">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14 max-w-2xl mx-auto space-y-2">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
-              Supported Data Topologies
-            </div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">
-              Connected Databases
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400">
-              Query relational schemas, document stores, and inverted search indices simultaneously without configuring manual ETL pipelines.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* PostgreSQL */}
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 space-y-4 hover:border-zinc-700 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="h-10 w-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-blue-400">
-                  <Database className="h-5 w-5" />
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
-                  ANSI SQL
+              <div className="relative overflow-hidden rounded-lg border border-border bg-background p-6">
+                <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Schema explorer
                 </span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-white text-base">PostgreSQL 16</h3>
-                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                  Relational transactional core for customers, orders, order items, and products with multi-hop foreign-key joins.
+                <h3 className="mt-3 text-lg font-medium tracking-[-0.01em]">
+                  The data model, in one view
+                </h3>
+                <p className="mt-2 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+                  Pan, zoom and search an infinite canvas of databases, tables and
+                  relationships. Foreign keys are distinguished from inferred or
+                  user-defined links.
                 </p>
-              </div>
-              <div className="pt-2 flex flex-wrap gap-1.5 text-[10px] font-mono text-zinc-400">
-                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">customers</span>
-                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">orders</span>
-                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">order_items</span>
-                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">products</span>
-              </div>
-            </div>
 
-            {/* MongoDB */}
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 space-y-4 hover:border-zinc-700 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="h-10 w-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400">
-                  <Layers className="h-5 w-5" />
+                <div className="dot-grid relative mt-6 h-44 rounded-md border border-border">
+                  <div className="absolute left-4 top-5 rounded border border-border bg-card px-2.5 py-1.5 text-[10px]">
+                    customers
+                  </div>
+                  <div className="absolute right-4 top-12 rounded border border-border bg-card px-2.5 py-1.5 text-[10px]">
+                    orders
+                  </div>
+                  <div className="absolute bottom-5 left-16 rounded border border-border bg-card px-2.5 py-1.5 text-[10px]">
+                    order_items
+                  </div>
+                  <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
+                    <line x1="104" y1="45" x2="228" y2="76" stroke="var(--border)" strokeWidth="1" />
+                    <line x1="228" y1="88" x2="130" y2="146" stroke="var(--border)" strokeWidth="1" />
+                  </svg>
+                  <div className="absolute bottom-3 right-4 rounded border border-brand/30 bg-brand-muted px-2 py-1 text-[9px] text-brand">
+                    inferred
+                  </div>
                 </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
-                  Aggregation MQL
-                </span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-white text-base">MongoDB 7.0</h3>
-                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                  Semi-structured document collections for product reviews, user telemetry events, and audit metadata storage.
-                </p>
-              </div>
-              <div className="pt-2 flex flex-wrap gap-1.5 text-[10px] font-mono text-zinc-400">
-                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">reviews</span>
-                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">events</span>
-                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">conversations</span>
-              </div>
-            </div>
-
-            {/* Elasticsearch */}
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 space-y-4 hover:border-zinc-700 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="h-10 w-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-amber-400">
-                  <Zap className="h-5 w-5" />
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
-                  Inverted Search DSL
-                </span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-white text-base">Elasticsearch 8.13</h3>
-                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                  Full-text search catalog with fuzzy matching and server access logs for performance response time analysis.
-                </p>
-              </div>
-              <div className="pt-2 flex flex-wrap gap-1.5 text-[10px] font-mono text-zinc-400">
-                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">catalog</span>
-                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">access_logs</span>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* 5. Capabilities Bento Grid */}
-      <section id="features" className="py-20 border-b border-zinc-800/80 bg-[#0B0D13]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14 max-w-2xl mx-auto space-y-2">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
-              Engine Subsystems
-            </div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">
-              Engine Capabilities
+        {/* How it works */}
+        <section className="border-t border-border">
+          <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
+            <h2 className="text-[22px] font-medium tracking-[-0.02em] sm:text-[28px]">
+              Three steps, no new pipeline
             </h2>
-            <p className="text-xs sm:text-sm text-zinc-400">
-              Deterministic query planning and security controls engineered for mission-critical enterprise environments.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Card 1: Ambiguity Guardian */}
-            <div className="md:col-span-2 p-6 rounded-xl bg-[#0F1117] border border-zinc-800 space-y-4">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-white">Ambiguity Guardian</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed max-w-xl">
-                  Detects underspecified entities, conflicting cross-database column names, and vague timeframes with interactive clarification cards.
-                </p>
-              </div>
-              <div className="p-3.5 rounded-lg bg-[#0A0C12] border border-zinc-800 font-mono text-xs space-y-2">
-                <div className="flex items-center justify-between text-zinc-400 text-[11px]">
-                  <span>Ambiguity Parameter Check</span>
-                  <span className="text-emerald-400">Interception Active (65%)</span>
-                </div>
-                <div className="text-zinc-300 text-[11px]">
-                  &quot;customer_identifier&quot; parameter requires user confirmation:
-                </div>
-                <div className="flex flex-wrap gap-2 text-[10px]">
-                  <span className="px-2 py-0.5 rounded bg-zinc-800 text-white border border-zinc-700">
-                    Alice Smith
+            <div className="mt-10 grid gap-8 sm:grid-cols-3">
+              {[
+                {
+                  step: "01",
+                  title: "Connect a source",
+                  body: "Add PostgreSQL, MongoDB or Elasticsearch. We test the connection and introspect the schema before saving.",
+                },
+                {
+                  step: "02",
+                  title: "Ask a question",
+                  body: "Write it the way you speak. Resolve any clarification the engine raises in the same conversation.",
+                },
+                {
+                  step: "03",
+                  title: "Review the answer",
+                  body: "Inspect the table, the plan and its provenance. Reuse the query later from history or saved queries.",
+                },
+              ].map((item) => (
+                <div key={item.step} className="border-t border-border pt-4">
+                  <span className="text-[11px] tabular-nums text-muted-foreground">
+                    {item.step}
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
-                    Bob Jones
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
-                    All Customers
-                  </span>
+                  <h3 className="mt-2 text-[13px] font-medium">{item.title}</h3>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                    {item.body}
+                  </p>
                 </div>
-              </div>
+              ))}
             </div>
+          </div>
+        </section>
 
-            {/* Card 2: Schema Canvas */}
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 space-y-4">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-blue-400">
-                <Network className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold text-white">Schema Canvas</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Interactive ReactFlow graph displaying native foreign keys, user-defined cross-database links, and automated BFS multi-hop joins.
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-[#0A0C12] border border-zinc-800 font-mono text-[11px] text-zinc-400">
-                customers ➔ orders ➔ items ➔ products
-              </div>
-            </div>
-
-            {/* Card 3: Polyglot Dialect Generation */}
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 space-y-3">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400">
-                <Code2 className="h-4 w-4" />
-              </div>
-              <h3 className="text-sm font-bold text-white">Polyglot Dialect Generation</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Synthesizes parameterized PostgreSQL SQL, MongoDB aggregation pipelines, and Elasticsearch Query DSL safely from an IR Logical Plan.
+        {/* Security */}
+        <section id="security" className="border-t border-border bg-card/30">
+          <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:px-6 sm:py-20 lg:grid-cols-2">
+            <div>
+              <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                Security model
+              </span>
+              <h2 className="mt-3 text-[22px] font-medium tracking-[-0.02em] sm:text-[28px]">
+                Read-only is a policy, not a prompt
+              </h2>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+                Model output is never trusted with execution. Every plan is checked
+                against schema metadata and an independent validation layer that rejects
+                writes, administrative statements and unsafe operators.
               </p>
+              <Link
+                href="/register"
+                className="mt-6 inline-flex items-center gap-1.5 text-[13px] text-foreground transition-opacity hover:opacity-70"
+              >
+                Create a workspace
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
 
-            {/* Card 4: Strict Read-Only Guardrails */}
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 space-y-3">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-blue-400">
-                <Lock className="h-4 w-4" />
-              </div>
-              <h3 className="text-sm font-bold text-white">Strict Read-Only Guardrails</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Multi-layer AST validation prevents any modification to connected production data. Write operations are architecturally prohibited.
-              </p>
-            </div>
-
-            {/* Card 5: SHA-256 Audit Ledger */}
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 space-y-3">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
-                <FileText className="h-4 w-4" />
-              </div>
-              <h3 className="text-sm font-bold text-white">SHA-256 Audit Ledger</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Tamper-evident cryptographically chained ledger logging every question, translation, and execution outcome with verifiable integrity.
-              </p>
-            </div>
-
-            {/* Card 6: Provenance & Visualization */}
-            <div className="md:col-span-3 p-6 rounded-xl bg-[#0F1117] border border-zinc-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="space-y-1 max-w-xl">
-                <h3 className="text-base font-bold text-white">Provenance & Visualization</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Automated Chart.js suggestions, downloadable CSV/JSON exports, and clear provenance showing which tables and columns produced every number.
-                </p>
-              </div>
-              <div className="flex gap-2 font-mono text-[11px] text-zinc-300">
-                <span className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800">CSV Export</span>
-                <span className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800">JSON Export</span>
-                <span className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800">Chart.js</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. How It Works Timeline */}
-      <section id="how-it-works" className="py-20 border-b border-zinc-800/80">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14 max-w-2xl mx-auto space-y-2">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
-              Execution Lifecycle
-            </div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">
-              How It Works
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400">
-              Four deterministic steps from raw natural language to verified execution.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[
-              {
-                step: "01",
-                title: "Connect & Introspect",
-                desc: "Link PostgreSQL, MongoDB, or Elasticsearch. The engine automatically indexes tables, fields, and relationships.",
-              },
-              {
-                step: "02",
-                title: "Ask in Plain English",
-                desc: "Type questions naturally. The Semantic Lexicon resolves business synonyms ('buyers' -> 'customers', 'goods' -> 'products').",
-              },
-              {
-                step: "03",
-                title: "Resolve Ambiguities",
-                desc: "If any parameters are underspecified, the engine pauses and presents clarification options with zero guessing.",
-              },
-              {
-                step: "04",
-                title: "Explainable Output",
-                desc: "Query executes safely across databases. Results appear as conversational summaries, data tables, and dynamic charts.",
-              },
-            ].map((s) => (
-              <div key={s.step} className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 space-y-3">
-                <div className="text-2xl font-bold text-emerald-400 font-mono">{s.step}</div>
-                <h3 className="text-sm font-bold text-white">{s.title}</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 7. Teams Use Cases */}
-      <section id="use-cases" className="py-20 border-b border-zinc-800/80 bg-[#0B0D13]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14 max-w-2xl mx-auto space-y-2">
-            <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
-              Enterprise Stakeholders
-            </div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">
-              Tailored for Enterprise Teams
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400">
-              Empowering technical and non-technical stakeholders across the organization.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 flex items-start gap-4">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400 shrink-0">
-                <TrendingUp className="h-4 w-4" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-white">Business Executives & Leaders</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Get instant conversational summaries of sales KPIs, product demand, and regional performance without waiting on data team tickets.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 flex items-start gap-4">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-blue-400 shrink-0">
-                <BarChart3 className="h-4 w-4" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-white">Data & BI Analysts</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Verify auto-generated SQL and MongoDB pipelines, inspect relationship paths on the Schema Canvas, and export CSV/JSON datasets.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 flex items-start gap-4">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400 shrink-0">
-                <Users className="h-4 w-4" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-white">Product Managers</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Cross-reference product catalog ratings in Elasticsearch with user telemetry events in MongoDB to understand feature adoption.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 rounded-xl bg-[#0F1117] border border-zinc-800 flex items-start gap-4">
-              <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-amber-400 shrink-0">
-                <Briefcase className="h-4 w-4" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-white">Operations & Support</h3>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Query customer order status, shipment tracking, and access log latency without needing database administrator credentials.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 8. FAQ Accordion */}
-      <section id="faq" className="py-20 border-b border-zinc-800/80">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12 space-y-2">
-            <h2 className="text-3xl font-bold text-white tracking-tight">
-              Frequently Asked Questions
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400">
-              Learn how our ambiguity-first architecture compares to standard query tools.
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {faqs.map((faq, idx) => (
-              <div key={idx} className="rounded-xl border border-zinc-800 bg-[#0F1117] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                  className="w-full p-4 sm:p-5 text-left flex items-center justify-between text-xs sm:text-sm font-semibold text-white hover:text-emerald-400 transition-colors"
+            <ul className="space-y-3">
+              {[
+                ["Read-only execution", "Writes and DDL are denied before the database is contacted."],
+                ["Encrypted secrets", "Passwords and API keys are encrypted at rest and never echoed back."],
+                ["Bounded queries", "Timeouts, row limits and result caps apply to every source."],
+                ["Traceable answers", "Plan, sources, filters and execution metadata are retained per query."],
+              ].map(([title, body]) => (
+                <li
+                  key={title}
+                  className="flex gap-3 rounded-lg border border-border bg-background p-4"
                 >
-                  <span>{faq.question}</span>
-                  <ChevronDown
-                    className={`h-4 w-4 text-zinc-500 transition-transform ${
-                      openFaq === idx ? "rotate-180 text-emerald-400" : ""
-                    }`}
-                  />
-                </button>
-                {openFaq === idx && (
-                  <div className="px-4 sm:px-5 pb-5 text-xs text-zinc-400 leading-relaxed border-t border-zinc-800/80 pt-3">
-                    {faq.answer}
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-[13px] font-medium">{title}</p>
+                    <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+                      {body}
+                    </p>
                   </div>
-                )}
-              </div>
-            ))}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* 9. Final CTA */}
-      <section className="py-20 text-center bg-[#090A0E] border-b border-zinc-800/80">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-4">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
-            Your Data Has Answers. <br />
-            <span className="text-zinc-400">Start Asking.</span>
-          </h2>
-          <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto">
-            Connect your databases and experience a smarter way to explore your data.
-          </p>
-          <div className="pt-2 flex justify-center">
-            <Link href="/register">
-              <Button className="h-10 px-6 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold rounded-lg shadow-xs flex items-center gap-2">
-                <span>Create Your Free Workspace</span>
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+        {/* FAQ */}
+        <section id="faq" className="border-t border-border">
+          <div className="mx-auto max-w-3xl px-5 py-16 sm:px-6 sm:py-20">
+            <h2 className="text-[22px] font-medium tracking-[-0.02em] sm:text-[28px]">
+              Questions worth asking
+            </h2>
+            <div className="mt-8 divide-y divide-border border-y border-border">
+              {FAQS.map((faq, index) => {
+                const isOpen = openFaq === index;
+                return (
+                  <div key={faq.question}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(isOpen ? null : index)}
+                      aria-expanded={isOpen}
+                      className="flex w-full items-center justify-between gap-4 py-4 text-left text-[13px] font-medium transition-colors hover:text-muted-foreground"
+                    >
+                      <span>{faq.question}</span>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+                          isOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {isOpen && (
+                      <p className="max-w-2xl pb-5 text-[13px] leading-relaxed text-muted-foreground">
+                        {faq.answer}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* 10. Minimalist Footer */}
-      <footer className="py-10 bg-[#07080B] text-zinc-500 text-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Closing CTA */}
+        <section className="border-t border-border">
+          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-5 py-16 sm:px-6 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-[22px] font-medium tracking-[-0.02em]">
+                Ready to ask your first question?
+              </h2>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Create a workspace and connect a database in a couple of minutes.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Link href="/login">
+                <Button variant="outline" className="h-9 px-4 text-[13px] text-muted-foreground">
+                  Sign in
+                </Button>
+              </Link>
+              <Link href={currentUser ? "/chat" : "/register"}>
+                <Button className="h-9 gap-2 px-4 text-[13px]">
+                  {currentUser ? "Open workspace" : "Get started"}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-[12px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-2">
-            <Boxes className="h-4 w-4 text-emerald-400" />
-            <span className="text-zinc-300 font-semibold">Nexus Query Engine</span>
-            <span>&copy; 2026 All rights reserved.</span>
+            <span className="flex h-5 w-5 items-center justify-center rounded bg-foreground text-[9px] font-semibold text-background">
+              N
+            </span>
+            <span>Nexus Query — ambiguity-aware data access.</span>
           </div>
-
-          <div className="flex items-center gap-6">
-            <Link href="/chat" className="hover:text-zinc-300 transition-colors">
-              Chat Console
+          <div className="flex flex-wrap gap-5">
+            <Link href="/connections" className="transition-colors hover:text-foreground">
+              Connections
             </Link>
-            <Link href="/connections" className="hover:text-zinc-300 transition-colors">
-              Databases
+            <Link href="/schema" className="transition-colors hover:text-foreground">
+              Schema
             </Link>
-            <Link href="/schema" className="hover:text-zinc-300 transition-colors">
-              Schema Canvas
-            </Link>
-            <Link href="/audit" className="hover:text-zinc-300 transition-colors">
-              Audit Ledger
-            </Link>
-            <a 
-              href="https://github.com" 
-              target="_blank" 
-              rel="noreferrer" 
-              className="hover:text-zinc-300 transition-colors flex items-center gap-1"
+            <a
+              href="http://localhost:8000/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-foreground"
             >
-              <span>GitHub</span>
-              <ExternalLink className="h-3 w-3" />
+              API docs
             </a>
           </div>
         </div>

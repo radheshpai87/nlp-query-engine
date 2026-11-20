@@ -87,14 +87,14 @@ export function AddRelationshipDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-[#181818] border-[#303030] text-[#ececec]">
+      <DialogContent className="sm:max-w-[500px] bg-card border-border text-foreground">
         <DialogHeader>
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
               <Link className="h-4 w-4" />
             </div>
             <div>
-              <DialogTitle className="text-sm font-semibold text-[#ececec]">
+              <DialogTitle className="text-sm font-semibold text-foreground">
                 Define Relationship
               </DialogTitle>
               <DialogDescription className="text-xs text-zinc-400">
@@ -113,7 +113,7 @@ export function AddRelationshipDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {/* Source Selection */}
-          <div className="p-3 rounded-lg border border-[#303030] bg-[#212121] space-y-2">
+          <div className="p-3 rounded-lg border border-border bg-background space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
                 Source Entity
@@ -134,7 +134,7 @@ export function AddRelationshipDialog({
                     setSourceNodeId(e.target.value);
                     setSourceField("");
                   }}
-                  className="w-full text-xs h-8 rounded-md bg-[#181818] border border-[#303030] text-[#ececec] px-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full text-xs h-8 rounded-md bg-card border border-border text-foreground px-2 focus:outline-none focus:ring-1 focus:ring-brand"
                 >
                   {nodes.map((n) => (
                     <option key={n.id} value={n.id}>
@@ -149,7 +149,7 @@ export function AddRelationshipDialog({
                 <select
                   value={sourceField}
                   onChange={(e) => setSourceField(e.target.value)}
-                  className="w-full text-xs h-8 rounded-md bg-[#181818] border border-[#303030] text-[#ececec] px-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full text-xs h-8 rounded-md bg-card border border-border text-foreground px-2 focus:outline-none focus:ring-1 focus:ring-brand"
                 >
                   <option value="">Select field...</option>
                   {sourceNode?.fields.map((f) => (
@@ -163,7 +163,7 @@ export function AddRelationshipDialog({
           </div>
 
           {/* Target Selection */}
-          <div className="p-3 rounded-lg border border-[#303030] bg-[#212121] space-y-2">
+          <div className="p-3 rounded-lg border border-border bg-background space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
                 Target Entity
@@ -184,7 +184,7 @@ export function AddRelationshipDialog({
                     setTargetNodeId(e.target.value);
                     setTargetField("");
                   }}
-                  className="w-full text-xs h-8 rounded-md bg-[#181818] border border-[#303030] text-[#ececec] px-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full text-xs h-8 rounded-md bg-card border border-border text-foreground px-2 focus:outline-none focus:ring-1 focus:ring-brand"
                 >
                   {nodes.map((n) => (
                     <option key={n.id} value={n.id}>
@@ -199,7 +199,7 @@ export function AddRelationshipDialog({
                 <select
                   value={targetField}
                   onChange={(e) => setTargetField(e.target.value)}
-                  className="w-full text-xs h-8 rounded-md bg-[#181818] border border-[#303030] text-[#ececec] px-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full text-xs h-8 rounded-md bg-card border border-border text-foreground px-2 focus:outline-none focus:ring-1 focus:ring-brand"
                 >
                   <option value="">Select field...</option>
                   {targetNode?.fields.map((f) => (
@@ -214,9 +214,9 @@ export function AddRelationshipDialog({
 
           {/* Cross Database Badge */}
           {isCrossDatabase && (
-            <div className="p-2 rounded bg-emerald-950/30 border border-emerald-800/40 text-[11px] text-emerald-300 flex items-center justify-between">
+            <div className="p-2 rounded bg-brand-muted border border-brand/30 text-[11px] text-brand flex items-center justify-between">
               <span>Cross-Database Relationship Detected</span>
-              <span className="text-[9px] font-mono uppercase bg-emerald-900/60 px-1.5 py-0.5 rounded text-emerald-200">
+              <span className="text-[9px] font-mono uppercase bg-brand/15 px-1.5 py-0.5 rounded text-brand">
                 Heterogeneous Join
               </span>
             </div>
@@ -229,7 +229,7 @@ export function AddRelationshipDialog({
               <select
                 value={cardinality}
                 onChange={(e) => setCardinality(e.target.value)}
-                className="w-full text-xs h-8 rounded-md bg-[#181818] border border-[#303030] text-[#ececec] px-2 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full text-xs h-8 rounded-md bg-card border border-border text-foreground px-2 focus:outline-none focus:ring-1 focus:ring-brand"
               >
                 <option value="many_to_one">Many-to-One (N:1)</option>
                 <option value="one_to_one">One-to-One (1:1)</option>
@@ -244,7 +244,7 @@ export function AddRelationshipDialog({
                 placeholder="e.g. Orders placed by customer"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="h-8 text-xs bg-[#181818] border-[#303030] text-[#ececec] placeholder:text-zinc-500"
+                className="h-8 text-xs bg-card border-border text-foreground placeholder:text-zinc-500"
               />
             </div>
           </div>
@@ -255,7 +255,7 @@ export function AddRelationshipDialog({
               variant="ghost"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="text-xs text-zinc-400 hover:text-zinc-200 hover:bg-[#262626]"
+              className="text-xs text-zinc-400 hover:text-zinc-200 hover:bg-muted"
             >
               Cancel
             </Button>
@@ -263,8 +263,7 @@ export function AddRelationshipDialog({
               type="submit"
               size="sm"
               disabled={isSubmitting || !sourceField || !targetField}
-              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
-            >
+              className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium"            >
               {isSubmitting ? "Linking..." : "Create Link"}
             </Button>
           </DialogFooter>

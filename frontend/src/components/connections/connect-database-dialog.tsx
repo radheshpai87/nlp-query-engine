@@ -183,11 +183,11 @@ export function ConnectDatabaseDialog({
             onClick={() => handleSelectType("mongodb")}
             className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-medium transition-all ${
               selectedType === "mongodb"
-                ? "border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                ? "border-brand bg-brand-muted text-brand dark:bg-emerald-950 dark:text-brand"
                 : "border-border hover:bg-muted text-muted-foreground"
             }`}
           >
-            <Database className="h-5 w-5 mb-1 text-emerald-600" />
+            <Database className="h-5 w-5 mb-1 text-brand" />
             <span>MongoDB</span>
           </button>
 
@@ -315,12 +315,12 @@ export function ConnectDatabaseDialog({
             <div
               className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 animate-in fade-in-50 ${
                 testStatus.success
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200"
+                  ? "bg-brand-muted border-brand/30 text-brand dark:bg-emerald-950 dark:border-brand/30 dark:text-brand"
                   : "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-200"
               }`}
             >
               {testStatus.success ? (
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-brand mt-0.5" />
               ) : (
                 <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
               )}
@@ -359,8 +359,7 @@ export function ConnectDatabaseDialog({
               type="submit"
               size="sm"
               disabled={saving || !name}
-              className="bg-sky-600 hover:bg-sky-500 text-white"
-            >
+              className="bg-sky-600 hover:bg-sky-500 text-foreground"            >
               {saving ? "Saving..." : "Save Connection"}
             </Button>
           </div>

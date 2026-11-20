@@ -19,12 +19,6 @@ function ResetPasswordForm() {
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
 
-  React.useEffect(() => {
-    if (tokenFromUrl) {
-      setToken(tokenFromUrl);
-    }
-  }, [tokenFromUrl]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -55,7 +49,7 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="bg-[#181818] border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+    <div className="bg-card border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-white tracking-tight">Set new password</h1>
         <p className="text-xs text-zinc-400 mt-1.5">
@@ -71,11 +65,11 @@ function ResetPasswordForm() {
       )}
 
       {success ? (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs text-center space-y-3">
-          <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto" />
+        <div className="p-4 rounded-xl bg-brand-muted border border-brand/20 text-brand text-xs text-center space-y-3">
+          <CheckCircle2 className="h-8 w-8 text-brand mx-auto" />
           <h2 className="font-semibold text-sm text-white">Password Reset Successful!</h2>
           <p className="text-zinc-400">Your password has been securely updated. Redirecting to sign in...</p>
-          <Link href="/login" className="inline-block pt-2 text-emerald-400 hover:underline">
+          <Link href="/login" className="inline-block pt-2 text-brand hover:underline">
             Click here if not redirected automatically
           </Link>
         </div>
@@ -91,8 +85,7 @@ function ResetPasswordForm() {
                 placeholder="Paste token received"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                className="w-full h-10 bg-[#212121] border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors font-mono"
-              />
+                className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors font-mono"              />
             </div>
           </div>
 
@@ -106,8 +99,7 @@ function ResetPasswordForm() {
                 placeholder="Minimum 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-10 bg-[#212121] border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
-              />
+                className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors"              />
             </div>
           </div>
 
@@ -121,16 +113,14 @@ function ResetPasswordForm() {
                 placeholder="Re-enter new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full h-10 bg-[#212121] border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
-              />
+                className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors"              />
             </div>
           </div>
 
           <Button
             type="submit"
             disabled={loading || !token.trim() || password.length < 8 || password !== confirmPassword}
-            className="w-full h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 mt-2"
-          >
+            className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 mt-2"          >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -151,10 +141,10 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-[#111111] text-[#ececec] flex flex-col justify-between p-4 sm:p-6 antialiased selection:bg-[#10a37f]/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-6 antialiased selection:bg-brand/30">
       <div className="flex items-center justify-between max-w-5xl mx-auto w-full py-2">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+          <div className="h-8 w-8 rounded-lg bg-brand-muted border border-brand/20 flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
             <Sparkles className="h-4 w-4" />
           </div>
           <span className="font-semibold text-sm tracking-tight text-white">Nexus Query</span>
@@ -162,8 +152,7 @@ export default function ResetPasswordPage() {
 
         <Link
           href="/login"
-          className="text-xs text-zinc-400 hover:text-white transition-colors"
-        >
+          className="text-xs text-zinc-400 hover:text-foreground transition-colors"        >
           Sign In
         </Link>
       </div>

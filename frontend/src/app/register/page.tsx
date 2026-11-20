@@ -65,15 +65,15 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#111111] text-[#ececec] flex flex-col justify-between p-4 sm:p-6 antialiased selection:bg-[#10a37f]/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-6 antialiased selection:bg-brand/30">
       {/* Top Header */}
       <div className="flex items-center justify-between max-w-5xl mx-auto w-full py-2">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+          <div className="h-8 w-8 rounded-lg bg-brand-muted border border-brand/20 flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
             <Sparkles className="h-4 w-4" />
           </div>
           <span className="font-semibold text-sm tracking-tight text-white">Nexus Query</span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-brand-muted text-brand border border-brand/20">
             Enterprise
           </span>
         </Link>
@@ -82,8 +82,7 @@ export default function RegisterPage() {
           <span>Already have an account?</span>
           <Link
             href="/login"
-            className="text-white hover:text-emerald-400 font-medium transition-colors"
-          >
+            className="text-foreground hover:text-brand font-medium transition-colors"          >
             Sign In
           </Link>
         </div>
@@ -91,7 +90,7 @@ export default function RegisterPage() {
 
       {/* Main Registration Card */}
       <div className="max-w-md mx-auto w-full my-auto py-8">
-        <div className="bg-[#181818] border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        <div className="bg-card border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-white tracking-tight">Create your account</h1>
             <p className="text-xs text-zinc-400 mt-1.5">
@@ -117,8 +116,7 @@ export default function RegisterPage() {
                   placeholder="Jane Doe"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full h-10 bg-[#212121] border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
-                />
+                  className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors"                />
               </div>
             </div>
 
@@ -132,8 +130,7 @@ export default function RegisterPage() {
                   placeholder="jane@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-10 bg-[#212121] border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
-                />
+                  className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors"                />
               </div>
             </div>
 
@@ -147,8 +144,7 @@ export default function RegisterPage() {
                   placeholder="Minimum 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-10 bg-[#212121] border border-zinc-700/80 rounded-xl pl-9 pr-10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
-                />
+                  className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-10 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors"                />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -169,19 +165,18 @@ export default function RegisterPage() {
                   placeholder="Re-enter password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full h-10 bg-[#212121] border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
-                />
+                  className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors"                />
               </div>
             </div>
 
             {/* Validation checklist */}
             <div className="py-1 space-y-1 text-[11px] text-zinc-400">
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className={`h-3 w-3 ${hasMinLength ? "text-emerald-400" : "text-zinc-600"}`} />
+                <CheckCircle2 className={`h-3 w-3 ${hasMinLength ? "text-brand" : "text-zinc-600"}`} />
                 <span>At least 8 characters</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className={`h-3 w-3 ${passwordsMatch && confirmPassword ? "text-emerald-400" : "text-zinc-600"}`} />
+                <CheckCircle2 className={`h-3 w-3 ${passwordsMatch && confirmPassword ? "text-brand" : "text-zinc-600"}`} />
                 <span>Passwords match</span>
               </div>
             </div>
@@ -189,8 +184,7 @@ export default function RegisterPage() {
             <Button
               type="submit"
               disabled={loading || !hasMinLength || !passwordsMatch}
-              className="w-full h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 mt-4"
-            >
+              className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2 mt-4"            >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -206,7 +200,7 @@ export default function RegisterPage() {
           </form>
 
           <div className="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-center gap-2 text-[11px] text-zinc-500">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500/80" />
+            <ShieldCheck className="h-3.5 w-3.5 text-brand/80" />
             <span>Strict read-only query security & SHA-256 audit ledger</span>
           </div>
         </div>

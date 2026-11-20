@@ -127,7 +127,7 @@ export default function ConnectionsPage() {
     <div className="flex-1 p-6 md:p-8 max-w-6xl mx-auto space-y-6 animate-in fade-in-50 duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
+          <h1 className="text-lg font-medium tracking-tight text-foreground">
             Target Database Connections
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -149,7 +149,7 @@ export default function ConnectionsPage() {
 
           <Button
             onClick={() => setDialogOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 text-xs font-medium"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 text-xs font-medium"
             size="sm"
           >
             <Plus className="h-4 w-4" />

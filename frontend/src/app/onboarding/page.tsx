@@ -38,9 +38,6 @@ export default function OnboardingPage() {
     const existing = getStoredUser();
     if (existing) {
       setCurrentUser(existing);
-      if (existing.full_name) {
-        setWorkspaceName(`${existing.full_name}'s Analytics`);
-      }
     }
   }, [setCurrentUser]);
 
@@ -60,11 +57,11 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#111111] text-[#ececec] flex flex-col justify-between p-4 sm:p-6 antialiased selection:bg-[#10a37f]/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-6 antialiased selection:bg-brand/30">
       {/* Header */}
       <div className="flex items-center justify-between max-w-4xl mx-auto w-full py-4 border-b border-zinc-800/80">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <div className="h-8 w-8 rounded-lg bg-brand-muted border border-brand/20 flex items-center justify-center text-brand">
             <Sparkles className="h-4 w-4" />
           </div>
           <div>
@@ -80,9 +77,9 @@ export default function OnboardingPage() {
               key={s}
               className={`h-2 rounded-full transition-all duration-300 ${
                 s === step
-                  ? "w-8 bg-emerald-500"
+                  ? "w-8 bg-brand"
                   : s < step
-                  ? "w-2 bg-emerald-500/50"
+                  ? "w-2 bg-brand/50"
                   : "w-2 bg-zinc-700"
               }`}
             />
@@ -92,7 +89,7 @@ export default function OnboardingPage() {
 
       {/* Main Content Area */}
       <div className="max-w-2xl mx-auto w-full my-auto py-8">
-        <div className="bg-[#181818] border border-zinc-800 rounded-2xl p-6 sm:p-10 shadow-2xl relative">
+        <div className="bg-card border border-zinc-800 rounded-2xl p-6 sm:p-10 shadow-2xl relative">
           {/* STEP 1: Welcome & Role */}
           {step === 1 && (
             <div className="space-y-6 animate-in fade-in-50 duration-300">
@@ -118,13 +115,12 @@ export default function OnboardingPage() {
                       onClick={() => setRole(item.title)}
                       className={`text-left p-3.5 rounded-xl border transition-all ${
                         role === item.title
-                          ? "bg-emerald-500/10 border-emerald-500 text-white shadow-sm shadow-emerald-900/20"
-                          : "bg-[#212121] border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                          ? "bg-brand-muted border-brand text-foreground shadow-sm"                          : "bg-background border-zinc-800 text-zinc-300 hover:border-zinc-700"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-xs text-white">{item.title}</span>
-                        {role === item.title && <Check className="h-3.5 w-3.5 text-emerald-400" />}
+                        {role === item.title && <Check className="h-3.5 w-3.5 text-brand" />}
                       </div>
                       <p className="text-[11px] text-zinc-400 mt-1">{item.desc}</p>
                     </button>
@@ -135,8 +131,7 @@ export default function OnboardingPage() {
               <div className="pt-4 flex items-center justify-end">
                 <Button
                   onClick={() => setStep(2)}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold gap-2"
-                >
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2"                >
                   <span>Continue</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -163,8 +158,7 @@ export default function OnboardingPage() {
                     value={workspaceName}
                     onChange={(e) => setWorkspaceName(e.target.value)}
                     placeholder="Acme Global Analytics"
-                    className="w-full h-10 bg-[#212121] border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
-                  />
+                    className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors"                  />
                 </div>
                 <p className="text-[11px] text-zinc-500">You can invite teammates and manage role permissions later.</p>
               </div>
@@ -181,8 +175,7 @@ export default function OnboardingPage() {
                     }
                     setStep(3);
                   }}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold gap-2"
-                >
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2"                >
                   <span>Next Step</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -206,18 +199,17 @@ export default function OnboardingPage() {
                   onClick={() => setSelectedDbChoice("demo")}
                   className={`text-left p-4 rounded-xl border transition-all ${
                     selectedDbChoice === "demo"
-                      ? "bg-emerald-500/10 border-emerald-500 text-white"
-                      : "bg-[#212121] border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                      ? "bg-brand-muted border-brand text-foreground"                      : "bg-background border-zinc-800 text-zinc-300 hover:border-zinc-700"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Database className="h-4 w-4 text-emerald-400" />
+                      <Database className="h-4 w-4 text-brand" />
                       <span className="font-semibold text-xs text-white">
                         Use Pre-Configured Sample Cluster (Recommended)
                       </span>
                     </div>
-                    {selectedDbChoice === "demo" && <Check className="h-4 w-4 text-emerald-400" />}
+                    {selectedDbChoice === "demo" && <Check className="h-4 w-4 text-brand" />}
                   </div>
                   <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">
                     Instantly query connected PostgreSQL (E-Commerce), MongoDB (Product Reviews & Events), and Elasticsearch (Search Catalog & Telemetry).
@@ -229,16 +221,15 @@ export default function OnboardingPage() {
                   onClick={() => setSelectedDbChoice("custom")}
                   className={`text-left p-4 rounded-xl border transition-all ${
                     selectedDbChoice === "custom"
-                      ? "bg-emerald-500/10 border-emerald-500 text-white"
-                      : "bg-[#212121] border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                      ? "bg-brand-muted border-brand text-foreground"                      : "bg-background border-zinc-800 text-zinc-300 hover:border-zinc-700"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Layers className="h-4 w-4 text-emerald-400" />
+                      <Layers className="h-4 w-4 text-brand" />
                       <span className="font-semibold text-xs text-white">Connect Custom Databases Later</span>
                     </div>
-                    {selectedDbChoice === "custom" && <Check className="h-4 w-4 text-emerald-400" />}
+                    {selectedDbChoice === "custom" && <Check className="h-4 w-4 text-brand" />}
                   </div>
                   <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">
                     Proceed to dashboard now; you can add PostgreSQL, MongoDB, or Elasticsearch connections anytime in the Connections manager.
@@ -253,8 +244,7 @@ export default function OnboardingPage() {
                 </Button>
                 <Button
                   onClick={() => setStep(4)}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold gap-2"
-                >
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2"                >
                   <span>Preview First Query</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -272,21 +262,21 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-[#212121] border border-zinc-800 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+              <div className="p-4 rounded-xl bg-background border border-zinc-800 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-brand">
                   <MessageSquare className="h-4 w-4" />
                   <span>Try Asking:</span>
                 </div>
                 <div className="space-y-2 text-xs text-zinc-300 font-mono">
                   <p className="p-2.5 rounded-lg bg-black/40 border border-zinc-800 text-white">
-                    "Which buyers purchased goods cheaper than 30?"
+                    &ldquo;Which buyers purchased goods cheaper than 30?&rdquo;
                   </p>
                   <p className="p-2.5 rounded-lg bg-black/40 border border-zinc-800 text-white">
-                    "Show me the top 5 products by revenue this month."
+                    &ldquo;Show me the top 5 products by revenue this month.&rdquo;
                   </p>
                 </div>
                 <div className="flex items-center gap-2 pt-1 text-[11px] text-zinc-400">
-                  <Shield className="h-3.5 w-3.5 text-emerald-400" />
+                  <Shield className="h-3.5 w-3.5 text-brand" />
                   <span>100% Read-Only Assurance • Every query is recorded in the SHA-256 audit ledger.</span>
                 </div>
               </div>
@@ -299,8 +289,7 @@ export default function OnboardingPage() {
                 <Button
                   onClick={handleComplete}
                   disabled={saving}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold gap-2 px-6"
-                >
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2 px-6"                >
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />

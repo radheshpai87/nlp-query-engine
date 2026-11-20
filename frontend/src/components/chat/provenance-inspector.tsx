@@ -113,7 +113,7 @@ ${Object.entries(executionResult.generated_queries || {})
             <Clock className="h-2.5 w-2.5" />
             <span>{executionResult.duration_ms}ms</span>
           </Badge>
-          <Badge variant="outline" className="text-[10px] gap-1 text-emerald-400 border-emerald-500/30">
+          <Badge variant="outline" className="text-[10px] gap-1 text-brand border-brand/30">
             <ShieldCheck className="h-2.5 w-2.5" />
             <span>Read-Only Verified</span>
           </Badge>
@@ -203,7 +203,7 @@ ${Object.entries(executionResult.generated_queries || {})
               onClick={handleCopyReport}
               className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
             >
-              {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+              {copied ? <Check className="h-3 w-3 text-brand" /> : <Copy className="h-3 w-3" />}
               <span>{copied ? "Copied Report" : "Copy Provenance"}</span>
             </Button>
           </div>
@@ -280,7 +280,7 @@ ${Object.entries(executionResult.generated_queries || {})
                         </span>
                       </div>
                       <div>
-                        Read operation: <span className="text-emerald-400">SELECT / find</span>
+                        Read operation: <span className="text-brand">SELECT / find</span>
                       </div>
                     </div>
                   </div>
@@ -318,7 +318,7 @@ ${Object.entries(executionResult.generated_queries || {})
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                  <Check className="h-4 w-4 mx-auto mb-1 text-emerald-400" />
+                  <Check className="h-4 w-4 mx-auto mb-1 text-brand" />
                   <span>No ambiguities detected. Direct deterministic schema match achieved.</span>
                 </div>
               )}
