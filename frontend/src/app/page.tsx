@@ -23,18 +23,10 @@ import {
   ExternalLink,
   Search,
   Check,
-  Sliders,
   Menu,
   X,
-  Shield,
-  Activity,
-  Workflow,
-  HelpCircle,
-  Copy,
-  Clock,
-  ArrowUpRight,
-  Cpu,
   Boxes,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getStoredUser } from "@/lib/auth-api";
@@ -44,7 +36,7 @@ export default function LandingPage() {
   const { currentUser, setCurrentUser } = useShellStore();
 
   const [activeQueryIndex, setActiveQueryIndex] = React.useState<number>(0);
-  const [activeTab, setActiveTab] = React.useState<"results" | "sql" | "mql" | "graph">("results");
+  const [activeTab, setActiveTab] = React.useState<"results" | "sql" | "mql" | "provenance">("results");
   const [openFaq, setOpenFaq] = React.useState<number | null>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState<boolean>(false);
   const [copied, setCopied] = React.useState<boolean>(false);
@@ -58,19 +50,12 @@ export default function LandingPage() {
 
   const demos = [
     {
-      id: "demo-revenue",
-      title: "Revenue Leaders",
+      label: "Revenue Leaders",
       query: "Show me the top five products by revenue this month.",
-      executionTime: "4.2 ms",
-      engineStrategy: "PostgreSQL 16 + In-Memory Hash Join",
-      entities: ["orders", "order_items", "products"],
-      columns: [
-        { key: "product", label: "Product Name", type: "VARCHAR" },
-        { key: "category", label: "Category", type: "VARCHAR" },
-        { key: "units", label: "Units Sold", type: "INT" },
-        { key: "revenue", label: "Revenue", type: "DECIMAL", align: "right" },
-        { key: "rating", label: "Customer Sentiment", type: "MQL JOIN" },
-      ],
+      badge: "PostgreSQL 16 · In-Memory Join",
+      latency: "4.2ms",
+      status: "Execution Verified",
+      columns: ["Product Name", "Category", "Units Sold", "Revenue", "Customer Sentiment"],
       rows: [
         { product: "Pro Noise-Cancelling Buds", category: "Audio", units: "420", revenue: "$14,250.00", rating: "4.9 ★ (128 reviews)" },
         { product: 'Ultra-Wide 34" Curved Monitor', category: "Display", units: "119", revenue: "$11,890.00", rating: "4.7 ★ (89 reviews)" },
@@ -78,8 +63,7 @@ export default function LandingPage() {
         { product: "Ergonomic Desk Riser", category: "Office", units: "95", revenue: "$6,150.00", rating: "4.6 ★ (62 reviews)" },
         { product: "Thunderbolt 4 Hub Pro", category: "Accessories", units: "148", revenue: "$5,890.00", rating: "4.8 ★ (95 reviews)" },
       ],
-      sql: `-- Compiled PostgreSQL SQL (Strict Read-Only Cursor)
-SELECT 
+      sql: `SELECT 
   p.name AS product_name,
   p.category,
   SUM(oi.quantity) AS units_sold,
@@ -91,8 +75,7 @@ WHERE o.order_date >= '2025-01-01'
 GROUP BY p.id, p.name, p.category
 ORDER BY total_revenue DESC
 LIMIT 5;`,
-      mql: `// Parallel Subquery: MongoDB Customer Sentiment
-db.reviews.aggregate([
+      mql: `db.reviews.aggregate([
   { "$match": { "rating": { "$gte": 4.5 } } },
   { "$group": { 
       "_id": "$product_id", 
@@ -102,35 +85,28 @@ db.reviews.aggregate([
   },
   { "$sort": { "avg_rating": -1 } }
 ]);`,
-      graphPath: [
-        { from: "orders", to: "order_items", on: "orders.id = order_items.order_id", cost: "FK Direct" },
-        { from: "order_items", to: "products", on: "order_items.product_id = products.id", cost: "FK Direct" },
-        { from: "products", to: "mongo.reviews", on: "products.id = reviews.product_id", cost: "Federated Hash Join" },
-      ],
+      provenance: {
+        sources: ["PostgreSQL (ecommerce_demo)", "MongoDB (reviews)"],
+        lineage: "orders ➔ order_items ➔ products ➔ reviews",
+        strategy: "In-memory hash join on product_id with time-window predicate",
+        readOnly: "Verified 100% Read-Only AST",
+      },
     },
     {
-      id: "demo-high-value",
-      title: "High-Value Buyers",
+      label: "Ambiguity Clarification",
       query: "Show me high-value customers who recently purchased electronics.",
-      executionTime: "5.8 ms",
-      engineStrategy: "Ambiguity Clarified: High-Value Threshold >= $1,000",
-      entities: ["customers", "orders", "order_items", "products"],
-      columns: [
-        { key: "product", label: "Customer Name", type: "VARCHAR" },
-        { key: "category", label: "Orders Placed", type: "INT" },
-        { key: "units", label: "Country", type: "CHAR(2)" },
-        { key: "revenue", label: "Lifetime Value", type: "DECIMAL", align: "right" },
-        { key: "rating", label: "Ambiguity Resolution", type: "PROVENANCE" },
-      ],
+      badge: "Ambiguity Clarification · 4-Table Path",
+      latency: "Interactive",
+      status: "Clarification Resolved",
+      columns: ["Customer Name", "Orders Placed", "Country", "Lifetime Value", "Resolution Provenance"],
       rows: [
-        { product: "Alice Smith", category: "8", units: "US", revenue: "$4,250.00", rating: "Verified: threshold >= $1,000" },
-        { product: "Bob Jones", category: "5", units: "CA", revenue: "$3,100.00", rating: "Verified: threshold >= $1,000" },
-        { product: "Diana Prince", category: "6", units: "US", revenue: "$2,890.00", rating: "Verified: threshold >= $1,000" },
-        { product: "Evan Wright", category: "4", units: "DE", revenue: "$2,450.00", rating: "Verified: threshold >= $1,000" },
-        { product: "Fiona Gallagher", category: "4", units: "FR", revenue: "$2,100.00", rating: "Verified: threshold >= $1,000" },
+        { product: "Alice Smith", category: "8", units: "US", revenue: "$4,250.00", rating: "Resolved: threshold >= $1,000" },
+        { product: "Bob Jones", category: "5", units: "CA", revenue: "$3,100.00", rating: "Resolved: threshold >= $1,000" },
+        { product: "Diana Prince", category: "6", units: "US", revenue: "$2,890.00", rating: "Resolved: threshold >= $1,000" },
+        { product: "Evan Wright", category: "4", units: "DE", revenue: "$2,450.00", rating: "Resolved: threshold >= $1,000" },
+        { product: "Fiona Gallagher", category: "4", units: "FR", revenue: "$2,100.00", rating: "Resolved: threshold >= $1,000" },
       ],
-      sql: `-- Ambiguity Parameter Injected: high_value_threshold = 1000
-SELECT 
+      sql: `SELECT 
   c.id,
   c.name AS customer_name,
   c.country,
@@ -145,8 +121,7 @@ WHERE p.category = 'Electronics'
 GROUP BY c.id, c.name, c.country
 HAVING SUM(o.total_amount) >= 1000
 ORDER BY customer_ltv DESC;`,
-      mql: `// Cross-Checked with Elasticsearch Catalog Index:
-GET catalog/_search
+      mql: `GET catalog/_search
 {
   "query": {
     "bool": {
@@ -157,26 +132,20 @@ GET catalog/_search
     }
   }
 }`,
-      graphPath: [
-        { from: "customers", to: "orders", on: "customers.id = orders.customer_id", cost: "FK Direct" },
-        { from: "orders", to: "order_items", on: "orders.id = order_items.order_id", cost: "FK Direct" },
-        { from: "order_items", to: "products", on: "order_items.product_id = products.id", cost: "FK Direct" },
-      ],
+      provenance: {
+        sources: ["PostgreSQL (customers, orders, order_items, products)"],
+        lineage: "customers ➔ orders ➔ order_items ➔ products",
+        strategy: "Clarified: High-Value defined as Total Spend >= $1,000",
+        readOnly: "Verified 100% Read-Only AST",
+      },
     },
     {
-      id: "demo-purchases",
-      title: "Sub-$30 Purchases",
+      label: "Multi-Hop Traversal",
       query: "Which buyers purchased goods cheaper than 30?",
-      executionTime: "3.7 ms",
-      engineStrategy: "Automated 4-Hop Relational Traversal",
-      entities: ["customers", "orders", "order_items", "products"],
-      columns: [
-        { key: "product", label: "Buyer Name", type: "VARCHAR" },
-        { key: "category", label: "Item Purchased", type: "VARCHAR" },
-        { key: "units", label: "SKU", type: "VARCHAR" },
-        { key: "revenue", label: "Unit Price", type: "DECIMAL", align: "right" },
-        { key: "rating", label: "Predicate Check", type: "FILTER" },
-      ],
+      badge: "BFS Multi-Hop Path · Under $30",
+      latency: "3.7ms",
+      status: "Pathfinding Verified",
+      columns: ["Buyer Name", "Item Purchased", "SKU", "Unit Price", "Predicate Verification"],
       rows: [
         { product: "Alice Smith", category: "USB-C Braided Cable", units: "ACC-CAB-002", revenue: "$19.99", rating: "unit_price < $30.00" },
         { product: "Evan Wright", category: "Ceramic Coffee Mug", units: "HOME-MUG-001", revenue: "$14.50", rating: "unit_price < $30.00" },
@@ -184,8 +153,7 @@ GET catalog/_search
         { product: "Hannah Abbott", category: "Screen Cleaning Kit", units: "ACC-CLN-001", revenue: "$12.99", rating: "unit_price < $30.00" },
         { product: "Ian Malcolm", category: "Cable Organizer Set", units: "ACC-ORG-003", revenue: "$24.99", rating: "unit_price < $30.00" },
       ],
-      sql: `-- Multi-Hop Path Discovered via BFS Traversal
-SELECT 
+      sql: `SELECT 
   c.name AS buyer_name,
   p.name AS item_name,
   p.sku,
@@ -202,11 +170,12 @@ LIMIT 20;`,
 // Path Cost: 3 edges (0 cross-source barriers)
 // Traversal: customers [c] -> orders [o] -> order_items [oi] -> products [p]
 // Filter: oi.unit_price < 30.00 applied during inner scan`,
-      graphPath: [
-        { from: "customers", to: "orders", on: "c.id = o.customer_id", cost: "FK Direct" },
-        { from: "orders", to: "order_items", on: "o.id = oi.order_id", cost: "FK Direct" },
-        { from: "order_items", to: "products", on: "oi.product_id = p.id", cost: "FK Direct" },
-      ],
+      provenance: {
+        sources: ["PostgreSQL (ecommerce_demo)"],
+        lineage: "customers ➔ orders ➔ order_items ➔ products",
+        strategy: "Automated 3-Hop Relational Traversal",
+        readOnly: "Verified 100% Read-Only AST",
+      },
     },
   ];
 
@@ -243,37 +212,42 @@ LIMIT 20;`,
 
   return (
     <div className="min-h-screen bg-[#090A0E] text-[#F3F4F6] flex flex-col font-sans antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
-      {/* 1. Refined Navigation Bar */}
+      {/* 1. Minimalist Navigation Bar */}
       <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-[#090A0E]/90 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-15 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-100 shadow-xs">
-              <Boxes className="h-4 w-4 text-emerald-400" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-emerald-400">
+              <Boxes className="h-4 w-4" />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm tracking-tight text-white">Nexus Query</span>
-              <span className="text-[11px] font-mono text-zinc-500 border-l border-zinc-800 pl-2">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm tracking-tight text-white">Nexus Query</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                  Enterprise
+                </span>
+              </div>
+              <span className="text-[10px] text-zinc-400">
                 Natural Language Query Engine
               </span>
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs text-zinc-400">
+          {/* Desktop Navigation Links */}
+          <nav className="hidden lg:flex items-center gap-7 text-xs text-zinc-400">
             <a href="#demo" className="hover:text-white transition-colors">
-              Live Engine
+              Product Demo
             </a>
             <a href="#integrations" className="hover:text-white transition-colors">
               Databases
             </a>
             <a href="#features" className="hover:text-white transition-colors">
-              Architecture
+              Capabilities
             </a>
             <a href="#how-it-works" className="hover:text-white transition-colors">
               How It Works
             </a>
             <a href="#use-cases" className="hover:text-white transition-colors">
-              Teams
+              Use Cases
             </a>
             <a href="#faq" className="hover:text-white transition-colors">
               FAQ
@@ -284,7 +258,7 @@ LIMIT 20;`,
           <div className="hidden sm:flex items-center gap-3">
             {currentUser ? (
               <Link href="/chat">
-                <Button className="bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-medium px-3.5 h-8.5 rounded-lg shadow-xs transition-all flex items-center gap-1.5">
+                <Button className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs px-3.5 h-8.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5">
                   <span>Enter Console</span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
@@ -320,11 +294,11 @@ LIMIT 20;`,
         {mobileMenuOpen && (
           <div className="sm:hidden border-b border-zinc-800 bg-[#0F1117] px-4 py-4 space-y-3 text-xs">
             <div className="flex flex-col space-y-2 text-zinc-300">
-              <a href="#demo" onClick={() => setMobileMenuOpen(false)}>Live Engine</a>
+              <a href="#demo" onClick={() => setMobileMenuOpen(false)}>Product Demo</a>
               <a href="#integrations" onClick={() => setMobileMenuOpen(false)}>Databases</a>
-              <a href="#features" onClick={() => setMobileMenuOpen(false)}>Architecture</a>
+              <a href="#features" onClick={() => setMobileMenuOpen(false)}>Capabilities</a>
               <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
-              <a href="#use-cases" onClick={() => setMobileMenuOpen(false)}>Teams</a>
+              <a href="#use-cases" onClick={() => setMobileMenuOpen(false)}>Use Cases</a>
               <a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
             </div>
             <div className="pt-3 border-t border-zinc-800 flex gap-2">
@@ -340,28 +314,24 @@ LIMIT 20;`,
       </header>
 
       {/* 2. Hero Section */}
-      <section className="relative pt-16 pb-12 md:pt-24 md:pb-20 border-b border-zinc-800/80">
+      <section className="relative pt-20 pb-16 md:pt-28 md:pb-24 border-b border-zinc-800/80">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center space-y-6">
-          {/* Status pill */}
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
             <span className="font-mono text-[11px] tracking-wide uppercase">
-              Production-Grade Federated Querying
+              Ambiguity-Aware · Multi-Database · Read-Only Assurance
             </span>
           </div>
 
-          {/* Headline */}
-          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-white leading-[1.12] max-w-4xl mx-auto">
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1] max-w-4xl mx-auto">
             Your entire data infrastructure. <br />
-            <span className="text-zinc-400 font-normal">One natural language interface.</span>
+            <span className="text-emerald-400">One conversation.</span>
           </h1>
 
-          {/* Subtitle */}
           <p className="max-w-2xl mx-auto text-sm sm:text-base text-zinc-400 leading-relaxed font-normal">
             Connect PostgreSQL, MongoDB, Elasticsearch and more. Ask questions in plain English and receive intelligent, explainable answers backed by real database queries.
           </p>
 
-          {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
             <Link href="/chat">
               <Button className="w-full sm:w-auto h-10 px-6 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold rounded-lg shadow-xs transition-colors flex items-center justify-center gap-2">
@@ -369,7 +339,7 @@ LIMIT 20;`,
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
-            <a href="#demo">
+            <a href="#how-it-works">
               <Button
                 variant="outline"
                 className="w-full sm:w-auto h-10 px-6 border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 text-xs font-medium rounded-lg transition-colors"
@@ -379,7 +349,6 @@ LIMIT 20;`,
             </a>
           </div>
 
-          {/* Core Security Callouts */}
           <div className="pt-6 flex flex-wrap items-center justify-center gap-8 text-xs text-zinc-400 border-t border-zinc-800/60 max-w-2xl mx-auto">
             <div className="flex items-center gap-2">
               <Lock className="h-3.5 w-3.5 text-zinc-400" />
@@ -397,233 +366,259 @@ LIMIT 20;`,
         </div>
       </section>
 
-      {/* 3. Real Product Experience / Interactive Demo */}
+      {/* 3. Interactive Product Demonstration */}
       <section id="demo" className="py-16 md:py-20 border-b border-zinc-800/80 bg-[#0B0D13]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          {/* Section Header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-            <div>
-              <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold mb-1">
-                Deterministic Execution Preview
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                Inspect Real Engine Translations
-              </h2>
+          <div className="text-center mb-10 max-w-2xl mx-auto space-y-2">
+            <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
+              Interactive Engine Preview
             </div>
-            <p className="text-xs text-zinc-400 max-w-md">
-              See how natural language inquiries are grounded into schema graphs, compiled into native dialect ASTs, and returned as structured datasets.
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+              Test Real Engine Translations
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-400">
+              Select sample natural language inquiries to inspect plan synthesis, native dialects, and verifiable provenance.
             </p>
           </div>
 
-          {/* The Workspace Interface Container */}
-          <div className="rounded-xl border border-zinc-800 bg-[#0F1117] shadow-xl overflow-hidden">
-            {/* Top Workspace Header Bar */}
-            <div className="px-4 py-3 bg-[#131620] border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2 text-zinc-400">
-                <Database className="h-4 w-4 text-emerald-400" />
-                <span className="text-white font-medium">Workspace:</span>
-                <span className="font-mono text-zinc-300">Production Heterogeneous Cluster</span>
-                <span className="text-zinc-600">/</span>
-                <span className="text-zinc-400">Read-Only Session</span>
-              </div>
+          {/* Simple Query Selector Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+            {demos.map((d, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setActiveQueryIndex(idx);
+                  setActiveTab("results");
+                }}
+                className={`text-left p-4 rounded-xl border text-xs transition-all ${
+                  activeQueryIndex === idx
+                    ? "bg-zinc-900 border-emerald-500/60 text-white shadow-xs"
+                    : "bg-[#0F1117] border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-semibold">
+                    {d.badge}
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-500">{d.latency}</span>
+                </div>
+                <p className="font-medium text-xs text-white line-clamp-2 leading-snug">
+                  {d.query}
+                </p>
+              </button>
+            ))}
+          </div>
 
+          {/* Clean Application Preview Window */}
+          <div className="rounded-xl border border-zinc-800 bg-[#0F1117] shadow-xl overflow-hidden">
+            {/* Window Header */}
+            <div className="px-4 py-3 bg-[#131620] border-b border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                <span className="font-mono text-[11px] text-zinc-400">
-                  Latency: <span className="text-white font-medium">{currentDemo.executionTime}</span>
+                <span className="font-mono text-zinc-300 text-xs">
+                  nexus-engine :: <span className="text-emerald-400">{currentDemo.status}</span>
                 </span>
-                <span className="text-zinc-700">|</span>
-                <span className="text-[11px] font-mono text-zinc-400">
-                  Strategy: <span className="text-zinc-300">{currentDemo.engineStrategy}</span>
+                <span className="text-zinc-600 hidden sm:inline">|</span>
+                <span className="text-zinc-400 text-[11px] hidden sm:inline">
+                  Latency: {currentDemo.latency}
                 </span>
+              </div>
+
+              {/* Dialect Tabs */}
+              <div className="flex items-center gap-1 bg-zinc-900 p-0.5 rounded-lg border border-zinc-800">
+                {(
+                  [
+                    { id: "results", label: "Results Table" },
+                    { id: "sql", label: "Compiled SQL" },
+                    { id: "mql", label: "MQL / DSL" },
+                    { id: "provenance", label: "Provenance" },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                      activeTab === tab.id
+                        ? "bg-zinc-800 text-white font-semibold"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Query Selector Tabs (Clean IDE query presets) */}
-            <div className="px-4 py-3 bg-[#0F1117] border-b border-zinc-800/80 grid grid-cols-1 md:grid-cols-3 gap-2.5">
-              {demos.map((d, idx) => (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveQueryIndex(idx);
-                    setActiveTab("results");
-                  }}
-                  className={`text-left p-3 rounded-lg text-xs transition-all ${
-                    activeQueryIndex === idx
-                      ? "bg-zinc-800/90 text-white shadow-xs border border-zinc-700"
-                      : "bg-zinc-900/40 text-zinc-400 border border-zinc-800/60 hover:text-zinc-200 hover:border-zinc-700"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-white text-[11px]">{d.title}</span>
-                    <span className="text-[10px] font-mono text-zinc-500">{d.executionTime}</span>
+            {/* Split Interface: Left Clusters Sidebar + Right Work Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[380px]">
+              {/* Left Sidebar */}
+              <div className="lg:col-span-3 border-b lg:border-b-0 lg:border-r border-zinc-800 bg-[#0D0F15] p-4 text-xs space-y-4">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold mb-2">
+                    Active Clusters
                   </div>
-                  <p className="text-[11px] text-zinc-400 line-clamp-1">{d.query}</p>
-                </button>
-              ))}
-            </div>
+                  <div className="space-y-1.5">
+                    <div className="p-2.5 rounded-lg bg-[#11141D] border border-zinc-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Database className="h-3.5 w-3.5 text-blue-400" />
+                        <span className="text-white font-medium text-[11px]">PostgreSQL 16</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400">online</span>
+                    </div>
 
-            {/* Natural Language Prompt Composer */}
-            <div className="p-4 bg-[#11141D] border-b border-zinc-800">
-              <div className="flex items-center gap-3 bg-[#0A0C12] border border-zinc-800 rounded-lg px-3.5 py-2.5">
-                <Search className="h-4 w-4 text-zinc-500 shrink-0" />
-                <div className="flex-1 text-xs text-white font-medium select-all">
-                  &gt; {currentDemo.query}
+                    <div className="p-2.5 rounded-lg bg-[#11141D] border border-zinc-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Layers className="h-3.5 w-3.5 text-emerald-400" />
+                        <span className="text-white font-medium text-[11px]">MongoDB 7.0</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400">online</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-[#11141D] border border-zinc-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-3.5 w-3.5 text-amber-400" />
+                        <span className="text-white font-medium text-[11px]">Elasticsearch 8.13</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400">online</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                    Schema Grounded
+
+                <div className="pt-2 border-t border-zinc-800/80">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold mb-2">
+                    Security & Engine State
+                  </div>
+                  <div className="space-y-1 text-[11px] font-mono text-zinc-400">
+                    <div className="flex justify-between">
+                      <span>Execution:</span>
+                      <span className="text-emerald-400">Read-Only</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Audit Chaining:</span>
+                      <span className="text-zinc-200">SHA-256</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Ambiguity Pass:</span>
+                      <span className="text-emerald-400">Active</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Output Area */}
+              <div className="lg:col-span-9 p-5 flex flex-col justify-between">
+                {/* Query Display Bar */}
+                <div className="mb-4 pb-3 border-b border-zinc-800/80 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 text-xs text-white">
+                    <Terminal className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span className="font-medium text-sm text-white">&gt; {currentDemo.query}</span>
+                  </div>
+                  <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700">
+                    Validated Plan
                   </span>
                 </div>
-              </div>
-            </div>
 
-            {/* Main Content Area: Dialect Switcher + Output Views */}
-            <div className="p-4 sm:p-5">
-              {/* Dialect Tabs */}
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
-                <div className="flex items-center gap-1">
-                  {(
-                    [
-                      { id: "results", label: "Structured Results" },
-                      { id: "sql", label: "PostgreSQL SQL" },
-                      { id: "mql", label: "Document / Search DSL" },
-                      { id: "graph", label: "Schema Graph Path" },
-                    ] as const
-                  ).map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                        activeTab === tab.id
-                          ? "bg-zinc-800 text-white font-semibold"
-                          : "text-zinc-400 hover:text-zinc-200"
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="hidden sm:flex items-center gap-2 text-xs text-zinc-400">
-                  <span>Entities:</span>
-                  <div className="flex gap-1">
-                    {currentDemo.entities.map((e) => (
-                      <span key={e} className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                        {e}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* View 1: Results Table */}
-              {activeTab === "results" && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-zinc-800 text-zinc-400">
-                        {currentDemo.columns.map((c) => (
-                          <th
-                            key={c.key}
-                            className={`pb-2.5 font-medium ${c.align === "right" ? "text-right" : ""}`}
-                          >
-                            <span>{c.label}</span>
-                            <span className="ml-1.5 text-[9px] font-mono text-zinc-600 font-normal">
-                              {c.type}
-                            </span>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-800/60 font-sans">
-                      {currentDemo.rows.map((row, i) => (
-                        <tr key={i} className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="py-2.5 text-white font-medium">{row.product}</td>
-                          <td className="py-2.5 text-zinc-300 font-mono text-[11px]">{row.category}</td>
-                          <td className="py-2.5 text-zinc-400 font-mono text-[11px]">{row.units}</td>
-                          <td className="py-2.5 text-right font-mono tabular-nums text-zinc-100 font-medium">
-                            {row.revenue}
-                          </td>
-                          <td className="py-2.5 text-zinc-400 text-[11px]">{row.rating}</td>
+                {/* View 1: Results Table */}
+                {activeTab === "results" && (
+                  <div className="overflow-x-auto flex-1">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-zinc-800 text-zinc-400 font-medium">
+                          {currentDemo.columns.map((col, idx) => (
+                            <th key={idx} className="pb-2.5">
+                              {col}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* View 2: Generated SQL */}
-              {activeTab === "sql" && (
-                <div className="relative">
-                  <pre className="p-4 rounded-lg bg-[#0A0C12] border border-zinc-800 text-zinc-200 font-mono text-xs leading-relaxed overflow-x-auto select-all">
-                    {currentDemo.sql}
-                  </pre>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyCode(currentDemo.sql)}
-                    className="absolute top-3 right-3 p-1.5 rounded bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700 transition-colors"
-                    title="Copy SQL"
-                  >
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              )}
-
-              {/* View 3: Document / Search MQL */}
-              {activeTab === "mql" && (
-                <div className="relative">
-                  <pre className="p-4 rounded-lg bg-[#0A0C12] border border-zinc-800 text-zinc-200 font-mono text-xs leading-relaxed overflow-x-auto select-all">
-                    {currentDemo.mql}
-                  </pre>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyCode(currentDemo.mql)}
-                    className="absolute top-3 right-3 p-1.5 rounded bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700 transition-colors"
-                    title="Copy Code"
-                  >
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              )}
-
-              {/* View 4: Schema Graph Path */}
-              {activeTab === "graph" && (
-                <div className="p-4 rounded-lg bg-[#0A0C12] border border-zinc-800 space-y-3 font-mono text-xs">
-                  <div className="text-zinc-400 text-xs mb-2">
-                    BFS Schema Traversal Graph Path:
+                      </thead>
+                      <tbody className="divide-y divide-zinc-800/60 font-sans">
+                        {currentDemo.rows.map((r, i) => (
+                          <tr key={i} className="hover:bg-zinc-800/30 transition-colors">
+                            <td className="py-2.5 text-white font-medium">{r.product}</td>
+                            <td className="py-2.5 text-zinc-400 font-mono text-[11px]">{r.category}</td>
+                            <td className="py-2.5 text-zinc-400 font-mono text-[11px]">{r.units}</td>
+                            <td className="py-2.5 text-zinc-100 font-mono font-medium">{r.revenue}</td>
+                            <td className="py-2.5 text-[11px] text-zinc-400">{r.rating}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="space-y-2">
-                    {currentDemo.graphPath.map((step, i) => (
-                      <div key={i} className="flex items-center gap-3 p-2.5 rounded bg-zinc-900 border border-zinc-800/80">
-                        <span className="text-emerald-400 font-bold">{i + 1}.</span>
-                        <div className="flex-1 flex flex-wrap items-center gap-2">
-                          <span className="px-2 py-0.5 rounded bg-zinc-800 text-white font-medium">{step.from}</span>
-                          <span className="text-zinc-500">➔</span>
-                          <span className="px-2 py-0.5 rounded bg-zinc-800 text-white font-medium">{step.to}</span>
-                          <span className="text-zinc-500 text-[11px]">({step.on})</span>
-                        </div>
-                        <span className="text-[10px] text-zinc-400 px-2 py-0.5 rounded bg-zinc-800/50">
-                          {step.cost}
-                        </span>
+                )}
+
+                {/* View 2: SQL */}
+                {activeTab === "sql" && (
+                  <div className="relative flex-1">
+                    <pre className="p-4 rounded-lg bg-[#0A0C12] border border-zinc-800 text-zinc-200 font-mono text-xs leading-relaxed overflow-x-auto select-all">
+                      {currentDemo.sql}
+                    </pre>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCode(currentDemo.sql)}
+                      className="absolute top-3 right-3 p-1.5 rounded bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700 transition-colors"
+                      title="Copy SQL"
+                    >
+                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                )}
+
+                {/* View 3: MQL */}
+                {activeTab === "mql" && (
+                  <div className="relative flex-1">
+                    <pre className="p-4 rounded-lg bg-[#0A0C12] border border-zinc-800 text-zinc-200 font-mono text-xs leading-relaxed overflow-x-auto select-all">
+                      {currentDemo.mql}
+                    </pre>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCode(currentDemo.mql)}
+                      className="absolute top-3 right-3 p-1.5 rounded bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700 transition-colors"
+                      title="Copy Code"
+                    >
+                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                )}
+
+                {/* View 4: Provenance */}
+                {activeTab === "provenance" && (
+                  <div className="flex-1 p-4 rounded-lg bg-[#0A0C12] border border-zinc-800 space-y-3 font-mono text-xs">
+                    <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Tamper-Evident Ledger Provenance</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] pt-1">
+                      <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                        <span className="text-zinc-500">Participating Sources</span>
+                        <div className="text-white font-medium">{currentDemo.provenance.sources.join(", ")}</div>
                       </div>
-                    ))}
+                      <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1">
+                        <span className="text-zinc-500">Schema Lineage</span>
+                        <div className="text-white font-medium">{currentDemo.provenance.lineage}</div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 space-y-1 sm:col-span-2">
+                        <span className="text-zinc-500">Resolution Strategy</span>
+                        <div className="text-white font-medium">
+                          {currentDemo.provenance.strategy} · {currentDemo.provenance.readOnly}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Footer Audit Bar */}
-              <div className="mt-4 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between text-[11px] text-zinc-500 font-mono">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="text-zinc-400">AST Validation Passed</span>
-                  <span className="text-zinc-700">·</span>
-                  <span>Read-Only Execution Enforced</span>
-                </div>
-                <div>
-                  Audit Hash: <span className="text-zinc-400">sha256:7f8a42...e91c</span>
+                {/* Status Bar */}
+                <div className="mt-4 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between text-[11px] font-mono text-zinc-500">
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span className="text-zinc-400">AST Validation Passed</span>
+                    <span className="text-zinc-700">·</span>
+                    <span>Read-Only Execution Enforced</span>
+                  </div>
+                  <div>
+                    Audit Hash: <span className="text-zinc-400">sha256:7f8a42...e91c</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -631,7 +626,7 @@ LIMIT 20;`,
         </div>
       </section>
 
-      {/* 4. Connected Databases Integration Grid */}
+      {/* 4. Connected Databases */}
       <section id="integrations" className="py-20 border-b border-zinc-800/80">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14 max-w-2xl mx-auto space-y-2">
@@ -642,7 +637,7 @@ LIMIT 20;`,
               Connected Databases
             </h2>
             <p className="text-xs sm:text-sm text-zinc-400">
-              Direct introspection across relational engines, document collections, and inverted search indices.
+              Query relational schemas, document stores, and inverted search indices simultaneously without configuring manual ETL pipelines.
             </p>
           </div>
 
@@ -719,7 +714,7 @@ LIMIT 20;`,
         </div>
       </section>
 
-      {/* 5. Capabilities Section */}
+      {/* 5. Capabilities Bento Grid */}
       <section id="features" className="py-20 border-b border-zinc-800/80 bg-[#0B0D13]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14 max-w-2xl mx-auto space-y-2">
@@ -746,11 +741,10 @@ LIMIT 20;`,
                   Detects underspecified entities, conflicting cross-database column names, and vague timeframes with interactive clarification cards.
                 </p>
               </div>
-              {/* Clean inline clarification inspector */}
               <div className="p-3.5 rounded-lg bg-[#0A0C12] border border-zinc-800 font-mono text-xs space-y-2">
                 <div className="flex items-center justify-between text-zinc-400 text-[11px]">
-                  <span>Query Ambiguity Analysis</span>
-                  <span className="text-emerald-400">Interception Confidence: 65%</span>
+                  <span>Ambiguity Parameter Check</span>
+                  <span className="text-emerald-400">Interception Active (65%)</span>
                 </div>
                 <div className="text-zinc-300 text-[11px]">
                   &quot;customer_identifier&quot; parameter requires user confirmation:
