@@ -209,7 +209,15 @@ class MongoPipelineGenerator:
                     field_ref = (
                         f"${self._render_field_name(agg.field, collection_name, primary_alias)}"
                     )
-                    group_stage[alias] = {"$sum": field_ref}
+                    if agg.multiplier:
+                        multiplier_ref = (
+                            f"${self._render_field_name(agg.multiplier, collection_name, primary_alias)}"
+                        )
+                        group_stage[alias] = {
+                            "$sum": {"$multiply": [field_ref, multiplier_ref]}
+                        }
+                    else:
+                        group_stage[alias] = {"$sum": field_ref}
                 elif agg.function == AggregateFunction.AVG and agg.field:
                     field_ref = (
                         f"${self._render_field_name(agg.field, collection_name, primary_alias)}"
