@@ -14,7 +14,7 @@ export function MarkdownContent({ content, className = "" }: MarkdownContentProp
       <ReactMarkdown
         components={{
           p: ({ children }) => (
-            <p className="text-sm leading-relaxed text-[#ececec] my-1.5 last:mb-0 first:mt-0">
+            <p className="text-sm leading-relaxed text-foreground my-1.5 last:mb-0 first:mt-0">
               {children}
             </p>
           ),
@@ -28,14 +28,14 @@ export function MarkdownContent({ content, className = "" }: MarkdownContentProp
             const isCodeBlock = codeClassName?.includes("language-");
             if (isCodeBlock) {
               return (
-                <code className="font-mono text-xs text-[#ececec] block" {...props}>
+                <code className="font-mono text-xs text-foreground block" {...props}>
                   {children}
                 </code>
               );
             }
             return (
               <code
-                className="font-mono text-[12px] px-1.5 py-0.5 rounded bg-[#262626] text-[#10a37f] border border-[#333333] font-normal"
+                className="font-mono text-[12px] px-1.5 py-0.5 rounded bg-muted text-brand border border-border font-normal"
                 {...props}
               >
                 {children}
@@ -43,22 +43,22 @@ export function MarkdownContent({ content, className = "" }: MarkdownContentProp
             );
           },
           pre: ({ children }) => (
-            <pre className="p-3 my-2 rounded-xl bg-[#121212] border border-[#2b2b2b] overflow-x-auto font-mono text-xs text-[#ececec] leading-relaxed">
+            <pre className="p-3 my-2 rounded-xl bg-background border border-muted overflow-x-auto font-mono text-xs text-foreground leading-relaxed">
               {children}
             </pre>
           ),
           ol: ({ children }) => (
-            <ol className="list-decimal list-outside pl-5 space-y-2 my-2 text-sm text-[#ececec]">
+            <ol className="list-decimal list-outside pl-5 space-y-2 my-2 text-sm text-foreground">
               {children}
             </ol>
           ),
           ul: ({ children }) => (
-            <ul className="list-disc list-outside pl-5 space-y-1.5 my-2 text-sm text-[#d4d4d4]">
+            <ul className="list-disc list-outside pl-5 space-y-1.5 my-2 text-sm text-foreground/85">
               {children}
             </ul>
           ),
           li: ({ children }) => (
-            <li className="leading-relaxed text-[#d4d4d4] pl-0.5">{children}</li>
+            <li className="leading-relaxed text-foreground/85 pl-0.5">{children}</li>
           ),
           h1: ({ children }) => (
             <h1 className="text-base font-semibold text-white mt-3 mb-1.5">{children}</h1>
@@ -72,7 +72,7 @@ export function MarkdownContent({ content, className = "" }: MarkdownContentProp
             </h3>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="border-l-2 border-[#10a37f] pl-3 py-1 my-2 text-zinc-300 bg-[#10a37f]/5 rounded-r text-xs leading-relaxed">
+            <blockquote className="border-l-2 border-brand pl-3 py-1 my-2 text-zinc-300 bg-brand/5 rounded-r text-xs leading-relaxed">
               {children}
             </blockquote>
           ),

@@ -127,18 +127,18 @@ export default function SchemaPage() {
     filteredObjects[0];
 
   return (
-    <div className="flex flex-col h-full bg-[#212121] text-foreground">
+    <div className="flex flex-col h-full bg-background text-foreground">
       {/* Top Header Mode Switcher Bar */}
-      <div className="flex h-12 items-center justify-between border-b border-border/80 bg-[#171717] px-4 shrink-0">
+      <div className="flex h-12 items-center justify-between border-b border-border/80 bg-sidebar px-4 shrink-0">
         <div className="flex items-center gap-3">
-          <Network className="h-4 w-4 text-emerald-400" />
+          <Network className="h-4 w-4 text-brand" />
           <span className="text-xs font-semibold text-zinc-200">Schema Explorer</span>
-          <div className="flex items-center bg-[#212121] border border-border/80 rounded-md p-0.5">
+          <div className="flex items-center bg-background border border-border/80 rounded-md p-0.5">
             <button
               onClick={() => setViewMode("canvas")}
               className={`text-[11px] px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 ${
                 viewMode === "canvas"
-                  ? "bg-emerald-600 text-white font-medium"
+                  ? "bg-primary text-primary-foreground font-medium"
                   : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
@@ -149,7 +149,7 @@ export default function SchemaPage() {
               onClick={() => setViewMode("table")}
               className={`text-[11px] px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 ${
                 viewMode === "table"
-                  ? "bg-emerald-600 text-white font-medium"
+                  ? "bg-primary text-primary-foreground font-medium"
                   : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
@@ -161,7 +161,7 @@ export default function SchemaPage() {
 
         <div className="flex items-center gap-2">
           {viewMode === "table" && snapshots.length > 1 && (
-            <div className="flex items-center gap-1 bg-[#212121] border border-border/80 rounded-md p-0.5">
+            <div className="flex items-center gap-1 bg-background border border-border/80 rounded-md p-0.5">
               {snapshots.map((snap) => (
                 <button
                   key={snap.connection_id}
@@ -173,7 +173,7 @@ export default function SchemaPage() {
                   }}
                   className={`text-[11px] px-2.5 py-1 rounded transition-colors ${
                     snap.connection_id === activeSnapshot?.connection_id
-                      ? "bg-emerald-600 text-white font-medium"
+                      ? "bg-primary text-primary-foreground font-medium"
                       : "text-zinc-400 hover:text-zinc-200"
                   }`}
                 >
@@ -188,7 +188,7 @@ export default function SchemaPage() {
             size="sm"
             onClick={handleRefresh}
             disabled={isRefreshing || !activeSnapshot}
-            className="h-8 text-xs border-border/80 text-zinc-200 hover:bg-[#2f2f2f] gap-1.5"
+            className="h-8 text-xs border-border/80 text-zinc-200 hover:bg-muted gap-1.5"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             <span>{isRefreshing ? "Introspecting..." : "Refresh Schema"}</span>
@@ -216,7 +216,7 @@ export default function SchemaPage() {
         /* Table View */
         <div className="flex-1 flex overflow-hidden">
           {/* Left Column: Entities List */}
-          <div className="w-80 border-r border-border/80 bg-[#171717] flex flex-col shrink-0">
+          <div className="w-80 border-r border-border/80 bg-sidebar flex flex-col shrink-0">
             <div className="p-3 border-b border-border/80">
               <div className="relative">
                 <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-zinc-500" />
@@ -224,7 +224,7 @@ export default function SchemaPage() {
                   placeholder="Search tables & fields..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 h-8 text-xs bg-[#212121] border-border/80 text-zinc-200 placeholder:text-zinc-500"
+                  className="pl-8 h-8 text-xs bg-background border-border/80 text-zinc-200 placeholder:text-zinc-500"
                 />
               </div>
             </div>
@@ -232,9 +232,9 @@ export default function SchemaPage() {
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {isLoading ? (
                 <div className="p-3 space-y-2">
-                  <Skeleton className="h-9 w-full bg-[#262626]" />
-                  <Skeleton className="h-9 w-full bg-[#262626]" />
-                  <Skeleton className="h-9 w-full bg-[#262626]" />
+                  <Skeleton className="h-9 w-full bg-muted" />
+                  <Skeleton className="h-9 w-full bg-muted" />
+                  <Skeleton className="h-9 w-full bg-muted" />
                 </div>
               ) : filteredObjects.length === 0 ? (
                 <div className="p-6 text-center text-xs text-zinc-500">
@@ -249,15 +249,15 @@ export default function SchemaPage() {
                       onClick={() => setSelectedObjectName(obj.name)}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs transition-colors ${
                         isSelected
-                          ? "bg-emerald-600/15 border border-emerald-500/30 text-emerald-300 font-medium"
-                          : "text-zinc-300 hover:bg-[#262626] border border-transparent"
+                          ? "bg-primary/15 border border-brand/30 text-brand font-medium"
+                          : "text-zinc-300 hover:bg-muted border border-transparent"
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate">
                         {obj.object_type === "collection" ? (
                           <Layers className="h-3.5 w-3.5 shrink-0 text-amber-400" />
                         ) : obj.object_type === "index" ? (
-                          <Database className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                          <Database className="h-3.5 w-3.5 shrink-0 text-brand" />
                         ) : (
                           <TableIcon className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                         )}
@@ -274,10 +274,10 @@ export default function SchemaPage() {
           </div>
 
           {/* Right Column: Entity Details */}
-          <div className="flex-1 overflow-y-auto p-6 bg-[#212121]">
+          <div className="flex-1 overflow-y-auto p-6 bg-background">
             {selectedObject ? (
               <div className="max-w-4xl mx-auto space-y-6">
-                <div className="bg-[#181818] border border-border/80 p-5 rounded-xl shadow-sm flex items-start justify-between">
+                <div className="bg-card border border-border/80 p-5 rounded-xl shadow-sm flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2.5">
                       <h2 className="text-base font-semibold text-zinc-100">
@@ -301,13 +301,13 @@ export default function SchemaPage() {
                       </span>
                     </p>
                   </div>
-                  <Badge variant="secondary" className="text-[11px] bg-[#262626] text-zinc-300 border border-border/70">
+                  <Badge variant="secondary" className="text-[11px] bg-muted text-zinc-300 border border-border/70">
                     {selectedObject.fields.length} Fields
                   </Badge>
                 </div>
 
                 {/* Fields Table */}
-                <div className="bg-[#181818] border border-border/80 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-card border border-border/80 rounded-xl overflow-hidden shadow-sm">
                   <div className="px-5 py-3 border-b border-border/80">
                     <h3 className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
                       Columns & Fields
@@ -316,7 +316,7 @@ export default function SchemaPage() {
 
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-[#1c1c1c] text-zinc-400 border-b border-border/80">
+                      <thead className="bg-muted text-zinc-400 border-b border-border/80">
                         <tr>
                           <th className="py-2.5 px-4 font-medium">Field Name</th>
                           <th className="py-2.5 px-4 font-medium">Data Type</th>
@@ -326,11 +326,11 @@ export default function SchemaPage() {
                       </thead>
                       <tbody className="divide-y divide-border/60">
                         {selectedObject.fields.map((f) => (
-                          <tr key={f.name} className="hover:bg-[#262626]/40 transition-colors">
+                          <tr key={f.name} className="hover:bg-muted/40 transition-colors">
                             <td className="py-2.5 px-4 font-mono font-medium text-zinc-200">
                               {f.name}
                             </td>
-                            <td className="py-2.5 px-4 font-mono text-emerald-400 text-[11px]">
+                            <td className="py-2.5 px-4 font-mono text-brand text-[11px]">
                               {f.data_type}
                             </td>
                             <td className="py-2.5 px-4">
@@ -342,7 +342,7 @@ export default function SchemaPage() {
                                   </Badge>
                                 )}
                                 {f.is_foreign_key && (
-                                  <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 text-[10px] gap-1 px-1.5 py-0.5">
+                                  <Badge className="bg-brand-muted text-brand border-brand/30 text-[10px] gap-1 px-1.5 py-0.5">
                                     <LinkIcon className="h-2.5 w-2.5" />
                                     <span>FK</span>
                                   </Badge>
@@ -363,7 +363,7 @@ export default function SchemaPage() {
                 </div>
 
                 {/* Relationships */}
-                <div className="bg-[#181818] border border-border/80 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-card border border-border/80 rounded-xl overflow-hidden shadow-sm">
                   <div className="px-5 py-3 border-b border-border/80">
                     <h3 className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
                       Discovered Relationships ({selectedObject.relationships.length})
@@ -379,16 +379,16 @@ export default function SchemaPage() {
                       {selectedObject.relationships.map((rel, idx) => (
                         <div key={idx} className="p-4 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-muted text-brand">
                               <LinkIcon className="h-4 w-4" />
                             </div>
                             <div>
                               <div className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
-                                <span className="font-mono text-emerald-400">
+                                <span className="font-mono text-brand">
                                   {rel.source_table}.({rel.source_fields.join(", ")})
                                 </span>
                                 <span className="text-zinc-500">→</span>
-                                <span className="font-mono text-emerald-300">
+                                <span className="font-mono text-brand">
                                   {rel.target_table}.({rel.target_fields.join(", ")})
                                 </span>
                               </div>
@@ -397,7 +397,7 @@ export default function SchemaPage() {
                                   variant="outline"
                                   className={`text-[10px] ${
                                     rel.provenance === "foreign_key"
-                                      ? "text-emerald-400 border-emerald-500/30"
+                                      ? "text-brand border-brand/30"
                                       : "text-amber-400 border-amber-500/30"
                                   }`}
                                 >

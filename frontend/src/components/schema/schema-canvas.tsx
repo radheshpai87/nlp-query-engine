@@ -407,32 +407,32 @@ function SchemaCanvasInner({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0d1013] text-[#ececec] relative">
+    <div className="flex flex-col h-full bg-background text-foreground relative">
       {/* Canvas Toolbar */}
-      <div className="flex h-12 items-center justify-between border-b border-[#262d36] bg-[#14181c] px-4 z-10">
+      <div className="flex h-12 items-center justify-between border-b border-border bg-card px-4 z-10">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
-            <Network className="h-4 w-4 text-emerald-400" />
+            <Network className="h-4 w-4 text-brand" />
             <span>Interactive Schema Canvas</span>
           </div>
 
           <div className="flex items-center gap-1.5">
             <Badge
               variant="outline"
-              className="text-[10px] text-zinc-400 border-[#262d36] bg-[#191e24]"
+              className="text-[10px] text-zinc-400 border-border bg-secondary"
             >
               {initialData.statistics.total_nodes} Entities
             </Badge>
             <Badge
               variant="outline"
-              className="text-[10px] text-zinc-300 border-[#262d36] bg-[#191e24]"
+              className="text-[10px] text-zinc-300 border-border bg-secondary"
             >
               {initialData.statistics.foreign_keys_count} FKs
             </Badge>
             {initialData.statistics.user_defined_count > 0 && (
               <Badge
                 variant="outline"
-                className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+                className="text-[10px] text-brand border-brand/30 bg-brand-muted"
               >
                 {initialData.statistics.user_defined_count} Custom Links
               </Badge>
@@ -448,16 +448,16 @@ function SchemaCanvasInner({
               placeholder="Find entity or field..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-7 pl-8 text-xs bg-[#191e24] border-[#262d36] text-[#ececec] placeholder:text-zinc-500"
+              className="h-7 pl-8 text-xs bg-secondary border-border text-foreground placeholder:text-zinc-500"
             />
           </div>
 
-          <div className="flex items-center gap-1 bg-[#191e24] border border-[#262d36] rounded-md p-0.5">
+          <div className="flex items-center gap-1 bg-secondary border border-border rounded-md p-0.5">
             <button
               onClick={() => setActiveFilter(null)}
               className={`text-[10px] px-2 py-1 rounded transition-colors ${
                 activeFilter === null
-                  ? "bg-[#262d36] text-[#ececec] font-medium"
+                  ? "bg-border text-foreground font-medium"
                   : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
@@ -467,8 +467,7 @@ function SchemaCanvasInner({
               onClick={() => setActiveFilter("postgres")}
               className={`text-[10px] px-2 py-1 rounded transition-colors ${
                 activeFilter === "postgres"
-                  ? "bg-emerald-600 text-white font-medium"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-primary text-primary-foreground font-medium"                  : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
               Postgres
@@ -477,8 +476,7 @@ function SchemaCanvasInner({
               onClick={() => setActiveFilter("mongodb")}
               className={`text-[10px] px-2 py-1 rounded transition-colors ${
                 activeFilter === "mongodb"
-                  ? "bg-emerald-600 text-white font-medium"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-primary text-primary-foreground font-medium"                  : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
               Mongo
@@ -487,8 +485,7 @@ function SchemaCanvasInner({
               onClick={() => setActiveFilter("elasticsearch")}
               className={`text-[10px] px-2 py-1 rounded transition-colors ${
                 activeFilter === "elasticsearch"
-                  ? "bg-emerald-600 text-white font-medium"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-primary text-primary-foreground font-medium"                  : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
               ES
@@ -502,18 +499,16 @@ function SchemaCanvasInner({
             size="sm"
             variant="outline"
             onClick={handleAutoArrange}
-            className="h-8 text-xs border-[#262d36] bg-[#191e24] text-zinc-300 hover:text-white hover:bg-[#202730] gap-1.5"
-            title="Auto-arrange schema with optimal DAG layering"
+            className="h-8 text-xs border-border bg-secondary text-zinc-300 hover:text-foreground hover:bg-accent gap-1.5"            title="Auto-arrange schema with optimal DAG layering"
           >
-            <Sparkles className="h-3.5 w-3.5 text-[#10a37f]" />
+            <Sparkles className="h-3.5 w-3.5 text-brand" />
             <span>Auto Arrange</span>
           </Button>
 
           <Button
             size="sm"
             onClick={() => setIsAddRelOpen(true)}
-            className="h-8 text-xs bg-[#10a37f] hover:bg-[#0d8a6c] text-white font-medium gap-1.5 shadow-sm"
-          >
+            className="h-8 text-xs bg-brand hover:bg-brand text-background font-medium gap-1.5 shadow-sm"          >
             <Plus className="h-3.5 w-3.5" />
             <span>Connect Tables</span>
           </Button>
@@ -521,7 +516,7 @@ function SchemaCanvasInner({
       </div>
 
       {/* React Flow Viewport Area */}
-      <div className="flex-1 w-full h-full relative bg-[#0d1013]">
+      <div className="flex-1 w-full h-full relative bg-background">
         <ReactFlow
           nodes={filteredNodes}
           edges={edges}
@@ -536,7 +531,7 @@ function SchemaCanvasInner({
           minZoom={0.2}
           maxZoom={1.8}
           proOptions={{ hideAttribution: true }}
-          className="bg-[#0d1013]"
+          className="bg-background"
         >
           <Background
             color="#262d36"
@@ -545,11 +540,11 @@ function SchemaCanvasInner({
             variant={BackgroundVariant.Dots}
           />
           <Controls
-            className="!bg-[#14181c] !border-[#262d36] !text-[#ececec] !shadow-2xl [&>button]:!border-[#262d36] [&>button]:!fill-[#ececec] [&>button:hover]:!bg-[#1f252d]"
+            className="!bg-card !border-border !text-foreground !shadow-2xl [&>button]:!border-border [&>button]:!fill-foreground [&>button:hover]:!bg-[#1f252d]"
             showInteractive={false}
           />
           <MiniMap
-            className="!bg-[#14181c] !border-[#262d36] !rounded-lg !overflow-hidden"
+            className="!bg-card !border-border !rounded-lg !overflow-hidden"
             nodeColor={(node) => {
               const dType = (node.data as unknown as GraphNode)?.database_type;
               if (dType === "postgres") return "#10a37f";
@@ -563,22 +558,22 @@ function SchemaCanvasInner({
 
         {/* Inspector Side Drawer */}
         {(selectedNode || selectedEdge) && (
-          <div className="absolute top-4 right-4 w-96 max-h-[calc(100%-32px)] bg-[#14181c] border border-[#262d36] rounded-xl shadow-2xl p-4 flex flex-col z-20 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200">
+          <div className="absolute top-4 right-4 w-96 max-h-[calc(100%-32px)] bg-card border border-border rounded-xl shadow-2xl p-4 flex flex-col z-20 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200">
             {/* Drawer Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#262d36]">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
               <div className="flex items-center gap-2 truncate">
                 {selectedNode && (
                   <>
-                    <Database className="h-4 w-4 text-emerald-400" />
-                    <span className="text-xs font-semibold text-[#ececec] truncate">
+                    <Database className="h-4 w-4 text-brand" />
+                    <span className="text-xs font-semibold text-foreground truncate">
                       {selectedNode.name}
                     </span>
                   </>
                 )}
                 {selectedEdge && (
                   <>
-                    <LinkIcon className="h-4 w-4 text-emerald-400" />
-                    <span className="text-xs font-semibold text-[#ececec] truncate">
+                    <LinkIcon className="h-4 w-4 text-brand" />
+                    <span className="text-xs font-semibold text-foreground truncate">
                       Relationship Detail
                     </span>
                   </>
@@ -603,14 +598,14 @@ function SchemaCanvasInner({
               <div className="flex-1 overflow-y-auto pt-3 space-y-4">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-zinc-400">Database Source</span>
-                  <Badge variant="outline" className="text-[10px] border-[#262d36] text-zinc-300">
+                  <Badge variant="outline" className="text-[10px] border-border text-zinc-300">
                     {selectedNode.connection_name} ({selectedNode.database_type})
                   </Badge>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-zinc-400">Estimated Rows</span>
-                  <span className="font-mono text-[#ececec] font-medium">
+                  <span className="font-mono text-foreground font-medium">
                     {selectedNode.row_count_estimate?.toLocaleString() || "Unknown"}
                   </span>
                 </div>
@@ -623,20 +618,20 @@ function SchemaCanvasInner({
                     {selectedNode.fields.map((f) => (
                       <div
                         key={f.name}
-                        className="p-2 rounded bg-[#191e24] border border-[#262d36] flex items-center justify-between text-xs"
+                        className="p-2 rounded bg-secondary border border-border flex items-center justify-between text-xs"
                       >
                         <div className="flex items-center gap-1.5 truncate">
                           {f.is_primary_key && (
                             <Key className="h-3 w-3 shrink-0 text-amber-400" />
                           )}
                           {f.is_foreign_key && !f.is_primary_key && (
-                            <LinkIcon className="h-3 w-3 shrink-0 text-emerald-400" />
+                            <LinkIcon className="h-3 w-3 shrink-0 text-brand" />
                           )}
-                          <span className="font-mono text-[11px] text-[#ececec] truncate">
+                          <span className="font-mono text-[11px] text-foreground truncate">
                             {f.name}
                           </span>
                         </div>
-                        <span className="font-mono text-[10px] text-emerald-400">
+                        <span className="font-mono text-[10px] text-brand">
                           {f.data_type}
                         </span>
                       </div>
@@ -651,14 +646,14 @@ function SchemaCanvasInner({
               <div className="flex-1 overflow-y-auto pt-3 space-y-4 text-xs">
                 <div>
                   <span className="text-zinc-400 block text-[11px] mb-1">Source Table & Field</span>
-                  <div className="font-mono p-2 rounded bg-[#191e24] border border-[#262d36] text-emerald-400">
+                  <div className="font-mono p-2 rounded bg-secondary border border-border text-brand">
                     {selectedEdge.source_node_id} . {selectedEdge.source_field}
                   </div>
                 </div>
 
                 <div>
                   <span className="text-zinc-400 block text-[11px] mb-1">Target Table & Field</span>
-                  <div className="font-mono p-2 rounded bg-[#191e24] border border-[#262d36] text-teal-300">
+                  <div className="font-mono p-2 rounded bg-secondary border border-border text-teal-300">
                     {selectedEdge.target_node_id} . {selectedEdge.target_field}
                   </div>
                 </div>
@@ -671,7 +666,7 @@ function SchemaCanvasInner({
                       selectedEdge.provenance === "foreign_key"
                         ? "text-zinc-300 border-zinc-700"
                         : selectedEdge.provenance === "user_defined"
-                        ? "text-emerald-400 border-emerald-500/30"
+                        ? "text-brand border-brand/30"
                         : "text-amber-400 border-amber-500/30"
                     }`}
                   >
@@ -692,8 +687,8 @@ function SchemaCanvasInner({
                     variant="outline"
                     className={`text-[10px] ${
                       selectedEdge.is_cross_database
-                        ? "text-emerald-300 border-emerald-500/40 bg-emerald-500/10"
-                        : "text-zinc-400 border-[#262d36]"
+                        ? "text-brand border-brand/40 bg-brand-muted"
+                        : "text-zinc-400 border-border"
                     }`}
                   >
                     {selectedEdge.is_cross_database ? "Yes (Heterogeneous)" : "No (Intra-database)"}
@@ -701,7 +696,7 @@ function SchemaCanvasInner({
                 </div>
 
                 {selectedEdge.provenance === "user_defined" && (
-                  <div className="pt-2 border-t border-[#262d36]">
+                  <div className="pt-2 border-t border-border">
                     <Button
                       variant="destructive"
                       size="sm"

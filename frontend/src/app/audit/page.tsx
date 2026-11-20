@@ -174,8 +174,8 @@ export default function AuditPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-emerald-500" />
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
+            <ShieldCheck className="h-6 w-6 text-brand" />
+            <h1 className="text-lg font-medium tracking-tight text-foreground">
               Security & Audit Trail
             </h1>
           </div>
@@ -204,7 +204,7 @@ export default function AuditPage() {
             onClick={() => handleDownload("csv")}
             className="gap-1.5 text-xs"
           >
-            <Download className="h-3.5 w-3.5 text-slate-400" />
+            <Download className="h-3.5 w-3.5 text-muted-foreground" />
             <span>CSV</span>
           </Button>
 
@@ -214,7 +214,7 @@ export default function AuditPage() {
             onClick={() => handleDownload("json")}
             className="gap-1.5 text-xs"
           >
-            <Download className="h-3.5 w-3.5 text-slate-400" />
+            <Download className="h-3.5 w-3.5 text-muted-foreground" />
             <span>JSON</span>
           </Button>
 
@@ -223,7 +223,7 @@ export default function AuditPage() {
             size="icon"
             onClick={handleRefresh}
             disabled={isLoading}
-            className="h-8 w-8 text-slate-400 hover:text-slate-200"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
             title="Refresh logs"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
@@ -237,13 +237,13 @@ export default function AuditPage() {
           data-testid="integrity-banner"
           className={`p-3.5 rounded-lg border text-xs flex items-center justify-between transition-all ${
             integrity.is_valid
-              ? "bg-emerald-950/20 border-emerald-800 text-emerald-300"
+              ? "bg-brand-muted border-brand/30 text-brand"
               : "bg-rose-950/20 border-rose-800 text-rose-300"
           }`}
         >
           <div className="flex items-center gap-2.5">
             {integrity.is_valid ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="h-4 w-4 text-brand shrink-0" />
             ) : (
               <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
             )}
@@ -323,14 +323,14 @@ export default function AuditPage() {
             {isLoading && events.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center text-xs text-muted-foreground">
-                  <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-slate-500" />
+                  <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-muted-foreground" />
                   Loading audit logs...
                 </TableCell>
               </TableRow>
             ) : events.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="h-32 text-center text-xs text-muted-foreground">
-                  <Layers className="h-6 w-6 mx-auto mb-2 text-slate-600 opacity-50" />
+                  <Layers className="h-6 w-6 mx-auto mb-2 text-muted-foreground opacity-50" />
                   No audit events found matching the criteria.
                 </TableCell>
               </TableRow>
@@ -342,19 +342,19 @@ export default function AuditPage() {
 
                 return (
                   <div key={evt.id} className="contents">
-                    <TableRow className="hover:bg-slate-800/40 transition-colors">
-                      <TableCell className="font-mono text-xs text-slate-400">
+                    <TableRow className="hover:bg-muted transition-colors">
+                      <TableCell className="font-mono text-xs text-muted-foreground">
                         #{evt.sequence}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {dateStr}
                       </TableCell>
                       <TableCell>
-                        <span className="font-mono text-xs font-semibold text-slate-200">
+                        <span className="font-mono text-xs font-semibold text-foreground">
                           {evt.action}
                         </span>
                       </TableCell>
-                      <TableCell className="text-xs text-slate-300 max-w-[140px] truncate">
+                      <TableCell className="text-xs text-foreground/80 max-w-[140px] truncate">
                         {evt.user_id || (
                           <span className="italic text-muted-foreground">system</span>
                         )}
@@ -366,7 +366,7 @@ export default function AuditPage() {
                       <TableCell>{getStatusBadge(evt.status)}</TableCell>
                       <TableCell>
                         <span
-                          className="font-mono text-[11px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded cursor-help"
+                          className="font-mono text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded cursor-help"
                           title={`SHA-256: ${evt.event_hash || "N/A"}`}
                         >
                           {hashPrefix}
@@ -377,7 +377,7 @@ export default function AuditPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setExpandedId(isExpanded ? null : evt.id)}
-                          className="h-7 w-7 text-slate-400 hover:text-slate-200"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
                           title="View sanitized event details"
                         >
                           {isExpanded ? (
@@ -391,10 +391,10 @@ export default function AuditPage() {
 
                     {/* Expandable JSON Details Row */}
                     {isExpanded && (
-                      <TableRow className="bg-slate-950/60 border-t border-slate-800">
+                      <TableRow className="bg-background border-t border-border">
                         <TableCell colSpan={8} className="p-4">
                           <div className="space-y-2">
-                            <div className="flex items-center justify-between text-xs text-slate-400">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
                               <span className="font-semibold flex items-center gap-1.5">
                                 <FileCode2 className="h-3.5 w-3.5 text-sky-400" />
                                 Event Details Payload & Cryptographic Proof
@@ -402,20 +402,20 @@ export default function AuditPage() {
                               <span>ID: {evt.id}</span>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] font-mono text-slate-400 pb-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] font-mono text-muted-foreground pb-2">
                               <div>
-                                <span className="text-slate-500">Previous Hash:</span>{" "}
-                                <span className="text-slate-300">
+                                <span className="text-muted-foreground">Previous Hash:</span>{" "}
+                                <span className="text-foreground/80">
                                   {evt.previous_hash || "GENESIS"}
                                 </span>
                               </div>
                               <div>
-                                <span className="text-slate-500">Event Hash:</span>{" "}
-                                <span className="text-emerald-400">{evt.event_hash}</span>
+                                <span className="text-muted-foreground">Event Hash:</span>{" "}
+                                <span className="text-brand">{evt.event_hash}</span>
                               </div>
                             </div>
 
-                            <pre className="p-3 rounded-md bg-slate-900 border border-slate-800 font-mono text-[11px] text-slate-300 overflow-x-auto max-h-60 leading-relaxed">
+                            <pre className="p-3 rounded-md bg-background border border-border font-mono text-[11px] text-foreground/80 overflow-x-auto max-h-60 leading-relaxed">
                               {JSON.stringify(evt.details, null, 2)}
                             </pre>
                           </div>
@@ -430,7 +430,7 @@ export default function AuditPage() {
         </Table>
 
         {/* Pagination Bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-slate-950/40 text-xs text-muted-foreground">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-background/60 text-xs text-muted-foreground">
           <div>
             Showing {(page - 1) * limit + (events.length > 0 ? 1 : 0)} to{" "}
             {Math.min(page * limit, total)} of {total} events
@@ -448,7 +448,7 @@ export default function AuditPage() {
               <span>Previous</span>
             </Button>
 
-            <span className="text-slate-400">
+            <span className="text-muted-foreground">
               Page {page} of {totalPages}
             </span>
 

@@ -45,19 +45,19 @@ export function ClarificationPrompt({
       "Confirmed";
 
     return (
-      <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/20 text-xs text-emerald-200 flex items-center justify-between">
+      <div className="p-3.5 rounded-xl border border-brand/30 bg-brand-muted text-xs text-brand flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-muted text-brand">
             <Check className="h-3 w-3" />
           </div>
           <div>
-            <span className="text-slate-400 font-medium mr-1.5">{clarification.question}</span>
-            <span className="font-semibold text-emerald-300">
+            <span className="text-muted-foreground font-medium mr-1.5">{clarification.question}</span>
+            <span className="font-semibold text-brand">
               Resolved: {String(displayVal)}
             </span>
           </div>
         </div>
-        <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300">
+        <Badge variant="outline" className="text-[10px] border-brand/40 text-brand">
           Clarified
         </Badge>
       </div>
@@ -77,7 +77,7 @@ export function ClarificationPrompt({
               {clarification.question}
             </h4>
             {clarification.explanation && (
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-0.5">
                 {clarification.explanation}
               </p>
             )}
@@ -105,7 +105,7 @@ export function ClarificationPrompt({
               className={`p-2.5 rounded-lg border text-left transition-all ${
                 isSelected
                   ? "bg-amber-500/20 border-amber-500 text-amber-100 ring-1 ring-amber-500/40"
-                  : "bg-slate-900/60 border-slate-800 hover:border-slate-700 text-slate-300 hover:text-slate-100"
+                  : "bg-background/60 border-border hover:border-slate-700 text-foreground/80 hover:text-slate-100"
               }`}
             >
               <div className="flex items-center justify-between mb-0.5">
@@ -117,7 +117,7 @@ export function ClarificationPrompt({
                 )}
               </div>
               {option.description && (
-                <p className="text-[10px] text-slate-400 leading-tight">
+                <p className="text-[10px] text-muted-foreground leading-tight">
                   {option.description}
                 </p>
               )}
@@ -136,7 +136,7 @@ export function ClarificationPrompt({
               setCustomText(e.target.value);
               setIsCustomMode(true);
             }}
-            className="h-8 text-xs bg-slate-900 border-slate-800 text-slate-200 placeholder:text-slate-500"
+            className="h-8 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground"
           />
         </div>
       )}

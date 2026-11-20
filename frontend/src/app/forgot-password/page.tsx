@@ -33,10 +33,10 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#111111] text-[#ececec] flex flex-col justify-between p-4 sm:p-6 antialiased selection:bg-[#10a37f]/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-6 antialiased selection:bg-brand/30">
       <div className="flex items-center justify-between max-w-5xl mx-auto w-full py-2">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="h-8 w-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+          <div className="h-8 w-8 rounded-lg bg-brand-muted border border-brand/20 flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
             <Sparkles className="h-4 w-4" />
           </div>
           <span className="font-semibold text-sm tracking-tight text-white">Nexus Query</span>
@@ -44,15 +44,14 @@ export default function ForgotPasswordPage() {
 
         <Link
           href="/login"
-          className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
-        >
+          className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-foreground transition-colors"        >
           <ArrowLeft className="h-3.5 w-3.5" />
           <span>Back to Sign In</span>
         </Link>
       </div>
 
       <div className="max-w-md mx-auto w-full my-auto py-8">
-        <div className="bg-[#181818] border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="bg-card border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-white tracking-tight">Reset your password</h1>
             <p className="text-xs text-zinc-400 mt-1.5">
@@ -69,21 +68,21 @@ export default function ForgotPasswordPage() {
 
           {successMessage ? (
             <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs space-y-2">
+              <div className="p-4 rounded-xl bg-brand-muted border border-brand/20 text-brand text-xs space-y-2">
                 <div className="flex items-center gap-2 font-medium">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <CheckCircle2 className="h-4 w-4 text-brand" />
                   <span>Reset Instructions Dispatched</span>
                 </div>
                 <p className="text-zinc-400 leading-relaxed">{successMessage}</p>
                 {resetToken && (
-                  <div className="pt-2 border-t border-emerald-500/20">
+                  <div className="pt-2 border-t border-brand/20">
                     <p className="text-[11px] text-zinc-300 mb-1">Testing Token (Evaluation Mode):</p>
-                    <code className="block p-2 rounded bg-black/50 text-[10px] font-mono break-all text-emerald-400 select-all">
+                    <code className="block p-2 rounded bg-black/50 text-[10px] font-mono break-all text-brand select-all">
                       {resetToken}
                     </code>
                     <Link
                       href={`/reset-password?token=${encodeURIComponent(resetToken)}`}
-                      className="inline-flex items-center gap-1.5 mt-2.5 text-xs text-emerald-400 hover:underline"
+                      className="inline-flex items-center gap-1.5 mt-2.5 text-xs text-brand hover:underline"
                     >
                       <span>Proceed to reset password</span>
                       <ArrowRight className="h-3.5 w-3.5" />
@@ -110,16 +109,14 @@ export default function ForgotPasswordPage() {
                     placeholder="name@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-10 bg-[#212121] border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
-                  />
+                    className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors"                  />
                 </div>
               </div>
 
               <Button
                 type="submit"
                 disabled={loading || !email.trim()}
-                className="w-full h-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2"
-              >
+                className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2"              >
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />

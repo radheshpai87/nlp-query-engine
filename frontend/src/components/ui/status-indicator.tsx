@@ -18,7 +18,7 @@ export function StatusIndicator({
 }: StatusIndicatorProps) {
   const statusColors: Record<ConnectionStatus, { dot: string; ping: string; text: string }> = {
     online: {
-      dot: "bg-emerald-500",
+      dot: "bg-brand",
       ping: "bg-emerald-400",
       text: "Online",
     },

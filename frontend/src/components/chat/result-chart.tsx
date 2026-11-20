@@ -221,7 +221,7 @@ export function ResultChart({ result }: ResultChartProps) {
         </div>
         <div className="rounded-lg bg-muted/30 border border-border p-2">
           <span className="text-[10px] text-muted-foreground block">Average</span>
-          <span className="text-sm font-semibold font-mono text-emerald-400">
+          <span className="text-sm font-semibold font-mono text-brand">
             {average.toLocaleString(undefined, { maximumFractionDigits: 2 })}
           </span>
         </div>

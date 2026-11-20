@@ -3,18 +3,17 @@
 import * as React from "react";
 import { useState } from "react";
 import {
+  ArrowUpRight,
   MessageSquare,
   Sparkles,
   Send,
   RefreshCw,
-  ShieldCheck,
   Play,
   Code2,
   Table as TableIcon,
   BarChart3,
   AlertTriangle,
   CheckCircle2,
-  ChevronDown,
   Menu,
   Terminal,
   ShieldAlert,
@@ -99,17 +98,6 @@ export default function ChatPage() {
       ignore = true;
     };
   }, [currentWorkspace.id]);
-
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search);
-      const queryParam = searchParams.get("q");
-      if (queryParam) {
-        handleSend(queryParam);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   React.useEffect(() => {
     if (typeof messagesEndRef.current?.scrollIntoView === "function") {
@@ -226,9 +214,8 @@ export default function ChatPage() {
           return {
             ...msg,
             status: "ready",
-            content: `I've analyzed your query with high confidence (${Math.round(
-              result.confidence * 100
-            )}%). Ready to construct the logical query plan.`,
+            content:
+              "I've matched this request to the connected schemas. Review the plan, then run it when you're ready.",
             clarifications: [],
             intent: result.inferred_intent,
             plan,
@@ -252,6 +239,17 @@ export default function ChatPage() {
       setIsSubmitting(false);
     }
   };
+
+  // Deep link support: /chat?q=... submits the question once on mount. The
+  // submission is deferred so it does not run as a synchronous effect update.
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const queryParam = new URLSearchParams(window.location.search).get("q");
+    if (!queryParam) return;
+    const timer = setTimeout(() => handleSend(queryParam), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleResolveClarification = async (
     messageId: string,
@@ -462,56 +460,44 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#212121] text-[#ececec] font-sans antialiased select-text">
-      {/* ChatGPT Single Sleek Topbar (No double headers!) */}
-      <header className="flex h-12 items-center justify-between border-b border-[#2d2d2d] bg-[#212121] px-3 sm:px-5 shrink-0 z-20">
+    <div className="flex flex-col h-full bg-background text-foreground font-sans antialiased select-text">
+      <header className="z-20 flex h-12 shrink-0 items-center justify-between border-b border-border bg-background px-3 sm:px-5">
         <div className="flex items-center gap-2">
           {/* Mobile sidebar toggle button */}
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden h-8 w-8 text-[#ececec] hover:bg-[#2f2f2f]"
+            className="md:hidden h-8 w-8 text-foreground hover:bg-muted"
             onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
             aria-label="Toggle navigation menu"
           >
             <Menu className="h-4 w-4" />
           </Button>
 
-          {/* ChatGPT Model Badge */}
-          <div className="flex items-center gap-2 rounded-xl px-2.5 py-1 text-xs sm:text-sm font-semibold text-[#ececec]">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#10a37f] text-white">
-              <Sparkles className="h-3 w-3" />
-            </div>
-            <span>Query Assistant</span>
-            <span className="text-xs text-[#737373] hidden sm:inline">·</span>
-            <span className="text-xs text-[#a3a3a3] font-normal hidden sm:inline">
-              Federated Engine
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-[13px] font-medium">Assistant</span>
+            <span className="hidden text-[11px] text-muted-foreground sm:inline">
+              {currentWorkspace.name}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Read-Only Safety Badge */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#10a37f]/10 border border-[#10a37f]/30 text-[#10a37f] text-[11px] font-medium">
-            <ShieldCheck className="h-3 w-3" />
-            <span>Read-Only Guard</span>
-          </div>
+          <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                sourceCount !== null && sourceCount > 0 ? "bg-emerald-400" : "bg-muted-foreground/40"
+              }`}
+            />
+            {sourceCount === null
+              ? "Checking sources"
+              : sourceCount === 0
+              ? "No sources connected"
+              : `${sourceCount} source${sourceCount > 1 ? "s" : ""} connected`}
+          </span>
 
-          {/* Sources Count Pill */}
-          <Badge
-            variant="outline"
-            className={`text-[11px] font-normal py-0.5 border-[#383838] hidden sm:flex ${
-              sourceCount !== null && sourceCount > 0 ? "text-[#10a37f] bg-[#10a37f]/10" : "text-[#8e8e8e]"
-            }`}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-[#10a37f] mr-1.5 animate-pulse" />
-            <span>
-              {sourceCount === null
-                ? "Checking sources..."
-                : sourceCount === 0
-                ? "No Sources Connected"
-                : `${sourceCount} Connected Source${sourceCount > 1 ? "s" : ""}`}
-            </span>
+          <Badge variant="outline" className="hidden border-border text-[10px] font-normal text-muted-foreground lg:flex">
+            Read-only
           </Badge>
 
           {/* Single, Clear New Chat Button */}
@@ -519,10 +505,10 @@ export default function ChatPage() {
             variant="ghost"
             size="sm"
             onClick={handleNewSession}
-            className="text-xs h-7 text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#2f2f2f] gap-1.5 rounded-lg px-2.5 transition-colors"
+            className="text-xs h-7 text-muted-foreground hover:text-foreground hover:bg-muted gap-1.5 rounded-lg px-2.5 transition-colors"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span>New Chat</span>
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span>New chat</span>
           </Button>
 
           {/* API Docs Link */}
@@ -530,9 +516,8 @@ export default function ChatPage() {
             href="http://localhost:8000/docs"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden md:inline-flex text-[#8e8e8e] hover:text-white"
-          >
-            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[#2f2f2f]">
+            className="hidden md:inline-flex text-muted-foreground hover:text-foreground"          >
+            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted">
               <Terminal className="h-3.5 w-3.5" />
             </Button>
           </a>
@@ -542,37 +527,36 @@ export default function ChatPage() {
       {/* Main Conversation Stream */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         {messages.length === 0 ? (
-          /* Pure ChatGPT Empty State */
-          <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto space-y-8 py-10 animate-in fade-in duration-300">
-            <div className="flex flex-col items-center space-y-3 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2a2a2a] text-[#10a37f] border border-[#383838] shadow-md">
-                <Sparkles className="h-6 w-6" />
+          <div className="mx-auto flex h-full max-w-xl flex-col items-center justify-center gap-8 py-16">
+            <div className="space-y-3 text-center">
+              <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-[13px] font-semibold">
+                N
+              </span>
+              <div className="space-y-1.5">
+                <h1 className="text-lg font-medium tracking-tight">
+                  What would you like to explore today?
+                </h1>
+                <p className="mx-auto max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+                  Ask a question across your connected databases. Underspecified
+                  thresholds and dates are clarified before anything runs.
+                </p>
               </div>
-              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#ececec]">
-                What would you like to explore today?
-              </h1>
-              <p className="text-xs sm:text-sm text-[#8e8e8e] max-w-md">
-                Ask any question across your connected databases. Ambiguities in metrics or dates will be clarified before execution.
-              </p>
             </div>
 
-            {/* Sleek Floating Query Chips */}
-            <div className="w-full space-y-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-[#737373] text-center">
+            <div className="w-full space-y-2.5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                 Suggested queries
               </p>
-              <div className="flex flex-wrap gap-2 justify-center max-w-xl mx-auto">
-                {SAMPLE_QUERIES.map((q, idx) => (
+              <div className="space-y-1.5">
+                {SAMPLE_QUERIES.map((q) => (
                   <button
-                    key={idx}
+                    key={q}
                     type="button"
                     onClick={() => handleSend(q)}
-                    className="px-3.5 py-2 text-left rounded-xl border border-white/[0.08] bg-[#2a2a2a]/50 hover:bg-[#2f2f2f] hover:border-white/[0.15] text-xs text-[#b4b4b4] hover:text-[#ececec] transition-all shadow-xs flex items-center gap-2 group"
+                    className="flex w-full items-center justify-between gap-3 rounded-md border border-border bg-card/50 px-3 py-2 text-left text-[13px] text-foreground/90 transition-colors hover:border-input hover:bg-card"
                   >
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#10a37f] shrink-0 opacity-70 group-hover:opacity-100" />
-                    <span className="font-medium text-white/90 group-hover:text-white">
-                      {q}
-                    </span>
+                    <span>{q}</span>
+                    <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   </button>
                 ))}
               </div>
@@ -589,16 +573,16 @@ export default function ChatPage() {
                 }`}
               >
                 {message.role === "assistant" && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#10a37f] text-white shadow-sm mt-0.5">
-                    <Sparkles className="h-4 w-4" />
+                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary text-[10px] font-semibold text-foreground">
+                    N
                   </div>
                 )}
 
                 <div
                   className={`space-y-3 ${
                     message.role === "user"
-                      ? "max-w-[80%] bg-[#2f2f2f] text-[#ececec] text-sm px-4 py-2.5 rounded-[22px] rounded-tr-md shadow-xs"
-                      : "flex-1 max-w-[90%] text-[#ececec] px-1 py-0.5"
+                      ? "max-w-[80%] bg-muted text-foreground text-sm px-4 py-2.5 rounded-[22px] rounded-tr-md shadow-xs"
+                      : "flex-1 max-w-[90%] text-foreground px-1 py-0.5"
                   }`}
                 >
                   {message.status === "guardrail" && (
@@ -609,7 +593,7 @@ export default function ChatPage() {
                   )}
 
                   {message.status === "conversational" && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#10a37f]/10 border border-[#10a37f]/20 text-[#10a37f] text-[11px] font-medium">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand/10 border border-brand/20 text-brand text-[11px] font-medium">
                       <Sparkles className="h-3.5 w-3.5" />
                       <span>Cluster Assistant</span>
                     </div>
@@ -623,18 +607,18 @@ export default function ChatPage() {
 
                   {/* Thinking / Evaluating Animation */}
                   {message.status === "evaluating" && (
-                    <div className="flex items-center gap-2 text-xs text-[#8e8e8e] pt-1">
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin text-[#10a37f]" />
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin text-brand" />
                       <span>Inspecting schemas & ambiguity parameters...</span>
                     </div>
                   )}
 
                   {/* Action Banner: View Dialect & Run Query */}
                   {(message.status === "ready" || message.status === "executed") && (message.plan || message.userQuery) && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-[#10a37f]/30 bg-[#10a37f]/10 text-xs text-[#ececec]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-brand/30 bg-brand/10 text-xs text-foreground">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-[#10a37f] shrink-0" />
-                        <span className="text-xs text-[#d1d5db]">Logical plan constructed with read-only assurance.</span>
+                        <CheckCircle2 className="h-4 w-4 text-brand shrink-0" />
+                        <span className="text-xs text-foreground">Logical plan constructed with read-only assurance.</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -642,10 +626,9 @@ export default function ChatPage() {
                           variant="ghost"
                           onClick={() => handleCompilePlan(message)}
                           disabled={activeCompilingId === message.id}
-                          className="h-7 text-xs text-[#b4b4b4] hover:text-white hover:bg-[#2f2f2f] gap-1.5"
-                        >
+                          className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted gap-1.5"                        >
                           {activeCompilingId === message.id ? (
-                            <RefreshCw className="h-3 w-3 animate-spin text-[#10a37f]" />
+                            <RefreshCw className="h-3 w-3 animate-spin text-brand" />
                           ) : (
                             <Code2 className="h-3 w-3" />
                           )}
@@ -663,8 +646,7 @@ export default function ChatPage() {
                             size="sm"
                             onClick={() => handleExecutePlan(message)}
                             disabled={activeExecutingId === message.id}
-                            className="h-7 text-xs bg-[#10a37f] hover:bg-[#0d8a6c] text-white font-medium gap-1.5 rounded-lg shadow-sm"
-                          >
+                            className="h-7 text-xs bg-brand hover:bg-brand text-background font-medium gap-1.5 rounded-lg shadow-sm"                          >
                             {activeExecutingId === message.id ? (
                               <RefreshCw className="h-3 w-3 animate-spin" />
                             ) : (
@@ -712,19 +694,18 @@ export default function ChatPage() {
                   {message.executionResult && (
                     <div className="pt-3 space-y-3">
                       {/* View Mode Switcher */}
-                      <div className="flex items-center justify-between border-b border-[#2d2d2d] pb-2">
-                        <span className="text-xs font-semibold text-[#ececec]">
+                      <div className="flex items-center justify-between border-b border-border pb-2">
+                        <span className="text-xs font-semibold text-foreground">
                           Query Execution Output
                         </span>
 
-                        <div className="flex items-center gap-1 bg-[#262626] p-0.5 rounded-lg border border-[#333333]">
+                        <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg border border-border">
                           <button
                             type="button"
                             onClick={() => toggleMessageView(message.id, "table")}
                             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors ${
                               (messageViewModes[message.id] || "table") === "table"
-                                ? "bg-[#383838] text-white font-medium shadow-xs"
-                                : "text-[#8e8e8e] hover:text-[#ececec]"
+                                ? "bg-accent text-foreground font-medium shadow-xs"                                : "text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             <TableIcon className="h-3 w-3" />
@@ -735,8 +716,7 @@ export default function ChatPage() {
                             onClick={() => toggleMessageView(message.id, "chart")}
                             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors ${
                               messageViewModes[message.id] === "chart"
-                                ? "bg-[#383838] text-white font-medium shadow-xs"
-                                : "text-[#8e8e8e] hover:text-[#ececec]"
+                                ? "bg-accent text-foreground font-medium shadow-xs"                                : "text-muted-foreground hover:text-foreground"
                             }`}
                           >
                             <BarChart3 className="h-3 w-3" />
@@ -763,13 +743,13 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  <div className="text-[10px] text-[#737373] flex justify-end">
+                  <div className="text-[10px] text-muted-foreground flex justify-end">
                     {message.timestamp}
                   </div>
                 </div>
 
                 {message.role === "user" && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2f2f2f] text-[#ececec] text-xs font-semibold mt-0.5">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-foreground text-xs font-semibold mt-0.5">
                     U
                   </div>
                 )}
@@ -780,8 +760,7 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* ChatGPT Signature Floating Input Pill Bar */}
-      <div className="p-4 bg-[#212121] border-t border-[#2a2a2a]/40">
+      <div className="border-t border-border bg-background p-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -789,26 +768,26 @@ export default function ChatPage() {
           }}
           className="max-w-3xl mx-auto space-y-2"
         >
-          <div className="relative flex items-center rounded-[26px] border border-[#383838] bg-[#2f2f2f] px-3.5 py-1 shadow-lg focus-within:border-[#525252] transition-colors">
+          <div className="relative flex items-center rounded-xl border border-input bg-card px-2.5 py-1 transition-colors focus-within:border-ring">
             <Input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask anything about your databases (e.g. Show me top 5 products...)"
-              className="flex-1 bg-transparent border-0 text-[#ececec] placeholder:text-[#8e8e8e] focus-visible:ring-0 focus-visible:ring-offset-0 px-1 py-2 text-sm shadow-none"
+              className="flex-1 bg-transparent border-0 text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 px-1 py-2 text-sm shadow-none"
               disabled={isSubmitting}
             />
             <Button
               type="submit"
               disabled={isSubmitting || !inputValue.trim()}
               size="icon"
-              className="h-8 w-8 rounded-full bg-white text-black hover:bg-neutral-200 disabled:bg-[#404040] disabled:text-[#737373] shrink-0 transition-colors shadow-sm"
+              className="h-8 w-8 rounded-full bg-white text-black hover:bg-neutral-200 disabled:bg-input disabled:text-muted-foreground shrink-0 transition-colors shadow-sm"
               aria-label="Send"
             >
               <Send className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <p className="text-[11px] text-center text-[#737373]">
-            Read-only safety engine active · Queries ground directly to introspected PostgreSQL, MongoDB & Elasticsearch schemas.
+          <p className="text-center text-[11px] text-muted-foreground">
+            Read-only. Every query is validated against the connected schema before it runs.
           </p>
         </form>
       </div>

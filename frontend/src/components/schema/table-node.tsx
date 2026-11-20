@@ -18,7 +18,7 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
   const isMongo = data.database_type === "mongodb";
 
   const dbBadgeColor = isPostgres
-    ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+    ? "text-brand bg-brand-muted border-brand/30"
     : isMongo
     ? "text-teal-400 bg-teal-500/10 border-teal-500/30"
     : "text-amber-400 bg-amber-500/10 border-amber-500/30";
@@ -29,21 +29,21 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
 
   return (
     <div
-      className={`w-[290px] min-w-[290px] max-w-[290px] rounded-xl border bg-[#14181c] shadow-2xl transition-all duration-200 select-none ${
+      className={`w-[290px] min-w-[290px] max-w-[290px] rounded-xl border bg-card shadow-2xl transition-all duration-200 select-none ${
         selected
-          ? "border-[#10a37f] ring-2 ring-[#10a37f]/40 shadow-[0_0_24px_rgba(16,163,127,0.2)]"
-          : "border-[#262d36] hover:border-[#38424d]"
+          ? "border-brand ring-2 ring-brand/40 shadow-[0_0_24px_rgba(16,163,127,0.2)]"
+          : "border-border hover:border-input"
       }`}
     >
       {/* Node-level target handle fallback */}
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-2.5 !h-2.5 !-left-[5px] !bg-[#10a37f] !border-2 !border-[#14181c] !opacity-0"
+        className="!w-2.5 !h-2.5 !-left-[5px] !bg-brand !border-2 !border-card !opacity-0"
       />
 
       {/* Header */}
-      <div className="p-3 border-b border-[#262d36] bg-[#161a20] rounded-t-xl">
+      <div className="p-3 border-b border-border bg-muted rounded-t-xl">
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-2 truncate">
             <div
@@ -51,7 +51,7 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
             >
               <DbIcon className="h-3.5 w-3.5" />
             </div>
-            <span className="font-mono text-xs font-bold text-[#f4f4f5] truncate">
+            <span className="font-mono text-xs font-bold text-foreground truncate">
               {data.name}
             </span>
           </div>
@@ -64,7 +64,7 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
           </Badge>
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-[#71717a] px-0.5">
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground px-0.5">
           <span className="truncate max-w-[150px]">{data.connection_name}</span>
           <span className="font-mono">
             {data.row_count_estimate !== null && data.row_count_estimate !== undefined
@@ -75,7 +75,7 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
       </div>
 
       {/* Fields List */}
-      <div className="divide-y divide-[#1e242c] max-h-[380px] overflow-y-auto">
+      <div className="divide-y divide-border max-h-[380px] overflow-y-auto">
         {data.fields.map((field) => {
           const isSelectedField = data.selectedField === field.name;
           const isConnected =
@@ -88,8 +88,8 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
               key={field.name}
               className={`relative flex items-center justify-between px-3.5 py-1.5 text-xs transition-colors group ${
                 isSelectedField
-                  ? "bg-[#10a37f]/15 text-emerald-300 font-medium"
-                  : "hover:bg-[#191e24] text-[#d4d4d8]"
+                  ? "bg-brand/15 text-brand font-medium"
+                  : "hover:bg-secondary text-foreground/80"
               }`}
             >
               {/* Individual Left Target Handle */}
@@ -97,10 +97,10 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
                 type="target"
                 position={Position.Left}
                 id={`${field.name}-target`}
-                className={`!w-2.5 !h-2.5 !-left-[5px] !rounded-full !border-2 !border-[#14181c] transition-all ${
+                className={`!w-2.5 !h-2.5 !-left-[5px] !rounded-full !border-2 !border-card transition-all ${
                   isConnected
-                    ? "!bg-[#10a37f] !shadow-[0_0_8px_rgba(16,163,127,0.7)] opacity-100"
-                    : "!bg-[#52525b] opacity-0 group-hover:opacity-100"
+                    ? "!bg-brand !shadow-[0_0_8px_rgba(16,163,127,0.7)] opacity-100"
+                    : "!bg-muted-foreground opacity-0 group-hover:opacity-100"
                 }`}
               />
 
@@ -109,12 +109,12 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
                   <Key className="h-3 w-3 shrink-0 text-amber-400" />
                 )}
                 {field.is_foreign_key && !field.is_primary_key && (
-                  <LinkIcon className="h-3 w-3 shrink-0 text-emerald-400" />
+                  <LinkIcon className="h-3 w-3 shrink-0 text-brand" />
                 )}
-                <span className="font-mono text-[11px] truncate text-[#f4f4f5]">{field.name}</span>
+                <span className="font-mono text-[11px] truncate text-foreground">{field.name}</span>
               </div>
 
-              <span className="font-mono text-[10px] text-[#71717a] shrink-0 ml-auto">
+              <span className="font-mono text-[10px] text-muted-foreground shrink-0 ml-auto">
                 {field.data_type}
               </span>
 
@@ -123,10 +123,10 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
                 type="source"
                 position={Position.Right}
                 id={`${field.name}-source`}
-                className={`!w-2.5 !h-2.5 !-right-[5px] !rounded-full !border-2 !border-[#14181c] transition-all ${
+                className={`!w-2.5 !h-2.5 !-right-[5px] !rounded-full !border-2 !border-card transition-all ${
                   isConnected
-                    ? "!bg-[#10a37f] !shadow-[0_0_8px_rgba(16,163,127,0.7)] opacity-100"
-                    : "!bg-[#52525b] opacity-0 group-hover:opacity-100"
+                    ? "!bg-brand !shadow-[0_0_8px_rgba(16,163,127,0.7)] opacity-100"
+                    : "!bg-muted-foreground opacity-0 group-hover:opacity-100"
                 }`}
               />
             </div>
@@ -138,7 +138,7 @@ function TableNodeComponent({ data, selected }: TableNodeProps) {
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-2.5 !h-2.5 !-right-[5px] !bg-[#10a37f] !border-2 !border-[#14181c] !opacity-0"
+        className="!w-2.5 !h-2.5 !-right-[5px] !bg-brand !border-2 !border-card !opacity-0"
       />
     </div>
   );

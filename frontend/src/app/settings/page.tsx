@@ -210,7 +210,7 @@ export default function SettingsPage() {
   return (
     <div className="flex-1 p-6 md:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in-50 duration-300">
       <div className="border-b border-border pb-4">
-        <h1 className="text-xl font-bold tracking-tight text-foreground">
+        <h1 className="text-lg font-medium tracking-tight text-foreground">
           Enterprise Settings & Governance
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
@@ -258,10 +258,10 @@ export default function SettingsPage() {
       {/* TAB 1: Personal Profile */}
       {activeTab === "profile" && (
         <div className="space-y-6">
-          <Card className="bg-[#181818] border-border/80">
+          <Card className="bg-card border-border/80">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-emerald-500" />
+                <User className="h-4 w-4 text-brand" />
                 <CardTitle className="text-sm">Personal Information</CardTitle>
               </div>
               <CardDescription className="text-xs">
@@ -270,7 +270,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               {profileSuccess && (
-                <div className="mb-4 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
+                <div className="mb-4 p-2.5 rounded-lg bg-brand-muted border border-brand/20 text-brand text-xs flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4" />
                   <span>{profileSuccess}</span>
                 </div>
@@ -289,7 +289,7 @@ export default function SettingsPage() {
                     <Input
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="h-8 bg-[#212121] border-border/80 text-xs"
+                      className="h-8 bg-background border-border/80 text-xs"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -297,7 +297,7 @@ export default function SettingsPage() {
                     <Input
                       value={currentUser?.email || ""}
                       disabled
-                      className="h-8 bg-[#262626] border-border/80 text-xs text-zinc-400"
+                      className="h-8 bg-muted border-border/80 text-xs text-zinc-400"
                     />
                   </div>
                 </div>
@@ -306,7 +306,7 @@ export default function SettingsPage() {
                   type="submit"
                   size="sm"
                   disabled={profileLoading}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
                 >
                   {profileLoading ? "Saving..." : "Save Profile"}
                 </Button>
@@ -314,10 +314,10 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#181818] border-border/80">
+          <Card className="bg-card border-border/80">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-emerald-500" />
+                <Lock className="h-4 w-4 text-brand" />
                 <CardTitle className="text-sm">Change Password</CardTitle>
               </div>
               <CardDescription className="text-xs">
@@ -326,7 +326,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               {pwSuccess && (
-                <div className="mb-4 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
+                <div className="mb-4 p-2.5 rounded-lg bg-brand-muted border border-brand/20 text-brand text-xs flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4" />
                   <span>{pwSuccess}</span>
                 </div>
@@ -347,7 +347,7 @@ export default function SettingsPage() {
                       required
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="h-8 bg-[#212121] border-border/80 text-xs"
+                      className="h-8 bg-background border-border/80 text-xs"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -357,7 +357,7 @@ export default function SettingsPage() {
                       required
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="h-8 bg-[#212121] border-border/80 text-xs"
+                      className="h-8 bg-background border-border/80 text-xs"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -367,7 +367,7 @@ export default function SettingsPage() {
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="h-8 bg-[#212121] border-border/80 text-xs"
+                      className="h-8 bg-background border-border/80 text-xs"
                     />
                   </div>
                 </div>
@@ -376,7 +376,7 @@ export default function SettingsPage() {
                   type="submit"
                   size="sm"
                   disabled={pwLoading}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
                 >
                   {pwLoading ? "Updating..." : "Update Password"}
                 </Button>
@@ -389,10 +389,10 @@ export default function SettingsPage() {
       {/* TAB 2: Workspace & Members */}
       {activeTab === "workspace" && (
         <div className="space-y-6">
-          <Card className="bg-[#181818] border-border/80">
+          <Card className="bg-card border-border/80">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-emerald-500" />
+                <Building2 className="h-4 w-4 text-brand" />
                 <CardTitle className="text-sm">Workspace Details</CardTitle>
               </div>
               <CardDescription className="text-xs">
@@ -401,7 +401,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               {wsSuccess && (
-                <div className="mb-4 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
+                <div className="mb-4 p-2.5 rounded-lg bg-brand-muted border border-brand/20 text-brand text-xs flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4" />
                   <span>{wsSuccess}</span>
                 </div>
@@ -419,7 +419,7 @@ export default function SettingsPage() {
                   <Input
                     value={wsName}
                     onChange={(e) => setWsName(e.target.value)}
-                    className="h-8 bg-[#212121] border-border/80 text-xs max-w-md"
+                    className="h-8 bg-background border-border/80 text-xs max-w-md"
                   />
                 </div>
 
@@ -427,7 +427,7 @@ export default function SettingsPage() {
                   type="submit"
                   size="sm"
                   disabled={wsLoading}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
                 >
                   {wsLoading ? "Saving..." : "Rename Workspace"}
                 </Button>
@@ -435,11 +435,11 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#181818] border-border/80">
+          <Card className="bg-card border-border/80">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-emerald-500" />
+                  <Users className="h-4 w-4 text-brand" />
                   <CardTitle className="text-sm">Workspace Members & RBAC</CardTitle>
                 </div>
                 <Badge variant="outline" className="text-[10px]">
@@ -466,12 +466,12 @@ export default function SettingsPage() {
                   placeholder="colleague@company.com"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="h-8 bg-[#212121] border-border/80 text-xs flex-1"
+                  className="h-8 bg-background border-border/80 text-xs flex-1"
                 />
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
-                  className="h-8 px-2.5 bg-[#212121] border border-border/80 rounded-md text-xs text-white"
+                  className="h-8 px-2.5 bg-background border border-border/80 rounded-md text-xs text-white"
                 >
                   <option value="member">Member</option>
                   <option value="admin">Admin</option>
@@ -481,7 +481,7 @@ export default function SettingsPage() {
                   type="submit"
                   size="sm"
                   disabled={inviteLoading || !inviteEmail.trim()}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs gap-1.5"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs gap-1.5"
                 >
                   <UserPlus className="h-3.5 w-3.5" />
                   <span>Invite</span>
@@ -528,11 +528,11 @@ export default function SettingsPage() {
       {/* TAB 3: Query Safety & Governance */}
       {activeTab === "governance" && (
         <div className="space-y-4">
-          <Card className="bg-[#181818] border-border/80">
+          <Card className="bg-card border-border/80">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-emerald-500" />
+                  <Shield className="h-4 w-4 text-brand" />
                   <CardTitle className="text-sm">Query Safety Policy</CardTitle>
                 </div>
                 <Badge variant="success">Enforced</Badge>
@@ -545,11 +545,11 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="font-medium text-foreground">Max Execution Timeout (Seconds)</label>
-                  <Input defaultValue="30" className="h-8 bg-[#212121] border-border/80" />
+                  <Input defaultValue="30" className="h-8 bg-background border-border/80" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="font-medium text-foreground">Max Result Rows</label>
-                  <Input defaultValue="1000" className="h-8 bg-[#212121] border-border/80" />
+                  <Input defaultValue="1000" className="h-8 bg-background border-border/80" />
                 </div>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-border/60">
@@ -559,10 +559,10 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#181818] border-border/80">
+          <Card className="bg-card border-border/80">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-emerald-500" />
+                <Sliders className="h-4 w-4 text-brand" />
                 <CardTitle className="text-sm">LLM & Ambiguity Provider</CardTitle>
               </div>
               <CardDescription className="text-xs">
@@ -573,11 +573,11 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="font-medium text-foreground">Active Provider</label>
-                  <Input defaultValue="mock (Deterministic for Tests)" disabled className="h-8 bg-[#262626] border-border/80" />
+                  <Input defaultValue="mock (Deterministic for Tests)" disabled className="h-8 bg-muted border-border/80" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="font-medium text-foreground">Ollama Endpoint</label>
-                  <Input defaultValue="http://localhost:11434" className="h-8 bg-[#212121] border-border/80" />
+                  <Input defaultValue="http://localhost:11434" className="h-8 bg-background border-border/80" />
                 </div>
               </div>
             </CardContent>

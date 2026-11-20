@@ -45,23 +45,22 @@ export function QueryDialectPreview({ result }: QueryDialectPreviewProps) {
               size="sm"
               variant="ghost"
               onClick={() => handleCopy(sqlQuery.sql)}
-              className="h-7 text-xs text-slate-400 hover:text-white gap-1"
-            >
-              {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+              className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"            >
+              {copied ? <Check className="h-3 w-3 text-brand" /> : <Copy className="h-3 w-3" />}
               <span>{copied ? "Copied" : "Copy SQL"}</span>
             </Button>
           </div>
 
-          <pre className="p-3 rounded-lg bg-slate-950 text-sky-200 text-xs font-mono overflow-x-auto border border-slate-800 leading-relaxed">
+          <pre className="p-3 rounded-lg bg-slate-950 text-sky-200 text-xs font-mono overflow-x-auto border border-border leading-relaxed">
             {sqlQuery.sql}
           </pre>
 
           {Object.keys(sqlQuery.parameters).length > 0 && (
-            <div className="p-2.5 rounded-lg bg-slate-900/50 border border-slate-800/80 text-xs space-y-1">
-              <span className="text-[11px] font-semibold text-slate-400">Parameters:</span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 font-mono text-[11px] text-slate-300">
+            <div className="p-2.5 rounded-lg bg-background/50 border border-border/80 text-xs space-y-1">
+              <span className="text-[11px] font-semibold text-muted-foreground">Parameters:</span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 font-mono text-[11px] text-foreground/80">
                 {Object.entries(sqlQuery.parameters).map(([key, val]) => (
-                  <div key={key} className="bg-slate-950/60 px-2 py-1 rounded border border-slate-800">
+                  <div key={key} className="bg-background px-2 py-1 rounded border border-border">
                     <span className="text-sky-400">:{key}</span> = {JSON.stringify(val)}
                   </div>
                 ))}
@@ -79,7 +78,7 @@ export function QueryDialectPreview({ result }: QueryDialectPreviewProps) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 font-mono text-[11px]">
+              <Badge variant="outline" className="border-brand/40 text-brand font-mono text-[11px]">
                 MongoDB MQL
               </Badge>
               <span className="text-xs text-muted-foreground font-mono">
@@ -90,14 +89,13 @@ export function QueryDialectPreview({ result }: QueryDialectPreviewProps) {
               size="sm"
               variant="ghost"
               onClick={() => handleCopy(jsonStr)}
-              className="h-7 text-xs text-slate-400 hover:text-white gap-1"
-            >
-              {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+              className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"            >
+              {copied ? <Check className="h-3 w-3 text-brand" /> : <Copy className="h-3 w-3" />}
               <span>{copied ? "Copied" : "Copy Pipeline"}</span>
             </Button>
           </div>
 
-          <pre className="p-3 rounded-lg bg-slate-950 text-emerald-300 text-xs font-mono overflow-x-auto border border-slate-800 leading-relaxed">
+          <pre className="p-3 rounded-lg bg-slate-950 text-brand text-xs font-mono overflow-x-auto border border-border leading-relaxed">
             {jsonStr}
           </pre>
         </div>
@@ -122,14 +120,13 @@ export function QueryDialectPreview({ result }: QueryDialectPreviewProps) {
               size="sm"
               variant="ghost"
               onClick={() => handleCopy(jsonStr)}
-              className="h-7 text-xs text-slate-400 hover:text-white gap-1"
-            >
-              {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+              className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"            >
+              {copied ? <Check className="h-3 w-3 text-brand" /> : <Copy className="h-3 w-3" />}
               <span>{copied ? "Copied" : "Copy Query"}</span>
             </Button>
           </div>
 
-          <pre className="p-3 rounded-lg bg-slate-950 text-amber-200 text-xs font-mono overflow-x-auto border border-slate-800 leading-relaxed">
+          <pre className="p-3 rounded-lg bg-slate-950 text-amber-200 text-xs font-mono overflow-x-auto border border-border leading-relaxed">
             {jsonStr}
           </pre>
         </div>
@@ -181,7 +178,7 @@ export function QueryDialectPreview({ result }: QueryDialectPreviewProps) {
               {result.cross_database_plan.join_steps.map((step, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-2 font-mono text-[11px] text-slate-300 bg-slate-950/40 p-2 rounded border border-slate-800"
+                  className="flex items-center gap-2 font-mono text-[11px] text-foreground/80 bg-background/60 p-2 rounded border border-border"
                 >
                   <Database className="h-3 w-3 text-purple-400 shrink-0" />
                   <span>{step.left_source_id}.{step.left_key}</span>
