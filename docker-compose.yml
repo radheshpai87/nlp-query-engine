@@ -102,6 +102,10 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend/app:/app/backend/app:ro
+    # Provider keys and other secrets live in the gitignored root .env file.
+    env_file:
+      - path: .env
+        required: false
     environment:
       APP_ENV: development
       DEBUG: "true"
@@ -113,7 +117,18 @@ services:
       SEED_ON_STARTUP: "true"
       APP_MONGO_URI: mongodb://root:appsecret@metadata-db:27017/nlp_query_engine_meta?authSource=admin
       APP_MONGO_DB_NAME: nlp_query_engine_meta
-      LLM_PROVIDER: mock
+      LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-qwen/qwen3-32b}
+      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-small-latest}
+      MISTRAL_BASE_URL: ${MISTRAL_BASE_URL:-https://api.mistral.ai/v1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-45}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       DEMO_POSTGRES_URI: postgresql://postgres:postgrespassword@postgres-target:5432/ecommerce_demo
       DEMO_MONGO_URI: mongodb://root:targetsecret@mongo-target:27017/analytics_demo?authSource=admin
       DEMO_ELASTICSEARCH_URL: http://elasticsearch-target:9200

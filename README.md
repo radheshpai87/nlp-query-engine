@@ -159,3 +159,56 @@ make frontend-lint && make frontend-typecheck && make frontend-build
 - [Docker Deployment & Container Orchestration Guide](docs/docker_deployment.md)
 - [Complete End-to-End User Guide](docs/user_guide.md)
 - [Security, Governance & Compliance Specification](docs/security_and_governance.md)
+
+---
+
+## LLM Providers: Groq → Mistral → Gemini
+
+The NLP pipeline uses a configurable provider chain. Groq (Qwen) is tried first,
+then Mistral, then Gemini. If a provider times out, rejects the key or returns an
+invalid response, the next configured provider handles that request. If none of
+the three keys is set, the deterministic mock provider keeps local development
+and tests working without network access.
+
+### 1. Add keys
+
+Edit the repository-root `.env` file (already created, gitignored):
+
+```bash
+GROQ_API_KEY=...
+MISTRAL_API_KEY=...
+GEMINI_API_KEY=...
+```
+
+Only the keys you have need to be filled in; missing providers are skipped.
+Model names, base URLs and the per-provider timeout are also configurable there.
+
+### 2. Run locally
+
+The backend loads `.env` from the repository root when started from the root or
+from `backend/`.
+
+```bash
+uvicorn app.main:app --app-dir backend --reload --port 8000
+```
+
+### 3. Run with Docker Compose
+
+`docker-compose.yml` passes the root `.env` into the backend container and keeps
+container-specific values (Mongo URI, service hostnames) as overrides.
+
+```bash
+docker compose up -d --build backend
+```
+
+Rebuild when backend code changes; the compose file mounts `backend/app` for
+development but the provider modules still need to exist in the image.
+
+### Secret handling
+
+- `.env` is gitignored and excluded from Docker build contexts.
+- Keys are read server-side only; they are never sent to the browser.
+- Provider errors report the provider name and HTTP status, never headers,
+  request bodies or keys.
+- `LLM_PROVIDER=mock` disables cloud calls entirely; `ollama` selects local
+  inference instead of the cloud chain.

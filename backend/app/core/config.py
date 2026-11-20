@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -36,10 +36,28 @@ class Settings(BaseSettings):
     APP_MONGO_DB_NAME: str = "nlp_query_engine_meta"
 
     # LLM & NLP
-    LLM_PROVIDER: str = "mock"  # mock, ollama, huggingface
+    # auto: Groq -> Mistral -> Gemini, using whichever keys are configured.
+    # mock and ollama remain explicit local-development modes.
+    LLM_PROVIDER: str = "auto"  # auto, groq, mistral, gemini, ollama, mock
     LLM_MODEL: str = "llama3:8b"
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+
+    # Cloud model providers. Keys are read from the environment only and are
+    # never returned by the API, embedded in prompts, or written to logs.
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "qwen/qwen3-32b"
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+
+    MISTRAL_API_KEY: str = ""
+    MISTRAL_MODEL: str = "mistral-small-latest"
+    MISTRAL_BASE_URL: str = "https://api.mistral.ai/v1"
+
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
+
+    LLM_TIMEOUT_SECONDS: float = 45.0
 
     # Query Safety Policies
     MAX_QUERY_EXECUTION_TIME_SECONDS: int = 30

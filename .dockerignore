@@ -17,3 +17,7 @@ frontend/.turbo
 node_modules
 .DS_Store
 *.log
+
+# Local secrets
+.env
+.env.*
