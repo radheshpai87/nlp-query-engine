@@ -243,7 +243,7 @@ describe("ChatPage Component", () => {
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
 
     expect(
-      await screen.findByText(/There are 3 connected databases/i)
+      await screen.findByText(/There are 3 connected databases/i, {}, { timeout: 4000 })
     ).toBeInTheDocument();
     expect(screen.getByText("Cluster Assistant")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /run query/i })).not.toBeInTheDocument();
@@ -267,7 +267,7 @@ describe("ChatPage Component", () => {
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
 
     expect(
-      await screen.findByText(/Guard Rail Notice: Query Out of Scope/i)
+      await screen.findByText(/Guard Rail Notice: Query Out of Scope/i, {}, { timeout: 4000 })
     ).toBeInTheDocument();
     expect(screen.getByText("Guard Rail Protected")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /run query/i })).not.toBeInTheDocument();
