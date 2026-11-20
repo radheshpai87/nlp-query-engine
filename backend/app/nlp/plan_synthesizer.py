@@ -512,18 +512,38 @@ class LogicalPlanSynthesizer:
         ) and not intent.group_by
 
         if is_count_query or is_avg_query or is_sum_query:
-            # Determine target entity
-            cand = "products"
-            if any(k in lower_q for k in ("order", "orders", "purchase")):
-                cand = "orders"
-            elif any(k in lower_q for k in ("customer", "customers", "user")):
-                cand = "customers"
-            elif any(k in lower_q for k in ("review", "reviews", "rating")):
-                cand = "reviews"
-            elif any(k in lower_q for k in ("catalog",)):
-                cand = "catalog"
-            elif any(k in lower_q for k in ("log", "logs", "access_logs")):
-                cand = "access_logs"
+            # Determine target entity from intent, query mentions, or table lookup
+            cand: str | None = None
+            for ent in intent.target_entities:
+                norm_ent = ent.lower().strip()
+                if norm_ent in table_lookup:
+                    cand = norm_ent
+                    break
+                elif norm_ent.endswith("s") and norm_ent[:-1] in table_lookup:
+                    cand = norm_ent[:-1]
+                    break
+                elif f"{norm_ent}s" in table_lookup:
+                    cand = f"{norm_ent}s"
+                    break
+
+            if not cand:
+                for tbl in table_lookup:
+                    if tbl in lower_q or (tbl.endswith("s") and tbl[:-1] in lower_q):
+                        cand = tbl
+                        break
+
+            if not cand:
+                # Inspect filters/metrics to infer entity
+                for f in intent.filters:
+                    for tbl, (_cid, obj) in table_lookup.items():
+                        if any(fld.name.lower() == f.column.lower() for fld in obj.fields):
+                            cand = tbl
+                            break
+                    if cand:
+                        break
+
+            if not cand:
+                cand = "products" if "products" in table_lookup else next(iter(table_lookup.keys()), "products")
 
             if cand in table_lookup:
                 conn_id, s_obj = table_lookup[cand]
@@ -588,6 +608,25 @@ class LogicalPlanSynthesizer:
             for tbl_name, (c_id, s_obj) in table_lookup.items():
                 if tbl_name in lower_q or (tbl_name.endswith("s") and tbl_name[:-1] in lower_q):
                     chosen_sources.append((c_id, s_obj.name, s_obj))
+                    break
+
+        if not chosen_sources:
+            # Check if any filter column or metric uniquely identifies a table in any connected database
+            for f in intent.filters:
+                for tbl_name, (c_id, s_obj) in table_lookup.items():
+                    if any(fld.name.lower() == f.column.lower() for fld in s_obj.fields):
+                        chosen_sources.append((c_id, s_obj.name, s_obj))
+                        break
+                if chosen_sources:
+                    break
+
+        if not chosen_sources:
+            for m_col in intent.metrics:
+                for tbl_name, (c_id, s_obj) in table_lookup.items():
+                    if any(fld.name.lower() == m_col.lower() for fld in s_obj.fields):
+                        chosen_sources.append((c_id, s_obj.name, s_obj))
+                        break
+                if chosen_sources:
                     break
 
         if not chosen_sources:

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   MessageSquare,
@@ -17,6 +18,9 @@ import {
   Menu,
   Terminal,
   ShieldAlert,
+  History as HistoryIcon,
+  Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +38,12 @@ import {
   CompilationResult,
 } from "@/lib/query-plan-api";
 import { executeQueryPlan, ExecutionResult } from "@/lib/execution-api";
+import {
+  listConversations,
+  getMessages,
+  deleteConversation,
+  type Conversation,
+} from "@/lib/conversation-api";
 import { authFetch } from "@/lib/auth-api";
 import { ClarificationPrompt } from "@/components/chat/clarification-prompt";
 import { ResultTable } from "@/components/chat/result-table";
@@ -74,6 +84,16 @@ function createMessageId(prefix: string): string {
 
 export default function ChatPage() {
   const { currentWorkspace, setMobileSidebarOpen, mobileSidebarOpen } = useShellStore();
+  const router = useRouter();
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      setCurrentChatId(params.get("c"));
+    }
+  }, []);
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,23 +101,70 @@ export default function ChatPage() {
   const [activeExecutingId, setActiveExecutingId] = useState<string | null>(null);
   const [activeCompilingId, setActiveCompilingId] = useState<string | null>(null);
   const [messageViewModes, setMessageViewModes] = useState<Record<string, "table" | "chart">>({});
-  const [sourceCount, setSourceCount] = useState<number | null>(null);
+  const [suggestedQueries, setSuggestedQueries] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  const loadSuggestions = React.useCallback(async () => {
+    try {
+      setLoadingSuggestions(true);
+      const res = await authFetch(`${API_BASE}/workspaces/${currentWorkspace.id}/suggested-queries`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setSuggestedQueries(data);
+          return;
+        }
+      }
+    } catch {
+      // fallback
+    } finally {
+      setLoadingSuggestions(false);
+    }
+    setSuggestedQueries(SAMPLE_QUERIES);
+  }, [currentWorkspace.id]);
+
+  React.useEffect(() => {
+    loadSuggestions();
+  }, [loadSuggestions]);
 
   React.useEffect(() => {
     let ignore = false;
-    authFetch(`${API_BASE}/workspaces/${currentWorkspace.id}/connections`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (!ignore && Array.isArray(data)) {
-          setSourceCount(data.length);
+    if (!currentChatId) {
+      setMessages([]);
+      return;
+    }
+    getMessages(currentWorkspace.id, currentChatId)
+      .then((msgs) => {
+        if (ignore) return;
+        if (Array.isArray(msgs)) {
+          const mapped: ChatMessage[] = msgs.map((m) => ({
+            id: m.id,
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            clarifications: m.clarification ? [m.clarification] : [],
+            plan: m.query_plan || undefined,
+            executionResult: m.execution_result || undefined,
+            status: m.execution_result ? "executed" : (m.clarification ? "clarifying" : "conversational"),
+            timestamp: m.created_at
+              ? new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              : "Just now",
+          }));
+          setMessages(mapped);
         }
       })
-      .catch(() => {});
+      .catch((err) => console.error("Error loading chat messages", err));
+
     return () => {
       ignore = true;
     };
-  }, [currentWorkspace.id]);
+  }, [currentWorkspace.id, currentChatId]);
+
+  const handleNewSession = () => {
+    setMessages([]);
+    setInputValue("");
+    router.push("/chat");
+  };
 
   React.useEffect(() => {
     if (typeof messagesEndRef.current?.scrollIntoView === "function") {
@@ -454,75 +521,30 @@ export default function ChatPage() {
     }
   };
 
-  const handleNewSession = () => {
-    setMessages([]);
-    setInputValue("");
-  };
-
   return (
     <div className="flex flex-col h-full bg-background text-foreground font-sans antialiased select-text">
-      <header className="z-20 flex h-12 shrink-0 items-center justify-between border-b border-border bg-background px-3 sm:px-5">
-        <div className="flex items-center gap-2">
-          {/* Mobile sidebar toggle button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden h-8 w-8 text-foreground hover:bg-muted"
-            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-            aria-label="Toggle navigation menu"
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
-
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-[13px] font-medium">Assistant</span>
-            <span className="hidden text-[11px] text-muted-foreground sm:inline">
-              {currentWorkspace.name}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3">
-          <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                sourceCount !== null && sourceCount > 0 ? "bg-emerald-400" : "bg-muted-foreground/40"
-              }`}
-            />
-            {sourceCount === null
-              ? "Checking sources"
-              : sourceCount === 0
-              ? "No sources connected"
-              : `${sourceCount} source${sourceCount > 1 ? "s" : ""} connected`}
-          </span>
-
-          <Badge variant="outline" className="hidden border-border text-[10px] font-normal text-muted-foreground lg:flex">
-            Read-only
-          </Badge>
-
-          {/* Single, Clear New Chat Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleNewSession}
-            className="text-xs h-7 text-muted-foreground hover:text-foreground hover:bg-muted gap-1.5 rounded-lg px-2.5 transition-colors"
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            <span>New chat</span>
-          </Button>
-
-          {/* API Docs Link */}
-          <a
-            href="http://localhost:8000/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden md:inline-flex text-muted-foreground hover:text-foreground"          >
-            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted">
-              <Terminal className="h-3.5 w-3.5" />
-            </Button>
-          </a>
-        </div>
-      </header>
+      {/* Mobile Top Header (only on small screens) */}
+      <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-border/50 bg-background shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-foreground hover:bg-muted"
+          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          aria-label="Toggle navigation menu"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
+        <span className="text-xs font-semibold text-foreground">Nexus Query</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleNewSession}
+          className="text-xs h-7 text-muted-foreground hover:text-foreground"
+          aria-label="New chat"
+        >
+          New
+        </Button>
+      </div>
 
       {/* Main Conversation Stream */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
@@ -544,11 +566,23 @@ export default function ChatPage() {
             </div>
 
             <div className="w-full space-y-2.5">
-              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                Suggested queries
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                  Suggested queries
+                </p>
+                <button
+                  type="button"
+                  onClick={loadSuggestions}
+                  disabled={loadingSuggestions}
+                  className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors disabled:opacity-50"
+                  title="Generate fresh queries from databases"
+                >
+                  <RefreshCw className={`h-3 w-3 ${loadingSuggestions ? "animate-spin text-brand" : ""}`} />
+                  <span>Refresh</span>
+                </button>
+              </div>
               <div className="space-y-1.5">
-                {SAMPLE_QUERIES.map((q) => (
+                {(suggestedQueries.length > 0 ? suggestedQueries : SAMPLE_QUERIES).map((q) => (
                   <button
                     key={q}
                     type="button"
@@ -613,12 +647,12 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  {/* Action Banner: View Dialect & Run Query */}
-                  {(message.status === "ready" || message.status === "executed") && (message.plan || message.userQuery) && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-brand/30 bg-brand/10 text-xs text-foreground">
-                      <div className="flex items-center gap-2">
+                  {/* Action Bar for Ready Plan */}
+                  {message.status === "ready" && (message.plan || message.userQuery) && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-border/60 bg-muted/30 text-xs text-foreground">
+                      <div className="flex items-center gap-2 text-muted-foreground">
                         <CheckCircle2 className="h-4 w-4 text-brand shrink-0" />
-                        <span className="text-xs text-foreground">Logical plan constructed with read-only assurance.</span>
+                        <span className="text-xs text-foreground font-medium">Logical plan constructed with read-only assurance.</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -626,7 +660,8 @@ export default function ChatPage() {
                           variant="ghost"
                           onClick={() => handleCompilePlan(message)}
                           disabled={activeCompilingId === message.id}
-                          className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted gap-1.5"                        >
+                          className="h-7 text-xs text-muted-foreground hover:text-foreground hover:bg-muted gap-1.5"
+                        >
                           {activeCompilingId === message.id ? (
                             <RefreshCw className="h-3 w-3 animate-spin text-brand" />
                           ) : (
@@ -641,20 +676,19 @@ export default function ChatPage() {
                           </span>
                         </Button>
 
-                        {message.status !== "executed" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleExecutePlan(message)}
-                            disabled={activeExecutingId === message.id}
-                            className="h-7 text-xs bg-brand hover:bg-brand text-background font-medium gap-1.5 rounded-lg shadow-sm"                          >
-                            {activeExecutingId === message.id ? (
-                              <RefreshCw className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Play className="h-3 w-3 fill-current" />
-                            )}
-                            <span>{activeExecutingId === message.id ? "Running Query..." : "Run Query"}</span>
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          onClick={() => handleExecutePlan(message)}
+                          disabled={activeExecutingId === message.id}
+                          className="h-7 text-xs bg-brand hover:bg-brand/90 text-background font-medium gap-1.5 rounded-lg shadow-xs"
+                        >
+                          {activeExecutingId === message.id ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Play className="h-3 w-3 fill-current" />
+                          )}
+                          <span>{activeExecutingId === message.id ? "Running Query..." : "Run Query"}</span>
+                        </Button>
                       </div>
                     </div>
                   )}

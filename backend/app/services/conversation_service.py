@@ -170,6 +170,25 @@ class ConversationService:
             user_id=user_id,
         )
 
+        # Handle Conversational, Metadata, or Guard Rail responses directly
+        if (
+            ambiguity_res.conversational_response
+            or ambiguity_res.is_guardrail_blocked
+            or ambiguity_res.suggested_action in ("conversational_response", "guardrail_blocked")
+        ):
+            resp_content = (
+                ambiguity_res.conversational_response
+                or "I am your natural language query engine for PostgreSQL, MongoDB, and Elasticsearch."
+            )
+            assistant_msg = self.conversation_repo.add_message(
+                Message(
+                    conversation_id=conversation_id,
+                    role=MessageRole.ASSISTANT,
+                    content=resp_content,
+                )
+            )
+            return user_msg, assistant_msg
+
         if ambiguity_res.is_ambiguous and ambiguity_res.clarifications:
             clarification = ambiguity_res.clarifications[0]
             self.conversation_repo.update(

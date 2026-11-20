@@ -4,6 +4,19 @@ import ChatPage from "./page";
 import * as ambiguityApi from "@/lib/ambiguity-api";
 import * as executionApi from "@/lib/execution-api";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/chat",
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+vi.mock("@/lib/conversation-api", () => ({
+  listConversations: vi.fn().mockResolvedValue([]),
+  getMessages: vi.fn().mockResolvedValue([]),
+  deleteConversation: vi.fn().mockResolvedValue(true),
+  postMessage: vi.fn(),
+}));
+
 vi.mock("@/lib/ambiguity-api", () => ({
   evaluateQueryAmbiguity: vi.fn(),
   resolveQueryClarification: vi.fn(),

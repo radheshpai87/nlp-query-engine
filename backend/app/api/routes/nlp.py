@@ -10,6 +10,7 @@ from app.nlp.intent_extractor import ExtractedIntent, IntentExtractor
 from app.nlp.providers.base import BaseLLMProvider
 from app.nlp.providers.factory import get_llm_provider
 from app.nlp.result_explainer import ResultExplainer, ResultExplanationResponse
+from app.nlp.suggested_queries import SuggestedQueriesGenerator
 from app.repositories.schema_repository import (
     SchemaRepository,
     get_schema_repository,
@@ -58,3 +59,18 @@ def explain_execution_result(
         plan=payload.plan,
         result=payload.result,
     )
+
+
+@router.get("/suggested-queries", response_model=list[str])
+def get_suggested_queries(
+    workspace_id: str,
+    _current_user: User = Depends(get_current_user),
+    schema_repo: SchemaRepository = Depends(get_schema_repository),
+    llm_provider: BaseLLMProvider = Depends(get_llm_provider),
+    _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker()),
+) -> list[str]:
+    """Dynamically generate suggested queries from introspected database schemas and LLM synthesis."""
+    snapshots = schema_repo.get_all_latest_for_workspace(workspace_id)
+    generator = SuggestedQueriesGenerator(provider=llm_provider)
+    return generator.generate(snapshots)
+

@@ -45,19 +45,13 @@ export function ClarificationPrompt({
       "Confirmed";
 
     return (
-      <div className="p-3.5 rounded-xl border border-brand/30 bg-brand-muted text-xs text-brand flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-muted text-brand">
-            <Check className="h-3 w-3" />
-          </div>
-          <div>
-            <span className="text-muted-foreground font-medium mr-1.5">{clarification.question}</span>
-            <span className="font-semibold text-brand">
-              Resolved: {String(displayVal)}
-            </span>
-          </div>
-        </div>
-        <Badge variant="outline" className="text-[10px] border-brand/40 text-brand">
+      <div className="inline-flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-lg border border-border/50 bg-muted/40 text-xs text-muted-foreground">
+        <Check className="h-3.5 w-3.5 text-brand shrink-0" />
+        <span className="text-muted-foreground font-normal">{clarification.question}</span>
+        <span className="font-semibold text-foreground">
+          Resolved: {String(displayVal)}
+        </span>
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-brand/30 text-brand">
           Clarified
         </Badge>
       </div>
