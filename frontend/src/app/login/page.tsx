@@ -10,7 +10,6 @@ import {
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
-  KeyRound,
   AlertCircle,
   Loader2,
   Eye,
@@ -18,7 +17,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  DEMO_CREDENTIALS,
   loginWithCredentials,
   getStoredUser,
 } from "@/lib/auth-api";
@@ -28,8 +26,8 @@ export default function LoginPage() {
   const router = useRouter();
   const { setCurrentUser } = useShellStore();
 
-  const [email, setEmail] = React.useState<string>(DEMO_CREDENTIALS.email);
-  const [password, setPassword] = React.useState<string>(DEMO_CREDENTIALS.password);
+  const [email, setEmail] = React.useState<string>("");
+  const [password, setPassword] = React.useState<string>("");
   const [showPassword, setShowPassword] = React.useState<boolean>(false);
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -45,6 +43,10 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -55,36 +57,6 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push("/chat");
       }, 500);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Authentication failed";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAutofill = () => {
-    setEmail(DEMO_CREDENTIALS.email);
-    setPassword(DEMO_CREDENTIALS.password);
-    setError(null);
-  };
-
-  const handleQuickLogin = async () => {
-    setEmail(DEMO_CREDENTIALS.email);
-    setPassword(DEMO_CREDENTIALS.password);
-    setError(null);
-    setLoading(true);
-
-    try {
-      const result = await loginWithCredentials(
-        DEMO_CREDENTIALS.email,
-        DEMO_CREDENTIALS.password
-      );
-      setCurrentUser(result.user);
-      setSuccess(true);
-      setTimeout(() => {
-        router.push("/chat");
-      }, 400);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Authentication failed";
       setError(message);
@@ -125,59 +97,6 @@ export default function LoginPage() {
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
             Federate queries across PostgreSQL, MongoDB, and Elasticsearch with zero silent assumptions.
           </p>
-        </div>
-
-        {/* Highlighted Demo Credentials Box */}
-        <div className="rounded-xl border border-border bg-sidebar p-4 space-y-3 shadow-lg">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-zinc-300 font-medium">
-              <KeyRound className="h-4 w-4 text-brand" />
-              <span>Demo Credentials</span>
-            </div>
-            <span className="text-[10px] font-mono text-brand bg-brand/10 px-2 py-0.5 rounded border border-brand/20">
-              Pre-Seeded Admin
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-background p-2.5 rounded-lg border border-border">
-            <div>
-              <span className="text-[10px] text-muted-foreground block uppercase tracking-wider font-sans">
-                Email
-              </span>
-              <span className="text-zinc-200 select-all">{DEMO_CREDENTIALS.email}</span>
-            </div>
-            <div>
-              <span className="text-[10px] text-muted-foreground block uppercase tracking-wider font-sans">
-                Password
-              </span>
-              <span className="text-zinc-200 select-all">{DEMO_CREDENTIALS.password}</span>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAutofill}
-              className="flex-1 border-secondary bg-muted hover:bg-accent text-xs text-foreground h-8"
-            >
-              Autofill Fields
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleQuickLogin}
-              disabled={loading}
-              className="flex-1 bg-brand hover:bg-brand text-background text-xs font-medium h-8 gap-1.5 shadow-sm"            >
-              {loading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <ArrowRight className="h-3.5 w-3.5" />
-              )}
-              <span>1-Click Sign In</span>
-            </Button>
-          </div>
         </div>
 
         {/* Login Form */}

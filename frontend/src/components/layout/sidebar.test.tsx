@@ -1,20 +1,25 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Sidebar } from "./sidebar";
 import { useShellStore } from "@/lib/store";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/chat",
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 describe("Sidebar Component", () => {
-  it("renders the brand and grouped navigation", () => {
+  it("renders the brand, new chat button, search input, and core links", () => {
     useShellStore.setState({ sidebarCollapsed: false });
     render(<Sidebar />);
 
     expect(screen.getByText("Nexus Query")).toBeInTheDocument();
     expect(screen.getByText("New chat")).toBeInTheDocument();
-    expect(screen.getByText("Assistant")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search chats...")).toBeInTheDocument();
     expect(screen.getByText("Schema")).toBeInTheDocument();
     expect(screen.getByText("Connections")).toBeInTheDocument();
-    expect(screen.getByText("History")).toBeInTheDocument();
-    expect(screen.getByText("Settings")).toBeInTheDocument();
+    expect(screen.getByText("Chats")).toBeInTheDocument();
   });
 
   it("toggles collapsed state when the toggle button is clicked", () => {
@@ -29,11 +34,26 @@ describe("Sidebar Component", () => {
     expect(useShellStore.getState().sidebarCollapsed).toBe(false);
   });
 
-  it("does not show fabricated data sources when none are connected", () => {
-    useShellStore.setState({ sidebarCollapsed: false });
+  it("opens account dropdown menu with settings and audit log on click", () => {
+    useShellStore.setState({
+      sidebarCollapsed: false,
+      currentUser: {
+        id: "usr-1",
+        email: "admin@example.com",
+        full_name: "Demo Admin",
+        is_superuser: true,
+        default_workspace_id: "ws-1",
+      },
+    });
     render(<Sidebar />);
 
-    expect(screen.queryByText("PostgreSQL Orders")).not.toBeInTheDocument();
-    expect(screen.queryByText("MongoDB Events")).not.toBeInTheDocument();
+    const accountBtn = screen.getByRole("button", { name: /account menu/i });
+    fireEvent.click(accountBtn);
+
+    expect(screen.getByText("Settings")).toBeInTheDocument();
+    expect(screen.getByText("Audit log")).toBeInTheDocument();
+    expect(screen.getByText("Executions")).toBeInTheDocument();
+    expect(screen.getByText("Saved queries")).toBeInTheDocument();
+    expect(screen.getByText("Log out")).toBeInTheDocument();
   });
 });

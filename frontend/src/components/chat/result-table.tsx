@@ -162,12 +162,9 @@ export function ResultTable({ result }: ResultTableProps) {
                   >
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-foreground">{col.name}</span>
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] px-1 py-0 font-mono text-muted-foreground"
-                      >
+                      <span className="text-[10px] font-mono text-muted-foreground/60 font-normal">
                         {col.data_type}
-                      </Badge>
+                      </span>
                       {isSorted ? (
                         sortDir === "asc" ? (
                           <ArrowUp className="h-3 w-3 text-sky-400" />

@@ -87,40 +87,34 @@ ${Object.entries(executionResult.generated_queries || {})
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm transition-all">
+    <div className="rounded-lg border border-border/60 bg-muted/20 overflow-hidden transition-all text-xs">
       {/* Header Button Trigger */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-3.5 text-left bg-muted/20 hover:bg-muted/40 transition-colors"
+        className="w-full flex items-center justify-between px-3.5 py-2 text-left hover:bg-muted/40 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20">
-            <Sparkles className="h-3.5 w-3.5" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-foreground">
-              How did you get this result?
-            </span>
-            <span className="text-[11px] text-muted-foreground ml-2">
-              (Provenance & Explainability Inspector)
-            </span>
-          </div>
+          <Sparkles className="h-3.5 w-3.5 text-brand shrink-0" />
+          <span className="font-medium text-foreground">
+            How did you get this result?
+          </span>
+          <span className="text-[11px] text-muted-foreground hidden sm:inline">
+            (Provenance & Explainability Inspector)
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-[10px] gap-1 font-mono text-muted-foreground">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
+          <span className="flex items-center gap-1">
             <Clock className="h-2.5 w-2.5" />
             <span>{executionResult.duration_ms}ms</span>
-          </Badge>
-          <Badge variant="outline" className="text-[10px] gap-1 text-brand border-brand/30">
-            <ShieldCheck className="h-2.5 w-2.5" />
-            <span>Read-Only Verified</span>
-          </Badge>
+          </span>
+          <span>·</span>
+          <span className="text-brand font-medium">Read-Only Verified</span>
           {isOpen ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            <ChevronUp className="h-3.5 w-3.5 text-muted-foreground ml-1" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1" />
           )}
         </div>
       </button>

@@ -434,3 +434,64 @@ def test_result_explainer_prompt_includes_all_rows() -> None:
     assert "Complete result: yes" in user_content
     for status in ("completed", "pending", "refunded", "cancelled", "processing"):
         assert status in user_content
+
+
+def test_suggested_queries_generator_heuristic():
+    from app.nlp.suggested_queries import SuggestedQueriesGenerator
+
+    snap = SchemaSnapshot(
+        workspace_id="ws-1",
+        connection_id="conn-pg",
+        fingerprint="fp-1",
+        objects=[
+            SchemaObject(
+                connection_id="conn-pg",
+                name="products",
+                fields=[
+                    SchemaField(name="id", data_type="integer", is_primary_key=True),
+                    SchemaField(name="price", data_type="numeric", is_nullable=False),
+                ],
+            ),
+            SchemaObject(
+                connection_id="conn-pg",
+                name="orders",
+                fields=[
+                    SchemaField(name="id", data_type="integer", is_primary_key=True),
+                    SchemaField(name="total_amount", data_type="numeric", is_nullable=False),
+                ],
+            ),
+        ],
+    )
+    generator = SuggestedQueriesGenerator(provider=None)
+    suggestions = generator.generate([snap])
+
+    assert isinstance(suggestions, list)
+    assert len(suggestions) > 0
+    assert any("product" in s.lower() or "order" in s.lower() for s in suggestions)
+
+
+def test_suggested_queries_generator_with_llm():
+    from app.nlp.providers.mock_provider import MockLLMProvider
+    from app.nlp.suggested_queries import SuggestedQueriesGenerator
+
+    snap = SchemaSnapshot(
+        workspace_id="ws-1",
+        connection_id="conn-pg",
+        fingerprint="fp-1",
+        objects=[
+            SchemaObject(
+                connection_id="conn-pg",
+                name="products",
+                fields=[SchemaField(name="id", data_type="integer", is_primary_key=True)],
+            ),
+        ],
+    )
+    mock_json = '["Show top 5 products by revenue", "Which customers bought electronics?", "What are total sales today?"]'
+    provider = MockLLMProvider()
+    provider.register_response("analytical queries", mock_json)
+    generator = SuggestedQueriesGenerator(provider=provider)
+    suggestions = generator.generate([snap])
+
+    assert len(suggestions) == 3
+    assert suggestions[0] == "Show top 5 products by revenue"
+

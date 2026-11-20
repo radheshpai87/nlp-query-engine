@@ -15,27 +15,33 @@ describe("LoginPage Component", () => {
     vi.clearAllMocks();
   });
 
-  it("renders login form and demo credentials box", () => {
+  it("renders production login form with empty input fields", () => {
     render(<LoginPage />);
 
     expect(screen.getByText("Sign in to Nexus Query")).toBeInTheDocument();
-    expect(screen.getByText("Demo Credentials")).toBeInTheDocument();
-    expect(screen.getByText("admin@example.com")).toBeInTheDocument();
-    expect(screen.getByText("Admin123!")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /1-Click Sign In/i })).toBeInTheDocument();
-  });
-
-  it("autofills demo credentials when clicking autofill button", () => {
-    render(<LoginPage />);
-
-    const autofillBtn = screen.getByRole("button", { name: /Autofill Fields/i });
-    fireEvent.click(autofillBtn);
+    expect(screen.queryByText("Demo Credentials")).not.toBeInTheDocument();
 
     const emailInput = screen.getByPlaceholderText("name@example.com") as HTMLInputElement;
-    expect(emailInput.value).toBe("admin@example.com");
+    const passwordInput = screen.getByPlaceholderText("••••••••") as HTMLInputElement;
+
+    expect(emailInput.value).toBe("");
+    expect(passwordInput.value).toBe("");
+    expect(screen.getByRole("button", { name: /Sign In/i })).toBeInTheDocument();
   });
 
-  it("submits login with credentials successfully", async () => {
+  it("toggles password visibility", () => {
+    render(<LoginPage />);
+
+    const passwordInput = screen.getByPlaceholderText("••••••••") as HTMLInputElement;
+    expect(passwordInput.type).toBe("password");
+
+    const toggleBtn = screen.getByRole("button", { name: /Show password/i });
+    fireEvent.click(toggleBtn);
+
+    expect(passwordInput.type).toBe("text");
+  });
+
+  it("submits login with entered credentials successfully", async () => {
     vi.spyOn(authApi, "loginWithCredentials").mockResolvedValue({
       access_token: "mock-jwt-token",
       token_type: "bearer",
@@ -50,7 +56,13 @@ describe("LoginPage Component", () => {
 
     render(<LoginPage />);
 
-    const signInBtn = screen.getByRole("button", { name: /1-Click Sign In/i });
+    const emailInput = screen.getByPlaceholderText("name@example.com");
+    const passwordInput = screen.getByPlaceholderText("••••••••");
+
+    fireEvent.change(emailInput, { target: { value: "admin@example.com" } });
+    fireEvent.change(passwordInput, { target: { value: "Admin123!" } });
+
+    const signInBtn = screen.getByRole("button", { name: /Sign In/i });
     fireEvent.click(signInBtn);
 
     await waitFor(() => {

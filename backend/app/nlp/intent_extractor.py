@@ -94,8 +94,14 @@ class IntentExtractor:
                     known_columns.add(f.name.lower())
 
         for tbl in known_tables:
-            if tbl in lower:
-                entities.append(tbl)
+            if (
+                tbl in lower
+                or (tbl.endswith("s") and tbl[:-1] in lower)
+                or (tbl.endswith("es") and tbl[:-2] in lower)
+                or f"{tbl}s" in lower
+            ):
+                if tbl not in entities:
+                    entities.append(tbl)
 
         common_entities = [
             "products",
@@ -105,6 +111,8 @@ class IntentExtractor:
             "items",
             "logs",
             "transactions",
+            "reviews",
+            "catalog",
         ]
         for word in common_entities:
             if word in lower and word not in entities:
@@ -112,7 +120,7 @@ class IntentExtractor:
 
         # Detect metrics
         metrics: list[str] = []
-        common_metrics = ["revenue", "sales", "total", "amount", "price", "count", "total_spend"]
+        common_metrics = ["revenue", "sales", "total", "amount", "price", "count", "total_spend", "rating"]
         for metric in common_metrics:
             if metric in lower:
                 metrics.append(metric)
@@ -129,14 +137,61 @@ class IntentExtractor:
             target_sort_col = metrics[0] if metrics else "id"
             order_by.append(ExtractedSort(column=target_sort_col, direction="ASC"))
 
-        # Detect filters (e.g. status = completed, name = 'Alice')
+        # Detect filters across comparison operators and natural language patterns
         filters: list[ExtractedFilter] = []
+        seen_filter_cols: set[str] = set()
+
+        # 1. Symbol comparisons: col >= val, col < val, col = val
+        for op_sym, op_enum in [(">=", "GTE"), ("<=", "LTE"), ("!=", "NEQ"), (">", "GT"), ("<", "LT"), ("=", "EQ")]:
+            escaped_op = re.escape(op_sym)
+            for m in re.finditer(rf"(\w+)\s*{escaped_op}\s*([0-9.]+|'[^']+'|\"[^\"]+\")", query):
+                col_name = m.group(1).lower()
+                val_raw = m.group(2).strip("'\"")
+                val = float(val_raw) if val_raw.replace(".", "", 1).isdigit() else val_raw
+                if col_name not in seen_filter_cols:
+                    filters.append(ExtractedFilter(column=col_name, operator=op_enum, value=val))
+                    seen_filter_cols.add(col_name)
+
+        # 2. Natural language comparisons: col greater than val, col under val
+        for m in re.finditer(r"(\w+)\s+(?:greater than|more than|over|above|higher than)\s+([0-9.]+)", lower):
+            col_name = m.group(1).lower()
+            val = float(m.group(2)) if "." in m.group(2) else int(m.group(2))
+            if col_name not in seen_filter_cols:
+                filters.append(ExtractedFilter(column=col_name, operator="GT", value=val))
+                seen_filter_cols.add(col_name)
+
+        for m in re.finditer(r"(\w+)\s+(?:less than|under|below|cheaper than|lower than)\s+([0-9.]+)", lower):
+            col_name = m.group(1).lower()
+            val = float(m.group(2)) if "." in m.group(2) else int(m.group(2))
+            if col_name not in seen_filter_cols:
+                filters.append(ExtractedFilter(column=col_name, operator="LT", value=val))
+                seen_filter_cols.add(col_name)
+
+        # 3. Contextual numeric phrases: cheaper than 30, under 50
+        cheaper_match = re.search(r"\b(?:cheaper than|under|less than|below)\s+([0-9.]+)\b", lower)
+        if cheaper_match and "price" not in seen_filter_cols and "total_amount" not in seen_filter_cols:
+            val = float(cheaper_match.group(1)) if "." in cheaper_match.group(1) else int(cheaper_match.group(1))
+            target_num_col = next((c for c in ("price", "unit_price", "total_amount") if c in known_columns), "price")
+            filters.append(ExtractedFilter(column=target_num_col, operator="LT", value=val))
+            seen_filter_cols.add(target_num_col)
+
+        greater_match = re.search(r"\b(?:greater than|above|more than|over|higher than)\s+([0-9.]+)\b", lower)
+        if greater_match:
+            val = float(greater_match.group(1)) if "." in greater_match.group(1) else int(greater_match.group(1))
+            cand_col = "rating" if "rating" in lower or "rating" in known_columns else (metrics[0] if metrics else "total_amount")
+            if cand_col not in seen_filter_cols:
+                filters.append(ExtractedFilter(column=cand_col, operator="GT", value=val))
+                seen_filter_cols.add(cand_col)
+
+        # 4. Equality filters: status = completed, name is 'Alice'
         for eq_match in re.finditer(
             r"(\w+)\s*(?:=|is)\s*['\"]?([\w\s-]+)['\"]?", query, re.IGNORECASE
         ):
-            col_name, val = eq_match.group(1), eq_match.group(2)
-            if col_name.lower() not in ("where", "and", "or", "in"):
-                filters.append(ExtractedFilter(column=col_name, operator="EQ", value=val.strip()))
+            col_name = eq_match.group(1).lower()
+            val = eq_match.group(2).strip()
+            if col_name not in ("where", "and", "or", "in", "with") and col_name not in seen_filter_cols:
+                filters.append(ExtractedFilter(column=col_name, operator="EQ", value=val))
+                seen_filter_cols.add(col_name)
 
         return ExtractedIntent(
             domain="database",
