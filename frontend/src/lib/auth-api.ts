@@ -20,6 +20,7 @@ export interface AuthUser {
   full_name: string;
   is_superuser: boolean;
   default_workspace_id: string;
+  onboarding_completed?: boolean;
 }
 
 export interface LoginResponse {
@@ -87,7 +88,33 @@ export function logout(): void {
 }
 
 /**
- * Log in using credentials and persist session.
+ * Register a new user account with initial workspace.
+ */
+export async function registerWithCredentials(
+  fullName: string,
+  email: string,
+  password: string
+): Promise<LoginResponse> {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ full_name: fullName, email, password }),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    const detail = errorBody?.detail || errorBody?.message || res.statusText;
+    throw new Error(detail || `Registration failed (${res.status})`);
+  }
+
+  const data: LoginResponse = await res.json();
+  setStoredToken(data.access_token);
+  setStoredUser(data.user);
+  return data;
+}
+
+/**
+ * Log in using email and password credentials and persist session.
  */
 export async function loginWithCredentials(
   email = DEMO_CREDENTIALS.email,
@@ -109,6 +136,78 @@ export async function loginWithCredentials(
   setStoredToken(data.access_token);
   setStoredUser(data.user);
   return data;
+}
+
+/**
+ * Request password reset token.
+ */
+export async function requestPasswordReset(email: string): Promise<{ message: string; reset_token?: string }> {
+  const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new Error(errorBody?.detail || "Failed to process password reset request");
+  }
+
+  return res.json();
+}
+
+/**
+ * Reset password using token.
+ */
+export async function resetPasswordWithToken(token: string, newPassword: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new Error(errorBody?.detail || "Invalid or expired reset token");
+  }
+
+  return res.json();
+}
+
+/**
+ * Update user profile details.
+ */
+export async function updateUserProfile(updates: Partial<AuthUser>): Promise<AuthUser> {
+  const res = await authFetch(`${API_BASE}/auth/profile`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new Error(errorBody?.detail || "Failed to update profile");
+  }
+
+  const user: AuthUser = await res.json();
+  setStoredUser(user);
+  return user;
+}
+
+/**
+ * Change current password.
+ */
+export async function changeUserPassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await authFetch(`${API_BASE}/auth/change-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new Error(errorBody?.detail || "Failed to change password");
+  }
 }
 
 /**

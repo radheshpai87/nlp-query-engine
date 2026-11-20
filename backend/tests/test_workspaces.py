@@ -117,3 +117,65 @@ def test_admin_can_add_member(
     assert res.status_code == 201
     assert res.json()["status"] == "success"
     assert res.json()["role"] == "member"
+
+
+def test_update_and_delete_workspace(
+    client: TestClient, user_auth_headers: dict[str, str], test_workspace: Workspace
+) -> None:
+    # 1. Update workspace
+    res_update = client.patch(
+        f"/api/v1/workspaces/{test_workspace.id}",
+        headers=user_auth_headers,
+        json={"name": "Renamed Analytics Hub", "description": "New description"},
+    )
+    assert res_update.status_code == 200
+    assert res_update.json()["name"] == "Renamed Analytics Hub"
+
+    # 2. Delete workspace
+    res_del = client.delete(
+        f"/api/v1/workspaces/{test_workspace.id}",
+        headers=user_auth_headers,
+    )
+    assert res_del.status_code == 200
+    assert res_del.json()["deleted"] is True
+
+
+def test_update_member_role_and_remove_member(
+    client: TestClient,
+    user_auth_headers: dict[str, str],
+    test_workspace: Workspace,
+    mock_db: Database,
+) -> None:
+    user_repo = UserRepository(db=mock_db)
+    team_user = user_repo.create(
+        User(
+            email="teammate@company.com",
+            full_name="Teammate",
+            hashed_password=hash_password("Password123!"),
+        )
+    )
+
+    # Add member
+    add_res = client.post(
+        f"/api/v1/workspaces/{test_workspace.id}/members",
+        headers=user_auth_headers,
+        json={"email": "teammate@company.com", "role": "viewer"},
+    )
+    assert add_res.status_code == 201
+
+    # Update member role to member
+    role_res = client.patch(
+        f"/api/v1/workspaces/{test_workspace.id}/members/{team_user.id}",
+        headers=user_auth_headers,
+        json={"role": "member"},
+    )
+    assert role_res.status_code == 200
+    assert role_res.json()["role"] == "member"
+
+    # Remove member
+    rem_res = client.delete(
+        f"/api/v1/workspaces/{test_workspace.id}/members/{team_user.id}",
+        headers=user_auth_headers,
+    )
+    assert rem_res.status_code == 200
+    assert rem_res.json()["removed"] is True

@@ -8,6 +8,7 @@ from app.core.exceptions import AppError, ResourceNotFoundError
 from app.models.connection import (
     DatabaseConnectionCreate,
     DatabaseConnectionResponse,
+    DatabaseConnectionUpdate,
 )
 from app.models.user import User
 from app.models.workspace import WorkspaceMembership, WorkspaceRole
@@ -79,6 +80,29 @@ def test_connection(
 ) -> Any:
     try:
         return connection_service.test_connection(workspace_id, connection_id)
+    except ResourceNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
+
+
+@router.put("/{connection_id}", response_model=DatabaseConnectionResponse)
+@router.patch("/{connection_id}", response_model=DatabaseConnectionResponse)
+def update_connection(
+    workspace_id: str,
+    connection_id: str,
+    data: DatabaseConnectionUpdate,
+    current_user: User = Depends(get_current_user),
+    connection_service: ConnectionService = Depends(get_connection_service),
+    _permission: WorkspaceMembership = Depends(
+        WorkspacePermissionChecker([WorkspaceRole.ADMIN, WorkspaceRole.MEMBER])
+    ),
+) -> Any:
+    try:
+        return connection_service.update_connection(
+            workspace_id=workspace_id,
+            user_id=current_user.id,
+            connection_id=connection_id,
+            data=data,
+        )
     except ResourceNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
 

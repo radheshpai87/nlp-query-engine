@@ -1,8 +1,10 @@
+import secrets
+from datetime import UTC, datetime, timedelta
 from fastapi import Depends
 
 from app.core.auth import create_access_token, hash_password, verify_password
 from app.core.exceptions import AppError
-from app.models.user import User, UserCreate
+from app.models.user import User, UserCreate, UserUpdate
 from app.models.workspace import Workspace, WorkspaceRole
 from app.repositories.user_repository import UserRepository, get_user_repository
 from app.repositories.workspace_repository import WorkspaceRepository, get_workspace_repository
@@ -29,6 +31,7 @@ class AuthService:
             email=normalized_email,
             full_name=user_in.full_name,
             hashed_password=hash_password(user_in.password),
+            onboarding_completed=False,
         )
         created_user = self.user_repo.create(user)
 
@@ -67,6 +70,84 @@ class AuthService:
 
         token = create_access_token({"sub": user.id, "email": user.email})
         return user, token
+
+    def forgot_password(self, email: str) -> str:
+        """Generate secure password reset token (valid for 1 hour)."""
+        normalized_email = email.lower().strip()
+        user = self.user_repo.get_by_email(normalized_email)
+        if not user or not user.is_active:
+            # Return pseudo-token to prevent email enumeration attacks
+            return "simulated-reset-token-sent"
+
+        reset_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(UTC) + timedelta(hours=1)
+        self.user_repo.update(
+            user.id,
+            {
+                "reset_token": reset_token,
+                "reset_token_expires_at": expires_at,
+            },
+        )
+        return reset_token
+
+    def reset_password(self, token: str, new_password: str) -> bool:
+        """Reset user password using valid token."""
+        user = self.user_repo.find_one({"reset_token": token, "is_active": True})
+        if not user:
+            raise AppError("Invalid or expired password reset token")
+
+        if user.reset_token_expires_at:
+            exp = user.reset_token_expires_at
+            if exp.tzinfo is None:
+                exp = exp.replace(tzinfo=UTC)
+            if datetime.now(UTC) > exp:
+                raise AppError("Password reset token has expired. Please request a new one.")
+
+        self.user_repo.update(
+            user.id,
+            {
+                "hashed_password": hash_password(new_password),
+                "reset_token": None,
+                "reset_token_expires_at": None,
+            },
+        )
+        return True
+
+    def update_profile(self, user_id: str, data: UserUpdate) -> User:
+        """Update user profile metadata."""
+        update_dict: dict[str, Any] = {}
+        if data.full_name is not None:
+            update_dict["full_name"] = data.full_name.strip()
+        if data.default_workspace_id is not None:
+            update_dict["default_workspace_id"] = data.default_workspace_id
+        if data.onboarding_completed is not None:
+            update_dict["onboarding_completed"] = data.onboarding_completed
+
+        if not update_dict:
+            user = self.user_repo.get_by_id(user_id)
+            if not user:
+                raise AppError("User not found")
+            return user
+
+        updated = self.user_repo.update(user_id, update_dict)
+        if not updated:
+            raise AppError("User not found")
+        return updated
+
+    def change_password(self, user_id: str, current_password: str, new_password: str) -> bool:
+        """Allow logged-in user to change their password."""
+        user = self.user_repo.get_by_id(user_id)
+        if not user:
+            raise AppError("User not found")
+
+        if not verify_password(current_password, user.hashed_password):
+            raise AppError("Incorrect current password")
+
+        self.user_repo.update(
+            user.id,
+            {"hashed_password": hash_password(new_password)},
+        )
+        return True
 
 
 def get_auth_service(

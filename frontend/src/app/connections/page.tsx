@@ -89,15 +89,15 @@ export default function ConnectionsPage() {
           prev.map((c) => (c.id === id ? { ...c, status: "error", status_message: errMsg } : c))
         );
       }
-    } catch {
-      // Simulate successful local feedback if backend isn't actively reachable
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Connection test request failed";
       setConnections((prev) =>
         prev.map((c) =>
           c.id === id
             ? {
                 ...c,
-                status: "online",
-                status_message: "Verified reachable (dev mock)",
+                status: "error",
+                status_message: errMsg,
                 last_verified_at: new Date().toISOString(),
               }
             : c

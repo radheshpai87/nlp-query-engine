@@ -1,4 +1,5 @@
 from datetime import UTC
+from typing import Any
 
 from fastapi import Depends
 
@@ -11,6 +12,7 @@ from app.models.connection import (
     DatabaseConnection,
     DatabaseConnectionCreate,
     DatabaseConnectionResponse,
+    DatabaseConnectionUpdate,
 )
 from app.repositories.connection_repository import ConnectionRepository, get_connection_repository
 from app.repositories.workspace_repository import WorkspaceRepository, get_workspace_repository
@@ -158,6 +160,52 @@ class ConnectionService:
             return result
         finally:
             adapter.close()
+
+    def update_connection(
+        self,
+        workspace_id: str,
+        user_id: str,
+        connection_id: str,
+        data: DatabaseConnectionUpdate,
+    ) -> DatabaseConnectionResponse:
+        """Update connection configuration."""
+        conn = self.connection_repo.get_by_id(connection_id)
+        if not conn or not _workspace_matches(conn.workspace_id, workspace_id):
+            raise ResourceNotFoundError(f"Database connection '{connection_id}' not found")
+
+        updates: dict[str, Any] = {}
+        if data.name is not None:
+            updates["name"] = data.name.strip()
+        if data.host is not None:
+            updates["host"] = data.host.strip()
+        if data.port is not None:
+            updates["port"] = data.port
+        if data.database is not None:
+            updates["database"] = data.database.strip()
+        if data.username is not None:
+            updates["username"] = data.username.strip()
+        if data.is_enabled is not None:
+            updates["is_enabled"] = data.is_enabled
+        if data.options is not None:
+            updates["options"] = data.options
+
+        new_secret = data.password or data.uri
+        if new_secret:
+            updates["encrypted_secret"] = encrypt_secret(new_secret)
+
+        updated = self.connection_repo.update(conn.id, updates)
+        if not updated:
+            raise ResourceNotFoundError(f"Failed to update connection '{connection_id}'")
+
+        self.audit_service.log_event(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            action="CONNECTION_UPDATED",
+            resource_type="connection",
+            resource_id=connection_id,
+            details={"name": updated.name, "is_enabled": updated.is_enabled},
+        )
+        return self._to_response(updated)
 
     def delete_connection(self, workspace_id: str, user_id: str, connection_id: str) -> bool:
         """Delete connection and release associated resources."""

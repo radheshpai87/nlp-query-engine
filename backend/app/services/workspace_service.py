@@ -1,3 +1,4 @@
+from typing import Any
 from fastapi import Depends
 
 from app.core.exceptions import AuthorizationError, ResourceNotFoundError
@@ -84,6 +85,50 @@ class WorkspaceService:
             updated_at=ws.updated_at,
         )
 
+    def update_workspace(
+        self,
+        workspace_id: str,
+        name: str | None = None,
+        description: str | None = None,
+    ) -> WorkspaceResponse:
+        """Update workspace metadata."""
+        ws = self.workspace_repo.get_by_id(workspace_id)
+        if not ws or not ws.is_active:
+            raise ResourceNotFoundError(f"Workspace '{workspace_id}' not found")
+
+        updates: dict[str, Any] = {}
+        if name is not None:
+            updates["name"] = name.strip()
+        if description is not None:
+            updates["description"] = description.strip()
+
+        if updates:
+            updated = self.workspace_repo.update(ws.id, updates)
+            if updated:
+                ws = updated
+
+        return WorkspaceResponse(
+            id=ws.id,
+            name=ws.name,
+            description=ws.description,
+            owner_id=ws.owner_id,
+            role=WorkspaceRole.ADMIN,
+            created_at=ws.created_at,
+            updated_at=ws.updated_at,
+        )
+
+    def delete_workspace(self, workspace_id: str, requester_id: str) -> bool:
+        """Soft-delete workspace (requires owner or admin)."""
+        ws = self.workspace_repo.get_by_id(workspace_id)
+        if not ws or not ws.is_active:
+            raise ResourceNotFoundError(f"Workspace '{workspace_id}' not found")
+
+        membership = self.workspace_repo.get_membership(workspace_id, requester_id)
+        if not membership or membership.role != WorkspaceRole.ADMIN:
+            raise AuthorizationError("Only workspace admins can delete a workspace")
+
+        return self.workspace_repo.update(ws.id, {"is_active": False}) is not None
+
     def add_user_to_workspace(
         self,
         workspace_id: str,
@@ -101,6 +146,34 @@ class WorkspaceService:
             raise ResourceNotFoundError(f"User with email '{user_email}' not found")
 
         return self.workspace_repo.add_member(workspace_id, target_user.id, role=role)
+
+    def update_member_role(
+        self,
+        workspace_id: str,
+        target_user_id: str,
+        role: WorkspaceRole,
+        requester_id: str,
+    ) -> WorkspaceMembership:
+        """Update role of an existing workspace member."""
+        requester_membership = self.workspace_repo.get_membership(workspace_id, requester_id)
+        if not requester_membership or requester_membership.role != WorkspaceRole.ADMIN:
+            raise AuthorizationError("Only workspace admins can modify member roles")
+
+        return self.workspace_repo.add_member(workspace_id, target_user_id, role=role)
+
+    def remove_user_from_workspace(
+        self,
+        workspace_id: str,
+        target_user_id: str,
+        requester_id: str,
+    ) -> bool:
+        """Remove a member from the workspace."""
+        requester_membership = self.workspace_repo.get_membership(workspace_id, requester_id)
+        if not requester_membership or requester_membership.role != WorkspaceRole.ADMIN:
+            if requester_id != target_user_id:
+                raise AuthorizationError("Only workspace admins can remove other members")
+
+        return self.workspace_repo.remove_member(workspace_id, target_user_id)
 
 
 def get_workspace_service(

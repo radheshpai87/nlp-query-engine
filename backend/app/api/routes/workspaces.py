@@ -23,6 +23,15 @@ class AddMemberRequest(BaseModel):
     role: WorkspaceRole = WorkspaceRole.MEMBER
 
 
+class UpdateMemberRoleRequest(BaseModel):
+    role: WorkspaceRole
+
+
+class UpdateWorkspaceRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
 @router.get("", response_model=list[WorkspaceResponse])
 def list_workspaces(
     current_user: User = Depends(get_current_user),
@@ -55,6 +64,36 @@ def get_workspace(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
 
 
+@router.patch("/{workspace_id}", response_model=WorkspaceResponse)
+@router.put("/{workspace_id}", response_model=WorkspaceResponse)
+def update_workspace(
+    workspace_id: str,
+    data: UpdateWorkspaceRequest,
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+    _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker([WorkspaceRole.ADMIN])),
+) -> Any:
+    try:
+        return workspace_service.update_workspace(workspace_id, name=data.name, description=data.description)
+    except ResourceNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
+
+
+@router.delete("/{workspace_id}", status_code=status.HTTP_200_OK)
+def delete_workspace(
+    workspace_id: str,
+    current_user: User = Depends(get_current_user),
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+    _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker([WorkspaceRole.ADMIN])),
+) -> Any:
+    try:
+        success = workspace_service.delete_workspace(workspace_id, requester_id=current_user.id)
+        return {"status": "success", "workspace_id": workspace_id, "deleted": success}
+    except AuthorizationError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message) from e
+    except ResourceNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
+
+
 @router.post("/{workspace_id}/members", status_code=status.HTTP_201_CREATED)
 def add_member(
     workspace_id: str,
@@ -80,6 +119,46 @@ def add_member(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message) from e
     except ResourceNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message) from e
+
+
+@router.patch("/{workspace_id}/members/{user_id}")
+def update_member_role(
+    workspace_id: str,
+    user_id: str,
+    data: UpdateMemberRoleRequest,
+    current_user: User = Depends(get_current_user),
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+    _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker([WorkspaceRole.ADMIN])),
+) -> Any:
+    try:
+        membership = workspace_service.update_member_role(
+            workspace_id=workspace_id,
+            target_user_id=user_id,
+            role=data.role,
+            requester_id=current_user.id,
+        )
+        return {"status": "success", "workspace_id": workspace_id, "user_id": user_id, "role": membership.role}
+    except AuthorizationError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message) from e
+
+
+@router.delete("/{workspace_id}/members/{user_id}")
+def remove_member(
+    workspace_id: str,
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    workspace_service: WorkspaceService = Depends(get_workspace_service),
+    _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker([WorkspaceRole.ADMIN])),
+) -> Any:
+    try:
+        success = workspace_service.remove_user_from_workspace(
+            workspace_id=workspace_id,
+            target_user_id=user_id,
+            requester_id=current_user.id,
+        )
+        return {"status": "success", "workspace_id": workspace_id, "user_id": user_id, "removed": success}
+    except AuthorizationError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=e.message) from e
 
 
 @router.get("/{workspace_id}/members")

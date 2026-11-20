@@ -58,6 +58,18 @@ class DatabaseConnectionCreate(AppBaseModel):
     options: dict[str, Any] = Field(default_factory=dict)
 
 
+class DatabaseConnectionUpdate(AppBaseModel):
+    name: str | None = None
+    host: str | None = None
+    port: int | None = None
+    database: str | None = None
+    username: str | None = None
+    password: str | None = None
+    uri: str | None = None
+    is_enabled: bool | None = None
+    options: dict[str, Any] | None = None
+
+
 class DatabaseConnectionResponse(AppBaseModel):
     workspace_id: str
     name: str

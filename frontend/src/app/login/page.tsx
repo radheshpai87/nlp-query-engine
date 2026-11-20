@@ -223,6 +223,12 @@ export default function LoginPage() {
               <label className="text-xs font-medium text-zinc-300 block">
                 Password
               </label>
+              <Link
+                href="/forgot-password"
+                className="text-[11px] text-zinc-400 hover:text-emerald-400 transition-colors"
+              >
+                Forgot password?
+              </Link>
             </div>
             <div className="relative">
               <Lock className="h-4 w-4 text-[#777777] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -264,12 +270,18 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="text-center">
+        <div className="flex items-center justify-between text-xs pt-1">
+          <Link
+            href="/register"
+            className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+          >
+            Create new account →
+          </Link>
           <Link
             href="/chat"
-            className="text-xs text-[#777777] hover:text-[#10a37f] transition-colors inline-flex items-center gap-1"
+            className="text-[#777777] hover:text-zinc-300 transition-colors inline-flex items-center gap-1"
           >
-            <span>Continue as guest session</span>
+            <span>Explore as guest</span>
             <span>→</span>
           </Link>
         </div>

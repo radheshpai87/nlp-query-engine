@@ -172,3 +172,38 @@ def test_delete_connection(
         headers=user_auth_headers,
     )
     assert all(c["id"] != conn_id for c in list_res.json())
+
+
+def test_update_connection(
+    client: TestClient,
+    user_auth_headers: dict[str, str],
+    test_workspace: Workspace,
+) -> None:
+    create_res = client.post(
+        f"/api/v1/workspaces/{test_workspace.id}/connections",
+        headers=user_auth_headers,
+        json={
+            "name": "Updatable Postgres",
+            "db_type": "postgres",
+            "host": "localhost",
+            "port": 5432,
+            "database": "demo_db",
+            "username": "user",
+            "password": "InitialPassword123!",
+        },
+    )
+    assert create_res.status_code == 201
+    conn_id = create_res.json()["id"]
+
+    update_res = client.put(
+        f"/api/v1/workspaces/{test_workspace.id}/connections/{conn_id}",
+        headers=user_auth_headers,
+        json={
+            "name": "Renamed Postgres DB",
+            "is_enabled": False,
+        },
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["name"] == "Renamed Postgres DB"
+    assert update_res.json()["is_enabled"] is False
+    assert "password" not in update_res.json()
