@@ -164,9 +164,12 @@ make frontend-lint && make frontend-typecheck && make frontend-build
 
 ## LLM Providers: Groq → Mistral → Gemini
 
-The NLP pipeline uses a configurable provider chain. Groq (Qwen) is tried first,
-then Mistral, then Gemini. If a provider times out, rejects the key or returns an
-invalid response, the next configured provider handles that request. If none of
+The NLP pipeline uses a configurable provider chain. Groq (`qwen/qwen3.8-27b`
+by default) is tried first, then Mistral (`ministral-8b-latest`), then Gemini
+(`gemini-2.5-flash`). If a provider times out, rejects the key, rate-limits its
+model or returns an invalid response, the next configured provider handles that
+request. Any default can be overridden with the matching `*_MODEL` value in
+`.env`. If none of
 the three keys is set, the deterministic mock provider keeps local development
 and tests working without network access.
 
