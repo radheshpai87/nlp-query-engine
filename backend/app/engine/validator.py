@@ -101,6 +101,8 @@ class LogicalPlanValidator:
         for agg in plan.aggregations:
             if agg.field:
                 self._validate_column_ref(agg.field, source_tables, errors)
+            if agg.multiplier:
+                self._validate_column_ref(agg.multiplier, source_tables, errors)
 
         # 9. Validate Order By
         for order in plan.order_by:

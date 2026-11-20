@@ -13,7 +13,7 @@ from app.engine.ir.models import (
 from app.engine.schema_graph import SchemaGraph
 from app.models.connection import DatabaseConnection
 from app.models.schema import SchemaSnapshot, UserDefinedRelationship
-from app.nlp.intent_extractor import ExtractedIntent
+from app.nlp.intent_extractor import ExtractedFilter, ExtractedIntent
 from app.nlp.semantic_lexicon import SemanticLexicon
 
 DISPLAY_COLUMNS: dict[str, list[str]] = {
@@ -120,12 +120,24 @@ class LogicalPlanSynthesizer:
             m_group = re.search(r"\b(?:by|per|each)\s+([a-zA-Z_]\w*)\b", lower_q)
             if m_group:
                 cand = m_group.group(1).lower()
-                for t_name, (c_id, obj) in table_lookup.items():
+                for _t_name, (_c_id, obj) in table_lookup.items():
                     if any(f.name.lower() == cand for f in obj.fields):
                         group_col = cand
                         break
 
-        if group_col:
+        # Product-level grouping belongs to the dedicated product revenue
+        # branch below; running the generic group-by first would aggregate by
+        # product_id without ever computing revenue.
+        product_level_grouping = (
+            group_col in {"id", "product", "products", "product_id"}
+            and any(k in lower_q for k in ("product", "products", "item", "items"))
+            and any(
+                k in lower_q
+                for k in ("revenue", "sales", "turnover", "selling", "top", "volume")
+            )
+        )
+
+        if group_col and not product_level_grouping:
             # 2a. Group by Category
             if group_col == "category" and "products" in table_lookup:
                 prod_conn_id, _ = table_lookup["products"]
@@ -134,7 +146,7 @@ class LogicalPlanSynthesizer:
                 builder.project("p", "category")
 
                 if any(k in lower_q for k in ("revenue", "sales", "turnover")) and "order_items" in table_lookup:
-                    items_conn_id, _ = table_lookup["order_items"]
+                    items_conn_id, items_obj = table_lookup["order_items"]
                     builder.join(
                         right_connection_id=items_conn_id,
                         right_source_name="order_items",
@@ -153,7 +165,15 @@ class LogicalPlanSynthesizer:
                             join_type=JoinType.INNER,
                             right_alias="o",
                         )
-                        builder.aggregate(AggregateFunction.SUM, "o", "total_amount", "revenue")
+                    items_fields = {field.name.lower() for field in items_obj.fields}
+                    if {"unit_price", "quantity"}.issubset(items_fields):
+                        builder.aggregate(
+                            AggregateFunction.SUM,
+                            "oi",
+                            "unit_price",
+                            "revenue",
+                            multiplier=("oi", "quantity"),
+                        )
                     else:
                         builder.aggregate(AggregateFunction.SUM, "oi", "unit_price", "revenue")
                     builder.aggregate(AggregateFunction.SUM, "oi", "quantity", "units_sold")
@@ -241,7 +261,7 @@ class LogicalPlanSynthesizer:
                         matching_table = (c_id, obj.name, obj)
                         break
             if not matching_table:
-                for t_name, (c_id, obj) in table_lookup.items():
+                for _t_name, (c_id, obj) in table_lookup.items():
                     if any(f.name.lower() == group_col.lower() for f in obj.fields):
                         matching_table = (c_id, obj.name, obj)
                         break
@@ -314,8 +334,15 @@ class LogicalPlanSynthesizer:
             builder.group_by("p", "name")
             builder.group_by("p", "category")
 
-            if has_orders:
-                builder.aggregate(AggregateFunction.SUM, "o", "total_amount", "revenue")
+            items_fields = {field.name.lower() for field in items_obj.fields}
+            if {"unit_price", "quantity"}.issubset(items_fields):
+                builder.aggregate(
+                    AggregateFunction.SUM,
+                    "oi",
+                    "unit_price",
+                    "revenue",
+                    multiplier=("oi", "quantity"),
+                )
             else:
                 builder.aggregate(AggregateFunction.SUM, "oi", "unit_price", "revenue")
 

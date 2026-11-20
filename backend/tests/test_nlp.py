@@ -1,4 +1,6 @@
+from app.engine.generators.sql_generator import PostgresSQLGenerator
 from app.engine.ir.models import (
+    AggregateFunction,
     ColumnRef,
     ComparisonOperator,
     FilterPredicate,
@@ -288,3 +290,82 @@ def test_result_explainer_fallback_and_llm() -> None:
     exp_llm = explainer.explain("show completed orders", plan, exec_multi)
     assert "Found 2 orders successfully." in exp_llm.summary
     assert "High completion rate." in exp_llm.key_insights
+
+
+def test_plan_synthesizer_uses_line_item_revenue_for_product_ranking() -> None:
+    conn_pg = DatabaseConnection(
+        id="conn-pg",
+        workspace_id="ws-1",
+        name="Postgres DB",
+        db_type=DatabaseType.POSTGRESQL,
+        host="localhost",
+        database="db",
+        username="u",
+    )
+    snapshot = SchemaSnapshot(
+        workspace_id="ws-1",
+        connection_id="conn-pg",
+        fingerprint="fp-1",
+        objects=[
+            SchemaObject(
+                connection_id="conn-pg",
+                name="products",
+                fields=[
+                    SchemaField(name="id", data_type="integer", is_primary_key=True),
+                    SchemaField(name="name", data_type="varchar"),
+                    SchemaField(name="category", data_type="varchar"),
+                ],
+            ),
+            SchemaObject(
+                connection_id="conn-pg",
+                name="order_items",
+                fields=[
+                    SchemaField(name="id", data_type="integer", is_primary_key=True),
+                    SchemaField(name="order_id", data_type="integer"),
+                    SchemaField(name="product_id", data_type="integer"),
+                    SchemaField(name="quantity", data_type="integer"),
+                    SchemaField(name="unit_price", data_type="numeric"),
+                ],
+            ),
+            SchemaObject(
+                connection_id="conn-pg",
+                name="orders",
+                fields=[
+                    SchemaField(name="id", data_type="integer", is_primary_key=True),
+                    SchemaField(name="status", data_type="varchar"),
+                    SchemaField(name="total_amount", data_type="numeric"),
+                    SchemaField(name="order_date", data_type="date"),
+                ],
+            ),
+        ],
+        total_objects=3,
+    )
+    # Simulate an LLM that groups by product_id; the generic group-by branch
+    # must not hijack the product-revenue query.
+    intent = ExtractedIntent(
+        target_entities=["products"],
+        group_by=["product_id"],
+        limit=5,
+        ranking_limit=5,
+    )
+
+    plan = LogicalPlanSynthesizer().synthesize(
+        workspace_id="ws-1",
+        query="Show me the top 5 products by revenue",
+        intent=intent,
+        connections={"conn-pg": conn_pg},
+        snapshots={"conn-pg": snapshot},
+        resolved_context={"revenue_definition": "gross"},
+    )
+
+    revenue = next(agg for agg in plan.aggregations if agg.alias == "revenue")
+    assert revenue.function == AggregateFunction.SUM
+    assert revenue.field is not None and revenue.field.column == "unit_price"
+    assert revenue.multiplier is not None and revenue.multiplier.column == "quantity"
+    assert plan.limit == 5
+
+    sql = PostgresSQLGenerator().generate(plan).sql
+    assert 'SUM("oi"."unit_price" * "oi"."quantity") AS "revenue"' in sql
+    assert 'COUNT("oi"."id") AS "order_items_count"' not in sql
+    assert 'ORDER BY "revenue" DESC' in sql
+    assert "LIMIT 5" in sql

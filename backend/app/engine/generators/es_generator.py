@@ -102,7 +102,22 @@ class ElasticsearchDSLGenerator:
             elif agg.function == AggregateFunction.COUNT:
                 metric_aggs[alias] = {"value_count": {"field": field_name}}
             elif agg.function == AggregateFunction.SUM:
-                metric_aggs[alias] = {"sum": {"field": field_name}}
+                if agg.multiplier:
+                    multiplier_name = self._render_field(agg.multiplier)
+                    field_script = field_name.replace("\\", "\\\\").replace("'", "\\'")
+                    multiplier_script = multiplier_name.replace("\\", "\\\\").replace("'", "\\'")
+                    metric_aggs[alias] = {
+                        "sum": {
+                            "script": {
+                                "source": (
+                                    f"doc['{field_script}'].value * "
+                                    f"doc['{multiplier_script}'].value"
+                                )
+                            }
+                        }
+                    }
+                else:
+                    metric_aggs[alias] = {"sum": {"field": field_name}}
             elif agg.function == AggregateFunction.AVG:
                 metric_aggs[alias] = {"avg": {"field": field_name}}
             elif agg.function == AggregateFunction.MIN:

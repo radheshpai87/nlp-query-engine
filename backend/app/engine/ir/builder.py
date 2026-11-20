@@ -113,13 +113,18 @@ class LogicalPlanBuilder:
         table: str | None,
         column: str | None,
         alias: str,
+        multiplier: tuple[str, str] | None = None,
     ) -> "LogicalPlanBuilder":
         fn = function if isinstance(function, AggregateFunction) else AggregateFunction(function)
         col_ref = ColumnRef(table=table, column=column) if table and column else None
+        multiplier_ref = (
+            ColumnRef(table=multiplier[0], column=multiplier[1]) if multiplier else None
+        )
         self._aggregations.append(
             AggregateExpression(
                 function=fn,
                 field=col_ref,
+                multiplier=multiplier_ref,
                 alias=alias,
             )
         )

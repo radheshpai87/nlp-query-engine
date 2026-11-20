@@ -77,6 +77,8 @@ class FilterExpression(BaseModel):
 class AggregateExpression(BaseModel):
     function: AggregateFunction
     field: ColumnRef | None = None  # None for COUNT(*)
+    # Optional second operand for aggregates such as SUM(unit_price * quantity).
+    multiplier: ColumnRef | None = None
     alias: str
 
 

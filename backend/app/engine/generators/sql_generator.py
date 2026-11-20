@@ -49,6 +49,11 @@ class PostgresSQLGenerator:
         elif agg.function == AggregateFunction.DISTINCT_COUNT:
             inner = f"DISTINCT {self._render_column(agg.field)}" if agg.field else "*"
             return f'COUNT({inner}) AS "{agg.alias}"'
+        elif agg.multiplier and agg.field:
+            inner = (
+                f"{self._render_column(agg.field)} * "
+                f"{self._render_column(agg.multiplier)}"
+            )
         else:
             inner = self._render_column(agg.field) if agg.field else "*"
 
