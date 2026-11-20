@@ -1,52 +1,53 @@
 @import "tailwindcss";
+
 @import "@xyflow/react/dist/style.css";
 
-/*
- * Design system
- * ---------------------------------------------------------------------------
- * A neutral graphite base with a single cool accent used sparingly for
- * selected states and links. Status colors are reserved for real connection
- * state, never for decoration.
- */
+/* Design system
+   ---------------------------------------------------------------------------
+   A deep graphite dark theme with a single sophisticated electric-blue
+   accent used sparingly for highlights, active states, and visual indicators.
+   Status colours are reserved for real connection state, never for decoration.
+*/
+
 :root {
-  --background: #0a0b0d;
+  --background: #08090b;
   --foreground: #edeef0;
 
-  --card: #101216;
+  --card: #0e0f12;
   --card-foreground: #edeef0;
 
-  --popover: #14161a;
+  --popover: #101115;
   --popover-foreground: #edeef0;
 
-  --primary: #f2f3f5;
-  --primary-foreground: #0b0c0f;
+  --primary: #181a1e;
+  --primary-foreground: #edeef0;
 
-  --secondary: #1b1e23;
+  --secondary: #141518;
   --secondary-foreground: #edeef0;
 
-  --muted: #17191d;
-  --muted-foreground: #969ba5;
+  --muted: #17191e;
+  --muted-foreground: #6b7280;
 
-  --accent: #1f2329;
+  --accent: #3b82f6;
   --accent-foreground: #ffffff;
 
-  --brand: #7f97ff;
-  --brand-muted: #1a1f2e;
+  --brand: #10b981;
+  --brand-muted: #0d9488;
 
-  --destructive: #f87171;
-  --destructive-foreground: #180a0a;
+  --muted-accent: #6b7280;
+  --muted-accent-foreground: #edeef0;
 
-  --border: #24272e;
-  --input: #2a2e36;
-  --ring: #6f7684;
+  --border: #1e2127;
+  --input: #1e2127;
+  --ring: #3b82f6;
 
   --radius: 0.5rem;
 
-  --sidebar: #0d0f12;
-  --sidebar-foreground: #edeef0;
-  --sidebar-border: #1c1f24;
+  --sidebar: #0d0e10;
+  --sidebar-foreground: #6b7280;
+  --sidebar-border: #1e2127;
 
-  --status-online: #4ade80;
+  --status-online: #10b981;
   --status-offline: #6b7280;
   --status-error: #f87171;
   --status-warning: #fbbf24;
@@ -73,8 +74,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-brand: var(--brand);
   --color-brand-muted: var(--brand-muted);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #180a0a;
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -107,14 +108,14 @@ body {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--brand) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
   color: #ffffff;
 }
 
 /* Quiet scrollbars; scrollbars should not compete with content. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #33373f transparent;
+  scrollbar-color: #1e2127 transparent;
 }
 
 ::-webkit-scrollbar {
@@ -125,13 +126,13 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2f333b;
+  background: #1e2127;
   border: 2px solid transparent;
   background-clip: content-box;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #454a54;
+  background: #3b82f6;
   background-clip: content-box;
 }
 
@@ -144,7 +145,7 @@ body {
 .hero-wash {
   background-image: radial-gradient(
     70% 55% at 50% 0%,
-    rgba(127, 151, 255, 0.09),
+    rgba(59, 130, 246, 0.06),
     transparent 70%
   );
 }
@@ -153,7 +154,7 @@ body {
 .dot-grid {
   background-image: radial-gradient(
     circle at 1px 1px,
-    rgba(255, 255, 255, 0.09) 1px,
+    rgba(255, 255, 255, 0.06) 1px,
     transparent 0
   );
   background-size: 18px 18px;
@@ -170,4 +171,10 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Focus ring using the accent colour */
+:focus-visible {
+  outline: 2px var(--accent) solid;
+  outline-offset: 2px;
 }
