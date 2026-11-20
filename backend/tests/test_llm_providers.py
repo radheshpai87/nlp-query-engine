@@ -123,7 +123,7 @@ def test_factory_uses_single_provider_when_only_one_key_exists() -> None:
     provider = get_llm_provider(settings)
 
     assert isinstance(provider, OpenAICompatibleProvider)
-    assert provider.model_name == "qwen/qwen3-32b"
+    assert provider.model_name == "qwen/qwen3.8-27b"
     assert provider.base_url == "https://api.groq.com/openai/v1"
 
 
@@ -160,7 +160,7 @@ class FakeResponse:
 class FakeClient:
     def __init__(self, *args: object, **kwargs: object) -> None:
         self.payload: dict[str, object] = {
-            "model": "qwen/qwen3-32b",
+            "model": "qwen/qwen3.8-27b",
             "choices": [{"message": {"content": '{"ok": true}'}}],
             "usage": {"prompt_tokens": 3, "completion_tokens": 4, "total_tokens": 7},
         }
@@ -188,7 +188,7 @@ def test_openai_compatible_request_and_response(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(httpx, "Client", lambda **kwargs: client)
 
     provider = OpenAICompatibleProvider(
-        model_name="qwen/qwen3-32b",
+        model_name="qwen/qwen3.8-27b",
         api_key=SECRET,
         base_url="https://api.groq.com/openai/v1",
         provider_name="groq",
@@ -203,7 +203,7 @@ def test_openai_compatible_request_and_response(monkeypatch: pytest.MonkeyPatch)
     assert headers["Authorization"] == f"Bearer {SECRET}"
     payload = client.calls[0]["json"]
     assert isinstance(payload, dict)
-    assert payload["model"] == "qwen/qwen3-32b"
+    assert payload["model"] == "qwen/qwen3.8-27b"
 
 
 def test_provider_error_does_not_leak_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -212,7 +212,7 @@ def test_provider_error_does_not_leak_api_key(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(httpx, "Client", lambda **kwargs: client)
 
     provider = OpenAICompatibleProvider(
-        model_name="qwen/qwen3-32b",
+        model_name="qwen/qwen3.8-27b",
         api_key=SECRET,
         base_url="https://api.groq.com/openai/v1",
         provider_name="groq",

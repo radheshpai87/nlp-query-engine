@@ -46,11 +46,11 @@ class Settings(BaseSettings):
     # Cloud model providers. Keys are read from the environment only and are
     # never returned by the API, embedded in prompts, or written to logs.
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "qwen/qwen3-32b"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
     GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
 
     MISTRAL_API_KEY: str = ""
-    MISTRAL_MODEL: str = "mistral-small-latest"
+    MISTRAL_MODEL: str = "ministral-8b-latest"
     MISTRAL_BASE_URL: str = "https://api.mistral.ai/v1"
 
     GEMINI_API_KEY: str = ""
