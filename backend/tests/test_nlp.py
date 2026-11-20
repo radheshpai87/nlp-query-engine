@@ -17,10 +17,40 @@ from app.nlp.intent_extractor import (
     IntentExtractor,
 )
 from app.nlp.plan_synthesizer import LogicalPlanSynthesizer
-from app.nlp.providers.base import LLMMessage
+from app.nlp.providers.base import BaseLLMProvider, LLMMessage, LLMResponse
 from app.nlp.providers.mock_provider import MockLLMProvider
 from app.nlp.result_explainer import ResultExplainer
 from app.nlp.schema_context import format_schema_context_for_llm
+
+
+class CapturingProvider(BaseLLMProvider):
+    """Records prompts so tests can assert what the explainer sent."""
+
+    def __init__(self) -> None:
+        super().__init__("capturing")
+        self.messages: list[LLMMessage] = []
+
+    def generate(
+        self,
+        messages: list[LLMMessage],
+        temperature: float = 0.1,
+        max_tokens: int = 1000,
+        **kwargs: object,
+    ) -> LLMResponse:
+        self.messages = list(messages)
+        return LLMResponse(
+            content='{"summary": "ok", "key_insights": []}',
+            model="capturing",
+        )
+
+    async def generate_async(
+        self,
+        messages: list[LLMMessage],
+        temperature: float = 0.1,
+        max_tokens: int = 1000,
+        **kwargs: object,
+    ) -> LLMResponse:
+        return self.generate(messages, temperature, max_tokens, **kwargs)
 
 
 def test_mock_llm_provider() -> None:
@@ -369,3 +399,38 @@ def test_plan_synthesizer_uses_line_item_revenue_for_product_ranking() -> None:
     assert 'COUNT("oi"."id") AS "order_items_count"' not in sql
     assert 'ORDER BY "revenue" DESC' in sql
     assert "LIMIT 5" in sql
+
+
+def test_result_explainer_prompt_includes_all_rows() -> None:
+    provider = CapturingProvider()
+    explainer = ResultExplainer(provider=provider)
+    plan = LogicalQueryPlan(
+        workspace_id="ws-1",
+        sources=[SourceNode(connection_id="conn-1", source_name="orders", alias="o")],
+        limit=20,
+    )
+    rows = [
+        {"status": "completed", "order_count": 51},
+        {"status": "pending", "order_count": 13},
+        {"status": "refunded", "order_count": 12},
+        {"status": "cancelled", "order_count": 12},
+        {"status": "processing", "order_count": 12},
+    ]
+    result = ExecutionResult(
+        execution_id="exec-1",
+        workspace_id="ws-1",
+        columns=[],
+        rows=rows,
+        row_count=len(rows),
+        duration_ms=4.2,
+        sources_involved=["orders"],
+    )
+
+    explainer.explain("Count orders by status", plan, result)
+
+    system_prompt = provider.messages[0].content
+    user_content = provider.messages[-1].content
+    assert "Do not invent numbers" in system_prompt
+    assert "Complete result: yes" in user_content
+    for status in ("completed", "pending", "refunded", "cancelled", "processing"):
+        assert status in user_content
