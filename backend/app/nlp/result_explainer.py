@@ -15,6 +15,10 @@ class ResultExplanationResponse(BaseModel):
     provenance: dict[str, Any] = Field(default_factory=dict)
 
 
+# Keep prompts bounded while giving the model every row for typical result sets.
+MAX_EXPLANATION_ROWS = 50
+
+
 class ResultExplainer:
     """Synthesizes human-friendly natural language explanations and provenance from execution results."""
 
@@ -119,6 +123,9 @@ class ResultExplainer:
         system_prompt = (
             "You are a friendly data analytics assistant explaining database results to a non-technical business user.\n"
             "Summarize the findings clearly without technical database jargon.\n"
+            "Use only the rows provided. Do not invent numbers, totals, trends or causes.\n"
+            "Only state a total when the prompt marks the result as complete; otherwise\n"
+            "describe just the provided rows and say the result was truncated.\n"
             "Respond in JSON format with the following keys:\n"
             "{\n"
             '  "summary": "1-2 sentences summarizing the answer directly",\n'
@@ -126,12 +133,16 @@ class ResultExplainer:
             "}\n"
         )
 
+        rows_for_prompt = result.rows[:MAX_EXPLANATION_ROWS]
+        is_complete = len(rows_for_prompt) == len(result.rows)
         user_content = (
             f"Query: {natural_query}\n"
             f"Sources: {', '.join(result.sources_involved)}\n"
             f"Row count: {result.row_count}\n"
+            f"Rows included: {len(rows_for_prompt)} of {len(result.rows)}\n"
+            f"Complete result: {'yes' if is_complete else 'no'}\n"
             f"Duration: {result.duration_ms}ms\n"
-            f"Sample data: {json.dumps(result.rows[:3])}\n"
+            f"Rows: {json.dumps(rows_for_prompt, default=str)}\n"
         )
 
         messages = [
