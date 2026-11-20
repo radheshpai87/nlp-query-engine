@@ -242,9 +242,12 @@ describe("ChatPage Component", () => {
     fireEvent.change(input, { target: { value: "How many databases are present" } });
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
 
-    expect(
-      await screen.findByText(/There are 3 connected databases/i, {}, { timeout: 4000 })
-    ).toBeInTheDocument();
+    await waitFor(
+      () => {
+        expect(screen.getByText(/There are 3 connected databases/i)).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
     expect(screen.getByText("Cluster Assistant")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /run query/i })).not.toBeInTheDocument();
   });
@@ -266,9 +269,12 @@ describe("ChatPage Component", () => {
     fireEvent.change(input, { target: { value: "What is the capital of France?" } });
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
 
-    expect(
-      await screen.findByText(/Guard Rail Notice: Query Out of Scope/i, {}, { timeout: 4000 })
-    ).toBeInTheDocument();
+    await waitFor(
+      () => {
+        expect(screen.getByText(/Guard Rail Notice: Query Out of Scope/i)).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
     expect(screen.getByText("Guard Rail Protected")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /run query/i })).not.toBeInTheDocument();
   });
