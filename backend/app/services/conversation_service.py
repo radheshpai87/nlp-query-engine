@@ -69,8 +69,13 @@ class ConversationService:
         self, workspace_id: str, user_id: str, title: str | None = None
     ) -> Conversation:
         """Create a new conversational query thread."""
+        normalized_ws_id = (
+            "ws_default"
+            if workspace_id in ("default", "ws_default", "ws-default")
+            else workspace_id
+        )
         conv = Conversation(
-            workspace_id=workspace_id,
+            workspace_id=normalized_ws_id,
             user_id=user_id,
             title=title or "New Conversation",
         )
@@ -93,8 +98,13 @@ class ConversationService:
 
     def get_conversation(self, workspace_id: str, conversation_id: str) -> Conversation:
         """Retrieve conversation by ID within a workspace."""
+        ws_filter = (
+            {"$in": ["ws_default", "ws-default", "default"]}
+            if workspace_id in ("default", "ws_default", "ws-default")
+            else workspace_id
+        )
         conv = self.conversation_repo.find_one(
-            {"_id": conversation_id, "workspace_id": workspace_id}
+            {"_id": conversation_id, "workspace_id": ws_filter}
         )
         if not conv:
             raise HTTPException(

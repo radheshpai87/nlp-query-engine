@@ -11,8 +11,17 @@ class ConversationRepository(BaseRepository[Conversation]):
         super().__init__(Conversation, "conversations", db=db)
         self.message_repo = BaseRepository[Message](Message, "messages", db=db)
 
+    @staticmethod
+    def _workspace_filter(workspace_id: str) -> dict | str:
+        if workspace_id in ("default", "ws_default", "ws-default"):
+            return {"$in": ["ws_default", "ws-default", "default"]}
+        return workspace_id
+
     def get_by_workspace(self, workspace_id: str, user_id: str | None = None) -> list[Conversation]:
-        query: dict = {"workspace_id": workspace_id, "is_archived": False}
+        query: dict = {
+            "workspace_id": self._workspace_filter(workspace_id),
+            "is_archived": False,
+        }
         if user_id:
             query["user_id"] = user_id
         return self.find(query, sort=[("updated_at", -1)])
@@ -28,7 +37,10 @@ class ConversationRepository(BaseRepository[Conversation]):
         )
 
     def delete_by_id_and_workspace(self, workspace_id: str, conversation_id: str) -> bool:
-        conv = self.find_one({"_id": conversation_id, "workspace_id": workspace_id})
+        conv = self.find_one({
+            "_id": conversation_id,
+            "workspace_id": self._workspace_filter(workspace_id),
+        })
         if not conv:
             return False
         deleted = self.delete(conversation_id)
