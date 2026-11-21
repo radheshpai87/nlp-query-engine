@@ -273,10 +273,18 @@ class SchemaService:
 
     def get_schema_graph(self, workspace_id: str) -> SchemaGraphResponse:
         """Assemble a unified graph of nodes and edges across heterogeneous databases."""
-        snapshots = self.schema_repo.get_all_latest_for_workspace(workspace_id)
+        normalized_ws_id = "ws_default" if workspace_id in ("ws-default", "ws_default") else workspace_id
+        snapshots = self.schema_repo.get_all_latest_for_workspace(normalized_ws_id)
+        if not snapshots and workspace_id != normalized_ws_id:
+            snapshots = self.schema_repo.get_all_latest_for_workspace(workspace_id)
+
         connections = {
-            conn.id: conn for conn in self.connection_repo.get_by_workspace(workspace_id)
+            conn.id: conn for conn in self.connection_repo.get_by_workspace(normalized_ws_id)
         }
+        if workspace_id != normalized_ws_id:
+            for conn in self.connection_repo.get_by_workspace(workspace_id):
+                connections.setdefault(conn.id, conn)
+
         user_rels = self.relationship_repo.get_by_workspace(workspace_id)
 
         nodes: list[GraphNode] = []
@@ -288,7 +296,18 @@ class SchemaService:
         for snap in snapshots:
             conn = connections.get(snap.connection_id)
             conn_name = conn.name if conn else snap.connection_id
-            db_type = str(conn.db_type) if conn else "unknown"
+            if conn:
+                db_type = conn.db_type.value if hasattr(conn.db_type, "value") else str(conn.db_type)
+            else:
+                cid_lower = snap.connection_id.lower()
+                if "postgres" in cid_lower or "sql" in cid_lower:
+                    db_type = "postgres"
+                elif "mongo" in cid_lower:
+                    db_type = "mongodb"
+                elif "es" in cid_lower or "elastic" in cid_lower:
+                    db_type = "elasticsearch"
+                else:
+                    db_type = "unknown"
 
             for obj in snap.objects:
                 node_id = f"{snap.connection_id}::{obj.name}"

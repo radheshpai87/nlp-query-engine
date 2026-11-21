@@ -23,15 +23,10 @@ class ConnectionRepository(BaseRepository[DatabaseConnection]):
         return conn
 
     def get_by_workspace(self, workspace_id: str) -> list[DatabaseConnection]:
-        target_ids = [workspace_id]
-        if workspace_id == "default":
-            target_ids.extend(["ws_default", "ws-default"])
-        conns = self.find({"workspace_id": {"$in": target_ids}, "is_enabled": True})
-        if not conns and "-" in workspace_id:
-            conns = self.find({"workspace_id": workspace_id.replace("-", "_"), "is_enabled": True})
-        elif not conns and "_" in workspace_id:
-            conns = self.find({"workspace_id": workspace_id.replace("_", "-"), "is_enabled": True})
-        return conns
+        ws_ids = list({workspace_id, workspace_id.replace("-", "_"), workspace_id.replace("_", "-")})
+        if workspace_id in ("default", "ws_default", "ws-default"):
+            ws_ids.extend(["ws_default", "ws-default", "default"])
+        return self.find({"workspace_id": {"$in": ws_ids}, "is_enabled": True})
 
     def get_by_workspace_and_name(self, workspace_id: str, name: str) -> DatabaseConnection | None:
         conn = self.find_one({"workspace_id": workspace_id, "name": name})
