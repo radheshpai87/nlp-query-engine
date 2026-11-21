@@ -13,6 +13,10 @@ import {
   MarkerType,
   Node,
   Edge,
+  BaseEdge,
+  EdgeLabelRenderer,
+  EdgeProps,
+  getBezierPath,
   BackgroundVariant,
 } from "@xyflow/react";
 import {
@@ -215,10 +219,102 @@ export function calculateOptimalLayout(
   return result;
 }
 
+export function formatCardinality(cardinality?: string): {
+  badge: "1:1" | "1:M" | "M:1" | "M:M";
+  badgeClass: string;
+} {
+  const norm = (cardinality || "").toLowerCase();
+  if (norm.includes("one_to_one") || norm === "1:1") {
+    return {
+      badge: "1:1",
+      badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/40",
+    };
+  }
+  if (norm.includes("one_to_many") || norm === "1:m" || norm === "1:n") {
+    return {
+      badge: "1:M",
+      badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+    };
+  }
+  if (norm.includes("many_to_many") || norm === "m:m" || norm === "m:n") {
+    return {
+      badge: "M:M",
+      badgeClass: "bg-purple-500/20 text-purple-300 border-purple-500/40",
+    };
+  }
+  return {
+    badge: "M:1",
+    badgeClass: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+  };
+}
+
+export function RelationshipEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style,
+  markerEnd,
+  data,
+  selected,
+}: EdgeProps<Edge<GraphEdge>>) {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  const edgeData = data as GraphEdge | undefined;
+  const { badge, badgeClass } = formatCardinality(edgeData?.cardinality);
+  const isCross = edgeData?.is_cross_database || edgeData?.provenance === "user_defined";
+
+  return (
+    <>
+      <BaseEdge id={id} path={edgePath} style={style} markerEnd={markerEnd} />
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: "absolute",
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            pointerEvents: "all",
+          }}
+          className={`nodrag nopan flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-mono shadow-md border transition-all cursor-pointer select-none ${
+            selected
+              ? "bg-[#181d24] border-brand text-brand ring-1 ring-brand/40 scale-105"
+              : isCross
+              ? "bg-[#14181c] border-brand/50 text-slate-200 hover:border-brand"
+              : "bg-[#14181c] border-border text-slate-300 hover:border-slate-500"
+          }`}
+        >
+          <span
+            className={`px-1 py-0.2 rounded font-bold text-[9px] border tracking-wider ${badgeClass}`}
+          >
+            {badge}
+          </span>
+          <span className="font-medium tracking-tight">
+            {edgeData?.source_field || "src"} → {edgeData?.target_field || "tgt"}
+          </span>
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+const edgeTypes = {
+  relationship: RelationshipEdge,
+};
+
 export function calculateOptimalEdges(graphEdges: GraphEdge[]): Edge<GraphEdge>[] {
   return graphEdges.map((edge) => {
     const isFk = edge.provenance === "foreign_key";
     const isUser = edge.provenance === "user_defined" || edge.is_cross_database;
+    const { badge } = formatCardinality(edge.cardinality);
 
     // Cross-database edges: vibrant glowing mint (#10a37f) with animated dashes
     // Foreign-key edges: sleek metallic slate (#94a3b8) with solid smooth curve
@@ -230,7 +326,7 @@ export function calculateOptimalEdges(graphEdges: GraphEdge[]): Edge<GraphEdge>[
       target: edge.target_node_id,
       sourceHandle: `${edge.source_field}-source`,
       targetHandle: `${edge.target_field}-target`,
-      type: "default", // smooth bezier curve
+      type: "relationship", // custom relationship edge with prominent cardinality badge
       animated: isUser,
       style: {
         stroke: strokeColor,
@@ -243,7 +339,7 @@ export function calculateOptimalEdges(graphEdges: GraphEdge[]): Edge<GraphEdge>[
         height: 14,
         color: strokeColor,
       },
-      label: `${edge.source_field} → ${edge.target_field}`,
+      label: `${badge} • ${edge.source_field} → ${edge.target_field}`,
       labelStyle: {
         fill: "#cbd5e1",
         fontSize: 10,
@@ -355,6 +451,7 @@ function SchemaCanvasInner({
 
     const isCross = newEdge.is_cross_database;
     const strokeColor = isCross ? "#10a37f" : "#14b8a6";
+    const { badge } = formatCardinality(newEdge.cardinality);
 
     const rfEdge: Edge<GraphEdge> = {
       id: newEdge.id,
@@ -362,7 +459,7 @@ function SchemaCanvasInner({
       target: newEdge.target_node_id,
       sourceHandle: `${newEdge.source_field}-source`,
       targetHandle: `${newEdge.target_field}-target`,
-      type: "default",
+      type: "relationship",
       animated: true,
       style: {
         stroke: strokeColor,
@@ -375,7 +472,7 @@ function SchemaCanvasInner({
         height: 14,
         color: strokeColor,
       },
-      label: `${newEdge.source_field} → ${newEdge.target_field}`,
+      label: `${badge} • ${newEdge.source_field} → ${newEdge.target_field}`,
       labelStyle: {
         fill: "#cbd5e1",
         fontSize: 10,
@@ -526,6 +623,7 @@ function SchemaCanvasInner({
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
           fitViewOptions={{ padding: 0.15 }}
           minZoom={0.2}
@@ -676,9 +774,18 @@ function SchemaCanvasInner({
 
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-400">Cardinality</span>
-                  <span className="font-mono text-zinc-200">
-                    {selectedEdge.cardinality || "many_to_one"}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`px-1.5 py-0.2 rounded font-bold font-mono text-[9px] border tracking-wider ${
+                        formatCardinality(selectedEdge.cardinality).badgeClass
+                      }`}
+                    >
+                      {formatCardinality(selectedEdge.cardinality).badge}
+                    </span>
+                    <span className="font-mono text-zinc-200 text-xs">
+                      {selectedEdge.cardinality || "many_to_one"}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between">
