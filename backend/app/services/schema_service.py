@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 
 from app.adapters.factory import create_adapter
 from app.core.logging import setup_logging
+from app.core.security import decrypt_secret
 from app.models.base import utc_now
 from app.models.schema import (
     GraphEdge,
@@ -52,16 +53,18 @@ class SchemaService:
         user_id: str | None = None,
     ) -> SchemaSnapshot:
         """Introspect target database and persist new snapshot if schema has changed."""
+        normalized_ws_id = "ws_default" if workspace_id in ("ws-default", "ws_default") else workspace_id
         connection = self.connection_repo.get_by_id(connection_id)
-        if not connection or connection.workspace_id != workspace_id:
+        if not connection or (connection.workspace_id != workspace_id and connection.workspace_id != normalized_ws_id):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Database connection not found in this workspace",
             )
 
-        adapter = create_adapter(connection)
+        decrypted = decrypt_secret(connection.encrypted_secret) if connection.encrypted_secret else ""
+        adapter = create_adapter(connection, decrypted_secret=decrypted)
         try:
-            discovered = adapter.discover_schema(workspace_id=workspace_id)
+            discovered = adapter.discover_schema(workspace_id=normalized_ws_id)
         except Exception as e:
             logger.error(
                 "Schema introspection failed for connection %s: %s",

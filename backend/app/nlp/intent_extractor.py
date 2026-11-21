@@ -72,9 +72,11 @@ class IntentExtractor:
 
         # Detect ranking limit
         limit = 20
-        limit_match = re.search(r"\btop\s+(\d+)\b", lower)
+        limit_match = re.search(r"\b(?:top|first|limit)\s+(\d+)\b", lower)
         if limit_match:
             limit = int(limit_match.group(1))
+        elif re.search(r"\b(the\s+person|the\s+customer|the\s+user|who\s+has|who\s+gave|single|one)\b", lower) or re.search(r"\b(least|lowest|worst|highest|best|cheapest|most\s+expensive)\b", lower):
+            limit = 1
 
         # Detect entities
         entities: list[str] = []
@@ -130,11 +132,21 @@ class IntentExtractor:
 
         # Detect sorting
         order_by: list[ExtractedSort] = []
-        if "top" in lower or "highest" in lower or "most" in lower:
-            target_sort_col = metrics[0] if metrics else "id"
+        if any(k in lower for k in ("top", "highest", "most", "best", "max", "maximum", "greatest")):
+            if "rating" in lower or "rating" in metrics:
+                target_sort_col = "rating"
+            elif metrics:
+                target_sort_col = metrics[0]
+            else:
+                target_sort_col = "price" if any(c in known_columns for c in ("price", "unit_price")) else "id"
             order_by.append(ExtractedSort(column=target_sort_col, direction="DESC"))
-        elif "lowest" in lower or "least" in lower:
-            target_sort_col = metrics[0] if metrics else "id"
+        elif any(k in lower for k in ("lowest", "least", "worst", "min", "minimum", "cheapest", "bottom")):
+            if "rating" in lower or "rating" in metrics:
+                target_sort_col = "rating"
+            elif metrics:
+                target_sort_col = metrics[0]
+            else:
+                target_sort_col = "price" if any(c in known_columns for c in ("price", "unit_price")) else "id"
             order_by.append(ExtractedSort(column=target_sort_col, direction="ASC"))
 
         # Detect filters across comparison operators and natural language patterns

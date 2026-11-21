@@ -107,6 +107,10 @@ class WorkspacePermissionChecker:
     ) -> WorkspaceMembership:
         # Check workspace existence
         workspace = workspace_repo.get_by_id(workspace_id)
+        if not workspace and workspace_id == "ws-default":
+            workspace = workspace_repo.get_by_id("ws_default")
+            if workspace:
+                workspace_id = "ws_default"
         if not workspace or not workspace.is_active:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

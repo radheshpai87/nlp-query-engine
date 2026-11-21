@@ -174,29 +174,7 @@ class SchemaGraph:
                         weight=1.2,
                     )
 
-        # 4. Standard relational conventions & demo topology fallback
-        known_topologies = [
-            ("customers", "id", "orders", "customer_id"),
-            ("orders", "id", "order_items", "order_id"),
-            ("order_items", "product_id", "products", "id"),
-            ("products", "id", "reviews", "product_id"),
-            ("products", "id", "catalog", "product_id"),
-        ]
-        for src_t, src_c, tgt_t, tgt_c in known_topologies:
-            if src_t in graph.nodes and tgt_t in graph.nodes:
-                src_conn_id = graph.nodes[src_t].connection_id
-                tgt_conn_id = graph.nodes[tgt_t].connection_id
-                graph.add_edge(
-                    source_table=src_t,
-                    source_connection_id=src_conn_id,
-                    source_col=src_c,
-                    target_table=tgt_t,
-                    target_connection_id=tgt_conn_id,
-                    target_col=tgt_c,
-                    weight=1.0,
-                )
-
-        # 5. Inferred foreign keys by column naming convention across any tables:
+        # 4. Inferred foreign keys by column naming convention across any tables:
         # e.g., if table B has 'department_id' and table A ('departments') has 'id'
         for node_a_name, node_a in graph.nodes.items():
             sing_a = node_a_name[:-1] if node_a_name.endswith("s") else node_a_name

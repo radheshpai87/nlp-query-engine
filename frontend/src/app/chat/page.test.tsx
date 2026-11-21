@@ -31,7 +31,7 @@ vi.mock("@/lib/execution-api", () => ({
 vi.mock("@/lib/query-plan-api", () => ({
   compileLogicalPlan: vi.fn(),
   synthesizeLogicalPlan: vi.fn().mockResolvedValue({
-    workspace_id: "ws-default",
+    workspace_id: "ws_default",
     query_text: "test",
     sources: [{ connection_id: "conn-1", source_name: "test_source", alias: "t" }],
     projections: [{ table: "t", column: "id" }],
@@ -98,7 +98,7 @@ describe("ChatPage Component", () => {
     // Should call API
     await waitFor(() => {
       expect(ambiguityApi.evaluateQueryAmbiguity).toHaveBeenCalledWith(
-        "ws-default",
+        "ws_default",
         "High-value customers who purchased electronics recently"
       );
     });
@@ -193,7 +193,7 @@ describe("ChatPage Component", () => {
   it("executes query plan and renders result table when Run Query is clicked", async () => {
     const mockExecutionResult: executionApi.ExecutionResult = {
       execution_id: "exec_test_999",
-      workspace_id: "ws-default",
+      workspace_id: "ws_default",
       columns: [
         { name: "id", data_type: "integer" },
         { name: "status", data_type: "string" },

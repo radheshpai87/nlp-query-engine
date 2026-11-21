@@ -24,7 +24,7 @@ import { useShellStore } from "@/lib/store";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setCurrentUser } = useShellStore();
+  const { setCurrentUser, setCurrentWorkspace } = useShellStore();
 
   const [email, setEmail] = React.useState<string>("");
   const [password, setPassword] = React.useState<string>("");
@@ -53,6 +53,13 @@ export default function LoginPage() {
     try {
       const result = await loginWithCredentials(email.trim(), password);
       setCurrentUser(result.user);
+      if (result.user.default_workspace_id) {
+        setCurrentWorkspace({
+          id: result.user.default_workspace_id,
+          name: "Nexus Query",
+          role: "admin",
+        });
+      }
       setSuccess(true);
       setTimeout(() => {
         router.push("/chat");

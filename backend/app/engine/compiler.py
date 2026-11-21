@@ -131,12 +131,25 @@ class MultiDialectCompiler:
                 if f.field.table in (src_name, src_alias) or not f.field.table
             ]
 
+            # Order pushdown for this source if sort column belongs to it
+            src_order_by = [
+                s
+                for s in plan.order_by
+                if (isinstance(s.field, ColumnRef) and s.field.table in (src_name, src_alias))
+                or not getattr(s.field, "table", None)
+            ]
+
+            # In cross-database joins, intermediate sub-queries must NOT be restricted to plan.limit (e.g. 1),
+            # otherwise hash joins will fail to match rows across disjoint sources.
+            sub_limit = 1000 if len(all_sources) > 1 else plan.limit
+
             sub_plan = LogicalQueryPlan(
                 workspace_id=plan.workspace_id,
                 sources=[src],
                 projections=src_projections,
                 filters=src_filters,
-                limit=plan.limit,
+                order_by=src_order_by,
+                limit=sub_limit,
                 offset=0,
             )
 

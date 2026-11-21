@@ -16,16 +16,55 @@ from app.models.schema import SchemaSnapshot, UserDefinedRelationship
 from app.nlp.intent_extractor import ExtractedFilter, ExtractedIntent
 from app.nlp.semantic_lexicon import SemanticLexicon
 
-DISPLAY_COLUMNS: dict[str, list[str]] = {
-    "customers": ["id", "name", "email", "country", "status"],
-    "products": ["id", "sku", "name", "category", "price", "stock_quantity"],
-    "orders": ["id", "customer_id", "order_date", "status", "total_amount", "shipping_country"],
-    "order_items": ["id", "order_id", "product_id", "quantity", "unit_price"],
-    "reviews": ["customer_name", "rating", "title", "comment", "verified_purchase"],
-    "catalog": ["sku", "category", "description", "price", "in_stock", "ratings_average"],
-    "access_logs": ["client_ip", "endpoint", "method", "status_code", "response_time_ms", "timestamp"],
-    "events": ["event_type", "user_id", "amount", "device", "country", "timestamp"],
-}
+def select_display_columns(schema_obj: Any, max_columns: int = 6) -> list[str]:
+    """Dynamically select the most informative columns for display across any database schema."""
+    field_names = [f.name for f in schema_obj.fields]
+    selected: list[str] = []
+
+    # 1. Primary key / Identifier
+    pk = next((f.name for f in schema_obj.fields if getattr(f, "is_primary_key", False)), None)
+    if pk and pk in field_names:
+        selected.append(pk)
+    elif "id" in field_names and "id" not in selected:
+        selected.append("id")
+
+    # 2. Key descriptive fields
+    for desc_cand in ("name", "title", "label", "username", "customer_name", "user_name", "full_name", "category", "email", "status"):
+        match = next((fn for fn in field_names if fn.lower() == desc_cand), None)
+        if match and match not in selected and len(selected) < max_columns:
+            selected.append(match)
+
+    # 3. Key metric / value fields
+    for metric_cand in ("rating", "ratings_average", "price", "unit_price", "amount", "total_amount", "revenue", "score", "quantity", "stock_quantity"):
+        match = next((fn for fn in field_names if fn.lower() == metric_cand), None)
+        if match and match not in selected and len(selected) < max_columns:
+            selected.append(match)
+
+    # 4. Fill remaining non-internal fields
+    for f in schema_obj.fields:
+        if len(selected) >= max_columns:
+            break
+        if f.name not in selected and not f.name.startswith("_") and f.name.lower() not in ("password", "salt", "token", "hash"):
+            selected.append(f.name)
+
+    return selected or [f.name for f in schema_obj.fields[:max_columns]]
+
+
+def get_table_alias(table_name: str, used_aliases: set[str] | None = None) -> str:
+    """Generate clean, unique table alias dynamically."""
+    parts = table_name.lower().split("_")
+    candidate = "".join(p[0] for p in parts if p) if len(parts) > 1 else table_name[:3].lower()
+    if not candidate:
+        candidate = "tbl"
+    if used_aliases and candidate in used_aliases:
+        i = 1
+        while f"{candidate}{i}" in used_aliases:
+            i += 1
+        candidate = f"{candidate}{i}"
+    if used_aliases is not None:
+        used_aliases.add(candidate)
+    return candidate
+
 
 ALIAS_MAP: dict[str, str] = {
     "products": "p",
@@ -137,7 +176,15 @@ class LogicalPlanSynthesizer:
             )
         )
 
-        if group_col and not product_level_grouping:
+        is_agg_group_query = bool(
+            re.search(
+                r"\b(how\s+many|count|number\s+of|breakdown|distribution|per\s+\w+|each\s+\w+|group\s+by|total\s+\w+\s+by|average\s+\w+\s+by|avg\s+\w+\s+by)\b",
+                lower_q,
+            )
+            or (intent.group_by and not intent.order_by)
+        )
+
+        if group_col and is_agg_group_query and not product_level_grouping:
             # 2a. Group by Category
             if group_col == "category" and "products" in table_lookup:
                 prod_conn_id, _ = table_lookup["products"]
@@ -580,7 +627,30 @@ class LogicalPlanSynthesizer:
         # Pattern 6: Universal Schema-Grounded Single & Multi-Table Engine
         # Handles ANY arbitrary filter, search, sort, projection across tables
         # --------------------------------------------------------------------
-        chosen_sources: list[tuple[str, str, Any]] = []
+        target_conn_id = context.get("target_database") or context.get("target_connection")
+        if not target_conn_id:
+            for c_id, conn in connections.items():
+                if (conn.database and conn.database.lower() in lower_q) or conn.name.lower() in lower_q:
+                    target_conn_id = c_id
+                    break
+        if not target_conn_id:
+            if "analytics_demo" in lower_q or "analytics" in lower_q:
+                for c_id, conn in connections.items():
+                    if "analytics" in conn.name.lower() or (conn.database and "analytics" in conn.database.lower()):
+                        target_conn_id = c_id
+                        break
+            elif "ecommerce_demo" in lower_q or "ecommerce" in lower_q:
+                for c_id, conn in connections.items():
+                    if "ecommerce" in conn.name.lower() or (conn.database and "ecommerce" in conn.database.lower()):
+                        target_conn_id = c_id
+                        break
+            elif "catalog" in lower_q:
+                for c_id, conn in connections.items():
+                    if "catalog" in conn.name.lower() or (conn.database and "catalog" in conn.database.lower()):
+                        target_conn_id = c_id
+                        break
+
+        candidates: list[tuple[str, str, Any]] = []
 
         if context.get("target_source") and "::" in str(context["target_source"]):
             req_conn_id, req_table = str(context["target_source"]).split("::", 1)
@@ -588,53 +658,49 @@ class LogicalPlanSynthesizer:
                 if conn_id == req_conn_id:
                     for obj in snap.objects:
                         if obj.name.lower() == req_table.lower():
-                            chosen_sources.append((conn_id, obj.name, obj))
+                            candidates.append((conn_id, obj.name, obj))
                             break
 
-        if not chosen_sources:
+        if not candidates:
             for entity in intent.target_entities:
                 normalized = entity.lower().strip()
                 if normalized in table_lookup:
                     c_id, s_obj = table_lookup[normalized]
-                    chosen_sources.append((c_id, s_obj.name, s_obj))
+                    if not any(c[1] == s_obj.name for c in candidates):
+                        candidates.append((c_id, s_obj.name, s_obj))
                 elif normalized.endswith("s") and normalized[:-1] in table_lookup:
                     c_id, s_obj = table_lookup[normalized[:-1]]
-                    chosen_sources.append((c_id, s_obj.name, s_obj))
+                    if not any(c[1] == s_obj.name for c in candidates):
+                        candidates.append((c_id, s_obj.name, s_obj))
                 elif f"{normalized}s" in table_lookup:
                     c_id, s_obj = table_lookup[f"{normalized}s"]
-                    chosen_sources.append((c_id, s_obj.name, s_obj))
+                    if not any(c[1] == s_obj.name for c in candidates):
+                        candidates.append((c_id, s_obj.name, s_obj))
 
-        if not chosen_sources:
+        for tbl_name, (c_id, s_obj) in table_lookup.items():
+            if (tbl_name in lower_q or (tbl_name.endswith("s") and tbl_name[:-1] in lower_q)) and not any(c[1] == s_obj.name for c in candidates):
+                candidates.append((c_id, s_obj.name, s_obj))
+
+        for f in intent.filters:
             for tbl_name, (c_id, s_obj) in table_lookup.items():
-                if tbl_name in lower_q or (tbl_name.endswith("s") and tbl_name[:-1] in lower_q):
-                    chosen_sources.append((c_id, s_obj.name, s_obj))
-                    break
+                if any(fld.name.lower() == f.column.lower() for fld in s_obj.fields) and not any(c[1] == s_obj.name for c in candidates):
+                    candidates.append((c_id, s_obj.name, s_obj))
 
-        if not chosen_sources:
-            # Check if any filter column or metric uniquely identifies a table in any connected database
-            for f in intent.filters:
-                for tbl_name, (c_id, s_obj) in table_lookup.items():
-                    if any(fld.name.lower() == f.column.lower() for fld in s_obj.fields):
-                        chosen_sources.append((c_id, s_obj.name, s_obj))
-                        break
-                if chosen_sources:
-                    break
+        for m_col in intent.metrics:
+            for tbl_name, (c_id, s_obj) in table_lookup.items():
+                if any(fld.name.lower() == m_col.lower() for fld in s_obj.fields) and not any(c[1] == s_obj.name for c in candidates):
+                    candidates.append((c_id, s_obj.name, s_obj))
 
-        if not chosen_sources:
-            for m_col in intent.metrics:
-                for tbl_name, (c_id, s_obj) in table_lookup.items():
-                    if any(fld.name.lower() == m_col.lower() for fld in s_obj.fields):
-                        chosen_sources.append((c_id, s_obj.name, s_obj))
-                        break
-                if chosen_sources:
-                    break
+        for s_order in intent.order_by:
+            for tbl_name, (c_id, s_obj) in table_lookup.items():
+                if any(fld.name.lower() == s_order.column.lower() for fld in s_obj.fields) and not any(c[1] == s_obj.name for c in candidates):
+                    candidates.append((c_id, s_obj.name, s_obj))
 
-        if not chosen_sources:
-            # Fallback to products or first available table
+        if not candidates:
             first_tbl = next(iter(table_lookup.keys()), None)
             if first_tbl:
                 c_id, s_obj = table_lookup[first_tbl]
-                chosen_sources.append((c_id, s_obj.name, s_obj))
+                candidates.append((c_id, s_obj.name, s_obj))
             else:
                 available = ", ".join(table_lookup.keys()) if table_lookup else "None"
                 raise AppError(
@@ -642,19 +708,88 @@ class LogicalPlanSynthesizer:
                     f"Available entities in your workspace: {available}."
                 )
 
+        def score_candidate(cand: tuple[str, str, Any]) -> float:
+            c_id, s_name, s_obj = cand
+            score = 0.0
+            field_names = {f.name.lower() for f in s_obj.fields}
+
+            # 1. Target connection priority
+            if target_conn_id and c_id == target_conn_id:
+                score += 250.0
+
+            # 2. Sort column presence (crucial for 'least rating', 'cheapest price', etc.)
+            for s in intent.order_by:
+                if s.column.lower() in field_names:
+                    score += 160.0
+
+            # 3. Metric presence
+            for m in intent.metrics:
+                if m.lower() in field_names:
+                    score += 90.0
+
+            # 4. Filter columns
+            for f in intent.filters:
+                if f.column.lower() in field_names:
+                    score += 50.0
+
+            # 5. Entity name match in query
+            if s_name.lower() in lower_q:
+                score += 40.0
+            elif s_name.lower().rstrip("s") in lower_q:
+                score += 30.0
+
+            # 6. Person / user presence match
+            if any(p in lower_q for p in ("person", "who", "user", "customer")):
+                if any(f in field_names for f in ("customer_name", "user_name", "name", "author")):
+                    score += 70.0
+
+            return score
+
+        # If the caller explicitly specified multiple real tables in intent.target_entities (e.g. in multi-table join tests),
+        # respect that explicit entity order as the join sequence
+        if (
+            len(intent.target_entities) > 1
+            and all(e.lower() in table_lookup for e in intent.target_entities)
+            and not target_conn_id
+        ):
+            chosen_sources = [
+                (table_lookup[e.lower()][0], table_lookup[e.lower()][1].name, table_lookup[e.lower()][1])
+                for e in intent.target_entities
+            ]
+        else:
+            candidates.sort(key=score_candidate, reverse=True)
+            chosen_sources = candidates
+
         primary_conn_id, primary_table, primary_obj = chosen_sources[0]
         primary_alias = ALIAS_MAP.get(primary_table, primary_table[:3])
         builder.from_source(connection_id=primary_conn_id, source_name=primary_table, alias=primary_alias)
 
         joined_tables: dict[str, str] = {primary_table: primary_alias}
 
-        # Multi-table joins using BFS Schema Graph pathfinding
-        sec_targets = [s_name for _, s_name, _ in chosen_sources[1:]]
-        for sem_ent in lexicon.resolve_entities(query):
-            if sem_ent in table_lookup and sem_ent not in sec_targets and sem_ent != primary_table:
-                sec_targets.append(sem_ent)
+        # Table Sufficiency Check:
+        # Check if primary table already satisfies the query. If so, do not add multi-table joins.
+        explicit_join_requested = bool(
+            re.search(r"\b(join|joined|with\s+(?:their|all)|and\s+(?:their|all)|across\s+both|combined)\b", lower_q)
+        )
+        primary_fields = {f.name.lower() for f in primary_obj.fields}
+        has_sort = not intent.order_by or any(s.column.lower() in primary_fields for s in intent.order_by)
+        has_filters = all(f.column.lower() in primary_fields for f in intent.filters)
+        is_person_satisfied = True
+        if any(p in lower_q for p in ("person", "who", "user", "customer")):
+            is_person_satisfied = any(f in primary_fields for f in ("customer_name", "user_name", "name", "author"))
 
-        graph_edges = schema_graph.find_multi_entity_join_tree(primary_table, sec_targets)
+        is_primary_sufficient = has_sort and has_filters and is_person_satisfied and not explicit_join_requested
+
+        sec_targets: list[str] = []
+        if not is_primary_sufficient:
+            sec_targets = [s_name for _, s_name, _ in chosen_sources[1:]]
+            for sem_ent in lexicon.resolve_entities(query):
+                if sem_ent in table_lookup and sem_ent not in sec_targets and sem_ent != primary_table:
+                    if sem_ent == "customers" and is_person_satisfied:
+                        continue
+                    sec_targets.append(sem_ent)
+
+        graph_edges = schema_graph.find_multi_entity_join_tree(primary_table, sec_targets) if sec_targets else []
 
         for edge in graph_edges:
             sec_table = edge.target_table
@@ -734,7 +869,7 @@ class LogicalPlanSynthesizer:
 
         # Projections
         projected_any = False
-        display_fields = DISPLAY_COLUMNS.get(primary_table, [col.name for col in primary_obj.fields[:5]])
+        display_fields = select_display_columns(primary_obj)
         for fld_name in display_fields:
             if any(col.name == fld_name for col in primary_obj.fields):
                 builder.project(primary_alias, fld_name)

@@ -29,12 +29,12 @@ export const useShellStore = create<ShellState>((set) => ({
   mobileSidebarOpen: false,
   activeNav: "/chat",
   currentWorkspace: {
-    id: "ws-default",
+    id: "ws_default",
     name: "Nexus Query",
     role: "admin",
   },
   workspaces: [
-    { id: "ws-default", name: "Nexus Query", role: "admin" },
+    { id: "ws_default", name: "Nexus Query", role: "admin" },
   ],
   currentUser: typeof window !== "undefined" ? getStoredUser() : null,
 
