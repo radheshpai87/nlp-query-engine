@@ -51,19 +51,43 @@ class PostgresAdapter(BaseDatabaseAdapter):
         self.options = options or {}
         self._connection: psycopg.Connection | None = None
 
-    def _get_connection_string(self) -> str:
+    def _get_connection_string(self, host_override: str | None = None) -> str:
         if self.uri:
             return self.uri
+        target_host = host_override or self.host
         return (
-            f"host={self.host} port={self.port} dbname={self.database} "
+            f"host={target_host} port={self.port} dbname={self.database} "
             f"user={self.user} password={self.password} connect_timeout=5"
         )
 
+    def _connect(self, timeout: int = 5, autocommit: bool = False) -> psycopg.Connection:
+        if self.uri:
+            return psycopg.connect(self.uri, connect_timeout=timeout, autocommit=autocommit)
+
+        candidate_hosts = [self.host]
+        if self.host in ("localhost", "127.0.0.1"):
+            candidate_hosts.append("postgres-target")
+
+        last_err: Exception | None = None
+        for h in candidate_hosts:
+            conn_str = (
+                f"host={h} port={self.port} dbname={self.database} "
+                f"user={self.user} password={self.password} connect_timeout={timeout}"
+            )
+            try:
+                conn = psycopg.connect(conn_str, connect_timeout=timeout, autocommit=autocommit)
+                self.host = h
+                return conn
+            except Exception as e:
+                last_err = e
+        if last_err:
+            raise last_err
+        raise RuntimeError("Failed to connect to PostgreSQL")
+
     def test_connection(self) -> ConnectionTestResult:
         start_time = time.perf_counter()
-        conn_str = self._get_connection_string()
         try:
-            with psycopg.connect(conn_str, connect_timeout=5) as conn:
+            with self._connect(timeout=5) as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT version();")
                     row = cur.fetchone()
@@ -97,9 +121,8 @@ class PostgresAdapter(BaseDatabaseAdapter):
 
     def discover_schema(self, workspace_id: str) -> SchemaSnapshot:
         """Introspect tables, columns, constraints, foreign keys, and row estimates."""
-        conn_str = self._get_connection_string()
         try:
-            with psycopg.connect(conn_str, connect_timeout=10) as conn:
+            with self._connect(timeout=10) as conn:
                 with conn.cursor() as cur:
                     cur.execute("SET TRANSACTION READ ONLY;")
 
@@ -332,9 +355,8 @@ class PostgresAdapter(BaseDatabaseAdapter):
             return val
 
         try:
-            with psycopg.connect(
-                conn_str,
-                connect_timeout=min(int(timeout_seconds), 10),
+            with self._connect(
+                timeout=min(int(timeout_seconds), 10),
                 autocommit=True,
             ) as conn:
                 with conn.cursor(row_factory=dict_row) as cur:
