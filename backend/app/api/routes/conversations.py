@@ -48,7 +48,12 @@ def list_conversations(
     _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker()),
 ) -> list[Conversation]:
     """List all active conversations in the workspace."""
-    return service.list_conversations(workspace_id=workspace_id, user_id=current_user.id)
+    filter_user = (
+        None
+        if (current_user.is_superuser or workspace_id in ("default", "ws_default", "ws-default"))
+        else current_user.id
+    )
+    return service.list_conversations(workspace_id=workspace_id, user_id=filter_user)
 
 
 @router.post("", response_model=Conversation, status_code=status.HTTP_201_CREATED)

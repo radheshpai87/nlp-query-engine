@@ -28,6 +28,17 @@ class PostgresSQLGenerator:
         self._params[param_name] = value
         return param_name
 
+    def _is_sql_expression(self, value: Any) -> bool:
+        if not isinstance(value, str):
+            return False
+        val_upper = value.strip().upper()
+        return (
+            val_upper.startswith("CURRENT_DATE")
+            or val_upper.startswith("CURRENT_TIMESTAMP")
+            or val_upper.startswith("NOW()")
+            or "INTERVAL" in val_upper
+        )
+
     def _format_literal(self, value: Any) -> str:
         if value is None:
             return "NULL"
@@ -35,6 +46,8 @@ class PostgresSQLGenerator:
             return str(value)
         if isinstance(value, bool):
             return "TRUE" if value else "FALSE"
+        if self._is_sql_expression(value):
+            return str(value).strip()
         # Escape single quotes for literal display SQL
         safe_str = str(value).replace("'", "''")
         return f"'{safe_str}'"
@@ -66,8 +79,9 @@ class PostgresSQLGenerator:
     def _render_having_predicate(
         self, predicate: FilterPredicate, plan: LogicalQueryPlan, parameterized: bool = True
     ) -> str:
+        col_lower = predicate.field.column.lower()
         matched_agg = next(
-            (a for a in plan.aggregations if a.alias and a.alias.lower() == predicate.field.column.lower()),
+            (a for a in plan.aggregations if a.alias and a.alias.lower() == col_lower),
             None,
         )
         if matched_agg:
@@ -147,6 +161,9 @@ class PostgresSQLGenerator:
         else:
             sql_op = "="
             pat = val
+
+        if self._is_sql_expression(pat):
+            return f"{col_str} {sql_op} {str(pat).strip()}"
 
         if parameterized:
             p = f":{self._next_param(pat)}"

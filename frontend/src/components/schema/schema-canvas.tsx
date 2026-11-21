@@ -81,26 +81,71 @@ export function calculateOptimalLayout(
     }
   });
 
-  // 2. Curated pixel-perfect layout matching the reference architecture diagram
-  const demoLayoutCoordinates: Record<string, { x: number; y: number }> = {
-    events: { x: 40, y: 390 },
-    access_logs: { x: 390, y: 50 },
-    catalog: { x: 390, y: 290 },
-    reviews: { x: 390, y: 580 },
-    order_items: { x: 750, y: 300 },
-    orders: { x: 1110, y: 190 },
-    products: { x: 1110, y: 560 },
-    customers: { x: 1470, y: 380 },
+  // Curated Enterprise Co-ordinates when the full demo cluster + healthcare cluster is loaded
+  const hasHealthcare = graphNodes.some((n) =>
+    ["admissions", "appointments", "billing_invoices", "patients"].includes(n.name.toLowerCase())
+  );
+  const hasEcommerce = graphNodes.some((n) =>
+    ["orders", "products", "customers", "order_items"].includes(n.name.toLowerCase())
+  );
+
+  if (hasHealthcare && hasEcommerce) {
+    const multiDomainCoordinates: Record<string, { x: number; y: number }> = {
+      // Healthcare Domain (Left Block - 4 Column Clinical Flow: Transactions -> Admissions/Appts -> Entities -> Depts)
+      billing_invoices: { x: 50, y: 60 },
+      diagnoses: { x: 50, y: 390 },
+      medical_procedures: { x: 50, y: 720 },
+      prescriptions: { x: 50, y: 1050 },
+      admissions: { x: 440, y: 180 },
+      appointments: { x: 440, y: 700 },
+      patients: { x: 830, y: 100 },
+      physicians: { x: 830, y: 480 },
+      rooms: { x: 830, y: 860 },
+      departments: { x: 1220, y: 620 },
+
+      // E-Commerce, Mongo & Elasticsearch Domain (Right Block - 3 Column DAG Flow)
+      reviews: { x: 1680, y: 60 },
+      catalog: { x: 1680, y: 390 },
+      order_items: { x: 1680, y: 720 },
+      events: { x: 1680, y: 1050 },
+      access_logs: { x: 1680, y: 1370 },
+      products: { x: 2080, y: 160 },
+      orders: { x: 2080, y: 680 },
+      customers: { x: 2480, y: 680 },
+    };
+
+    if (graphNodes.every((n) => n.name.toLowerCase() in multiDomainCoordinates)) {
+      return graphNodes.map((node) => {
+        const pos = multiDomainCoordinates[node.name.toLowerCase()] || { x: 100, y: 100 };
+        const connectedFields = Array.from(connectedFieldsMap[node.id] || []);
+        return {
+          id: node.id,
+          type: "tableNode",
+          position: pos,
+          data: {
+            ...node,
+            connectedFields,
+          },
+        };
+      });
+    }
+  }
+
+  // Pure E-Commerce + Mongo + ES Demo Cluster (8 tables)
+  const singleClusterDemoCoordinates: Record<string, { x: number; y: number }> = {
+    reviews: { x: 50, y: 60 },
+    catalog: { x: 50, y: 390 },
+    order_items: { x: 50, y: 720 },
+    events: { x: 50, y: 1050 },
+    access_logs: { x: 50, y: 1370 },
+    products: { x: 450, y: 160 },
+    orders: { x: 450, y: 680 },
+    customers: { x: 850, y: 680 },
   };
 
-  const isDemoCluster =
-    graphNodes.length > 0 &&
-    graphNodes.every((n) => n.name.toLowerCase() in demoLayoutCoordinates);
-
-  if (isDemoCluster) {
+  if (!hasHealthcare && graphNodes.every((n) => n.name.toLowerCase() in singleClusterDemoCoordinates)) {
     return graphNodes.map((node) => {
-      const pos =
-        demoLayoutCoordinates[node.name.toLowerCase()] || { x: 100, y: 100 };
+      const pos = singleClusterDemoCoordinates[node.name.toLowerCase()] || { x: 100, y: 100 };
       const connectedFields = Array.from(connectedFieldsMap[node.id] || []);
       return {
         id: node.id,
@@ -114,7 +159,17 @@ export function calculateOptimalLayout(
     });
   }
 
-  // 3. Generalized Topological Layering (Sugiyama DAG) for ANY arbitrary schema
+  // 3. Generalized Multi-Database Domain Clustering Algorithm
+  // Partitions tables by connection_id so separate databases form their own structured lanes
+  const connectionGroups = new Map<string, GraphNode[]>();
+  graphNodes.forEach((node) => {
+    const connKey = node.connection_id || node.connection_name || "default";
+    if (!connectionGroups.has(connKey)) {
+      connectionGroups.set(connKey, []);
+    }
+    connectionGroups.get(connKey)!.push(node);
+  });
+
   const nodeIds = new Set(graphNodes.map((n) => n.id));
   const incoming = new Map<string, string[]>();
   const outgoing = new Map<string, string[]>();
@@ -131,89 +186,137 @@ export function calculateOptimalLayout(
     }
   });
 
-  // Calculate topological rank / layer for each node (longest path from sources)
-  const layers = new Map<string, number>();
+  const result: Node<GraphNode>[] = [];
+  let currentDomainOffsetX = 50;
 
-  function computeRank(id: string, visited = new Set<string>()): number {
-    if (layers.has(id)) return layers.get(id)!;
-    if (visited.has(id)) return 0;
-    visited.add(id);
-
-    const preds = incoming.get(id) || [];
-    if (preds.length === 0) {
-      layers.set(id, 0);
-      return 0;
-    }
-
-    let maxPred = 0;
-    for (const p of preds) {
-      const r = computeRank(p, visited);
-      if (r + 1 > maxPred) maxPred = r + 1;
-    }
-    layers.set(id, maxPred);
-    return maxPred;
-  }
-
-  graphNodes.forEach((n) => computeRank(n.id));
-
-  // Partition into columns
-  const layerBuckets = new Map<number, GraphNode[]>();
-  const isolatedNodes: GraphNode[] = [];
-
-  graphNodes.forEach((n) => {
-    const inCount = incoming.get(n.id)?.length || 0;
-    const outCount = outgoing.get(n.id)?.length || 0;
-    if (inCount === 0 && outCount === 0) {
-      isolatedNodes.push(n);
-    } else {
-      const l = layers.get(n.id) || 0;
-      if (!layerBuckets.has(l)) layerBuckets.set(l, []);
-      layerBuckets.get(l)!.push(n);
-    }
+  // Sort connection groups so larger domains (e.g. relational databases) appear first
+  const sortedConnectionKeys = Array.from(connectionGroups.keys()).sort((a, b) => {
+    return (connectionGroups.get(b)?.length || 0) - (connectionGroups.get(a)?.length || 0);
   });
 
-  const sortedLayerIndices = Array.from(layerBuckets.keys()).sort((a, b) => a - b);
-  const result: Node<GraphNode>[] = [];
+  sortedConnectionKeys.forEach((connKey) => {
+    const connNodes = connectionGroups.get(connKey) || [];
+    const connNodeIds = new Set(connNodes.map((n) => n.id));
 
-  let startCol = 0;
-  if (isolatedNodes.length > 0) {
-    isolatedNodes.forEach((node, idx) => {
-      const connectedFields = Array.from(connectedFieldsMap[node.id] || []);
-      result.push({
-        id: node.id,
-        type: "tableNode",
-        position: {
-          x: 40,
-          y: idx * 300 + 80,
-        },
-        data: {
-          ...node,
-          connectedFields,
-        },
+    // Calculate topological rank inside this connection
+    const connLayers = new Map<string, number>();
+
+    function computeRank(id: string, visited = new Set<string>()): number {
+      if (connLayers.has(id)) return connLayers.get(id)!;
+      if (visited.has(id)) return 0;
+      visited.add(id);
+
+      const preds = (incoming.get(id) || []).filter((predId) => connNodeIds.has(predId));
+      if (preds.length === 0) {
+        connLayers.set(id, 0);
+        return 0;
+      }
+
+      let maxPred = 0;
+      for (const p of preds) {
+        const r = computeRank(p, visited);
+        if (r + 1 > maxPred) maxPred = r + 1;
+      }
+      connLayers.set(id, maxPred);
+      return maxPred;
+    }
+
+    connNodes.forEach((n) => computeRank(n.id));
+
+    // Partition into columns within this connection domain
+    const layerBuckets = new Map<number, GraphNode[]>();
+    const isolatedNodes: GraphNode[] = [];
+
+    connNodes.forEach((n) => {
+      const inCount = (incoming.get(n.id) || []).filter((id) => connNodeIds.has(id)).length;
+      const outCount = (outgoing.get(n.id) || []).filter((id) => connNodeIds.has(id)).length;
+      if (inCount === 0 && outCount === 0) {
+        isolatedNodes.push(n);
+      } else {
+        const l = connLayers.get(n.id) || 0;
+        if (!layerBuckets.has(l)) layerBuckets.set(l, []);
+        layerBuckets.get(l)!.push(n);
+      }
+    });
+
+    const sortedLayers = Array.from(layerBuckets.keys()).sort((a, b) => a - b);
+    let domainCols = sortedLayers.length;
+    let startCol = 0;
+
+    if (isolatedNodes.length > 0 && domainCols > 0) {
+      // Place isolated nodes in their own clean column
+      let curY = 60;
+      isolatedNodes.forEach((node) => {
+        const fieldCount = node.fields?.length || 4;
+        const nodeHeight = Math.min(360, 68 + fieldCount * 28);
+        const connectedFields = Array.from(connectedFieldsMap[node.id] || []);
+        result.push({
+          id: node.id,
+          type: "tableNode",
+          position: {
+            x: currentDomainOffsetX,
+            y: curY,
+          },
+          data: {
+            ...node,
+            connectedFields,
+          },
+        });
+        curY += nodeHeight + 36;
+      });
+      startCol = 1;
+      domainCols += 1;
+    } else if (isolatedNodes.length > 0 && domainCols === 0) {
+      // All nodes in connection are unlinked (e.g. document collections)
+      let curY = 60;
+      isolatedNodes.forEach((node) => {
+        const fieldCount = node.fields?.length || 4;
+        const nodeHeight = Math.min(360, 68 + fieldCount * 28);
+        const connectedFields = Array.from(connectedFieldsMap[node.id] || []);
+        result.push({
+          id: node.id,
+          type: "tableNode",
+          position: {
+            x: currentDomainOffsetX,
+            y: curY,
+          },
+          data: {
+            ...node,
+            connectedFields,
+          },
+        });
+        curY += nodeHeight + 36;
+      });
+      domainCols = 1;
+    }
+
+    sortedLayers.forEach((layerIdx, colOffset) => {
+      const nodesInCol = layerBuckets.get(layerIdx) || [];
+      const colX = currentDomainOffsetX + (startCol + colOffset) * 360;
+      let curY = 60;
+
+      nodesInCol.forEach((node) => {
+        const fieldCount = node.fields?.length || 4;
+        const nodeHeight = Math.min(360, 68 + fieldCount * 28);
+        const connectedFields = Array.from(connectedFieldsMap[node.id] || []);
+        result.push({
+          id: node.id,
+          type: "tableNode",
+          position: {
+            x: colX,
+            y: curY,
+          },
+          data: {
+            ...node,
+            connectedFields,
+          },
+        });
+        curY += nodeHeight + 36;
       });
     });
-    startCol = 1;
-  }
 
-  sortedLayerIndices.forEach((layerIdx, colOffset) => {
-    const nodesInCol = layerBuckets.get(layerIdx) || [];
-    const colX = (startCol + colOffset) * 380 + 40;
-
-    nodesInCol.forEach((node, rowIdx) => {
-      const connectedFields = Array.from(connectedFieldsMap[node.id] || []);
-      result.push({
-        id: node.id,
-        type: "tableNode",
-        position: {
-          x: colX,
-          y: rowIdx * 320 + 80,
-        },
-        data: {
-          ...node,
-          connectedFields,
-        },
-      });
-    });
+    // Advance X for next connection domain with comfortable separation
+    currentDomainOffsetX += Math.max(1, domainCols) * 360 + 160;
   });
 
   return result;
@@ -369,6 +472,17 @@ function SchemaCanvasInner({
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<GraphEdge | null>(null);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [activeConnectionFilter, setActiveConnectionFilter] = useState<string | null>(null);
+
+  const availableConnections = useMemo(() => {
+    const map = new Map<string, string>();
+    initialData.nodes.forEach((n) => {
+      const id = n.connection_id;
+      const name = n.connection_name || n.connection_id;
+      if (id && name) map.set(id, name);
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [initialData.nodes]);
 
   const { fitView } = useReactFlow();
 
@@ -406,7 +520,10 @@ function SchemaCanvasInner({
       const matchesFilter =
         !activeFilter || gNode.database_type === activeFilter;
 
-      const isVisible = matchesSearch && matchesFilter;
+      const matchesConn =
+        !activeConnectionFilter || gNode.connection_id === activeConnectionFilter;
+
+      const isVisible = matchesSearch && matchesFilter && matchesConn;
 
       return {
         ...node,
@@ -539,7 +656,23 @@ function SchemaCanvasInner({
 
         {/* Toolbar Center: Search & Database Filters */}
         <div className="flex items-center gap-2">
-          <div className="relative w-48">
+          {availableConnections.length > 1 && (
+            <select
+              value={activeConnectionFilter || ""}
+              onChange={(e) => setActiveConnectionFilter(e.target.value || null)}
+              className="h-7 text-xs bg-secondary border border-border rounded-md px-2 text-foreground focus:outline-none max-w-[180px] truncate"
+              title="Filter by connected database"
+            >
+              <option value="">All Databases ({availableConnections.length})</option>
+              {availableConnections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <div className="relative w-44">
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-zinc-500" />
             <Input
               placeholder="Find entity or field..."

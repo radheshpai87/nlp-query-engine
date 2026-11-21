@@ -213,8 +213,8 @@ class ElasticsearchDSLGenerator:
             query_body["aggs"] = self._render_aggregations(
                 plan.group_by, plan.aggregations, order_by=plan.order_by
             )
-            # When aggregations are requested without specific projections, set size to 0
-            if not plan.projections:
+            # When grouped or metric aggregations are requested, set hit size to 0 so only aggregations return
+            if plan.group_by or not plan.projections:
                 query_body["size"] = 0
             else:
                 query_body["size"] = plan.limit if plan.limit is not None else 100
@@ -240,7 +240,12 @@ class ElasticsearchDSLGenerator:
                     if isinstance(s.field, ColumnRef)
                     else str(s.field)
                 )
-                if s_name not in agg_aliases and not s_name.endswith("_count") and s_name != "count":
+                if (
+                    s_name not in agg_aliases
+                    and not s_name.endswith("_count")
+                    and s_name != "count"
+                    and not s_name.startswith(("avg_", "sum_", "min_", "max_"))
+                ):
                     valid_doc_sorts.append(self._render_sort(s))
             if valid_doc_sorts and query_body.get("size", 10) > 0:
                 query_body["sort"] = valid_doc_sorts

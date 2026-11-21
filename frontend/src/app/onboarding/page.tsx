@@ -72,7 +72,7 @@ export default function OnboardingPage() {
 
         {/* Steps indicator */}
         <div className="flex items-center gap-2">
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2, 3].map((s) => (
             <div
               key={s}
               className={`h-2 rounded-full transition-all duration-300 ${
@@ -115,7 +115,8 @@ export default function OnboardingPage() {
                       onClick={() => setRole(item.title)}
                       className={`text-left p-3.5 rounded-xl border transition-all ${
                         role === item.title
-                          ? "bg-brand-muted border-brand text-foreground shadow-sm"                          : "bg-background border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                          ? "bg-brand-muted border-brand text-foreground shadow-sm"
+                          : "bg-background border-zinc-800 text-zinc-300 hover:border-zinc-700"
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -131,7 +132,8 @@ export default function OnboardingPage() {
               <div className="pt-4 flex items-center justify-end">
                 <Button
                   onClick={() => setStep(2)}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2"                >
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2"
+                >
                   <span>Continue</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -139,57 +141,13 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* STEP 2: Workspace Creation */}
+          {/* STEP 2: Database Selection */}
           {step === 2 && (
-            <div className="space-y-6 animate-in fade-in-50 duration-300">
-              <div>
-                <h1 className="text-2xl font-bold text-white tracking-tight">Name your workspace</h1>
-                <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
-                  Workspaces isolate database connections, schema graph topologies, and audit ledgers across teams.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-zinc-300">Workspace / Team Name</label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
-                  <input
-                    type="text"
-                    value={workspaceName}
-                    onChange={(e) => setWorkspaceName(e.target.value)}
-                    placeholder="Acme Global Analytics"
-                    className="w-full h-10 bg-background border border-zinc-700/80 rounded-xl pl-9 pr-3 text-xs text-foreground placeholder:text-zinc-500 focus:outline-none focus:border-brand transition-colors"                  />
-                </div>
-                <p className="text-[11px] text-zinc-500">You can invite teammates and manage role permissions later.</p>
-              </div>
-
-              <div className="pt-4 flex items-center justify-between">
-                <Button variant="ghost" onClick={() => setStep(1)} className="text-xs text-zinc-400">
-                  <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-                  <span>Back</span>
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (workspaceName.trim()) {
-                      setCurrentWorkspace({ ...currentWorkspace, name: workspaceName.trim() });
-                    }
-                    setStep(3);
-                  }}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2"                >
-                  <span>Next Step</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: Database Selection */}
-          {step === 3 && (
             <div className="space-y-6 animate-in fade-in-50 duration-300">
               <div>
                 <h1 className="text-2xl font-bold text-white tracking-tight">Connect your databases</h1>
                 <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
-                  Choose how you want to start exploring heterogeneous databases.
+                  Choose how you want to start exploring your databases.
                 </p>
               </div>
 
@@ -199,7 +157,8 @@ export default function OnboardingPage() {
                   onClick={() => setSelectedDbChoice("demo")}
                   className={`text-left p-4 rounded-xl border transition-all ${
                     selectedDbChoice === "demo"
-                      ? "bg-brand-muted border-brand text-foreground"                      : "bg-background border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                      ? "bg-brand-muted border-brand text-foreground"
+                      : "bg-background border-zinc-800 text-zinc-300 hover:border-zinc-700"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -212,7 +171,7 @@ export default function OnboardingPage() {
                     {selectedDbChoice === "demo" && <Check className="h-4 w-4 text-brand" />}
                   </div>
                   <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">
-                    Instantly query connected PostgreSQL (E-Commerce), MongoDB (Product Reviews & Events), and Elasticsearch (Search Catalog & Telemetry).
+                    Instantly query connected PostgreSQL, MongoDB, and Elasticsearch tables with full schema relationships.
                   </p>
                 </button>
 
@@ -221,7 +180,8 @@ export default function OnboardingPage() {
                   onClick={() => setSelectedDbChoice("custom")}
                   className={`text-left p-4 rounded-xl border transition-all ${
                     selectedDbChoice === "custom"
-                      ? "bg-brand-muted border-brand text-foreground"                      : "bg-background border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                      ? "bg-brand-muted border-brand text-foreground"
+                      : "bg-background border-zinc-800 text-zinc-300 hover:border-zinc-700"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -232,19 +192,20 @@ export default function OnboardingPage() {
                     {selectedDbChoice === "custom" && <Check className="h-4 w-4 text-brand" />}
                   </div>
                   <p className="text-[11px] text-zinc-400 mt-2 leading-relaxed">
-                    Proceed to dashboard now; you can add PostgreSQL, MongoDB, or Elasticsearch connections anytime in the Connections manager.
+                    Proceed to chat now; you can add PostgreSQL, MongoDB, or Elasticsearch credentials anytime in the Databases manager.
                   </p>
                 </button>
               </div>
 
               <div className="pt-4 flex items-center justify-between">
-                <Button variant="ghost" onClick={() => setStep(2)} className="text-xs text-zinc-400">
+                <Button variant="ghost" onClick={() => setStep(1)} className="text-xs text-zinc-400">
                   <ArrowLeft className="h-3.5 w-3.5 mr-1" />
                   <span>Back</span>
                 </Button>
                 <Button
-                  onClick={() => setStep(4)}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2"                >
+                  onClick={() => setStep(3)}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2"
+                >
                   <span>Preview First Query</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -252,8 +213,8 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* STEP 4: First Query Walkthrough */}
-          {step === 4 && (
+          {/* STEP 3: First Query Walkthrough */}
+          {step === 3 && (
             <div className="space-y-6 animate-in fade-in-50 duration-300">
               <div>
                 <h1 className="text-2xl font-bold text-white tracking-tight">How to ask your first question</h1>
@@ -282,22 +243,23 @@ export default function OnboardingPage() {
               </div>
 
               <div className="pt-4 flex items-center justify-between">
-                <Button variant="ghost" onClick={() => setStep(3)} className="text-xs text-zinc-400">
+                <Button variant="ghost" onClick={() => setStep(2)} className="text-xs text-zinc-400">
                   <ArrowLeft className="h-3.5 w-3.5 mr-1" />
                   <span>Back</span>
                 </Button>
                 <Button
                   onClick={handleComplete}
                   disabled={saving}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2 px-6"                >
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-xs font-semibold gap-2 px-6"
+                >
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Entering Workspace...</span>
+                      <span>Launching App...</span>
                     </>
                   ) : (
                     <>
-                      <span>Enter Workspace & Start Querying</span>
+                      <span>Start Querying</span>
                       <ChevronRight className="h-4 w-4" />
                     </>
                   )}

@@ -608,17 +608,17 @@ class LogicalPlanSynthesizer:
             # Having condition for order count threshold
             m_count = re.search(r"\b(?:more than|greater than|over|at least|>)\s*(\d+)\s*(?:orders?|purchases?)", lower_q)
             if m_count:
-                builder.having("o", "id", ComparisonOperator.GT, int(m_count.group(1)))
+                builder.having("o", "order_count", ComparisonOperator.GT, int(m_count.group(1)))
 
             # Having condition for avg order value threshold
             m_avg_lt = re.search(r"\b(?:below|under|less than|fewer than|<)\s*[\$]?\s*(\d+(?:\.\d+)?)", lower_q)
             m_avg_gt = re.search(r"\b(?:above|over|more than|greater than|>)\s*[\$]?\s*(\d+(?:\.\d+)?)\s*(?:avg|average)", lower_q)
             if m_avg_lt:
                 val = float(m_avg_lt.group(1)) if "." in m_avg_lt.group(1) else int(m_avg_lt.group(1))
-                builder.having("o", "total_amount", ComparisonOperator.LT, val)
+                builder.having("o", "avg_order_value", ComparisonOperator.LT, val)
             elif m_avg_gt:
                 val = float(m_avg_gt.group(1)) if "." in m_avg_gt.group(1) else int(m_avg_gt.group(1))
-                builder.having("o", "total_amount", ComparisonOperator.GT, val)
+                builder.having("o", "avg_order_value", ComparisonOperator.GT, val)
 
             builder.sort("order_count", direction=SortDirection.DESC)
             limit = intent.ranking_limit if intent.ranking_limit is not None else 20

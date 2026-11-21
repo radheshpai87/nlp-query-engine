@@ -69,7 +69,7 @@ const Navbar = () => {
                 size="sm"
                 className="h-9 gap-1.5 px-4 text-xs bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold shadow-[0_0_15px_rgba(245,158,11,0.25)]"
               >
-                Open workspace
+                Launch App
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
@@ -174,7 +174,7 @@ const Hero = () => {
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href={currentUser ? "/chat" : "/register"}>
               <Button className="h-11 px-6 text-sm font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-[0_0_24px_rgba(245,158,11,0.35)] transition-all hover:-translate-y-0.5 active:translate-y-0">
-                {currentUser ? "Open workspace" : "Get started"}
+                {currentUser ? "Launch App" : "Get started"}
                 <ArrowRight className="h-4 w-4 ml-1.5" />
               </Button>
             </Link>
@@ -342,7 +342,7 @@ const SecuritySection = () => {
                 href="/register"
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors"
               >
-                Create a workspace
+                Connect your database
                 <ShieldCheck className="h-4 w-4" />
               </Link>
             </div>
@@ -468,7 +468,7 @@ const FinalCTA = () => {
         <div className="mt-8 flex items-center justify-center gap-4">
           <Link href={currentUser ? "/chat" : "/register"}>
             <Button className="h-11 px-6 text-sm font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-[0_0_24px_rgba(245,158,11,0.35)]">
-              {currentUser ? "Open workspace" : "Get started"}
+              {currentUser ? "Launch App" : "Get started"}
               <ArrowRight className="h-4 w-4 ml-1.5" />
             </Button>
           </Link>

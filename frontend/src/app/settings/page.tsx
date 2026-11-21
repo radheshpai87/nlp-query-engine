@@ -214,7 +214,7 @@ export default function SettingsPage() {
           Enterprise Settings & Governance
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Manage personal credentials, workspace team access, query execution safety, and LLM configuration.
+          Manage personal credentials, team access, query execution safety, and LLM configuration.
         </p>
       </div>
 
@@ -240,7 +240,7 @@ export default function SettingsPage() {
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Workspace & Members
+          Team & Access
         </button>
         <button
           type="button"

@@ -61,9 +61,12 @@ function SidebarContent() {
   const [accountMenuOpen, setAccountMenuOpen] = React.useState(false);
   const accountMenuRef = React.useRef<HTMLDivElement>(null);
 
-  const handleNewChatClick = () => {
+  const handleNewChatClick = (e?: React.MouseEvent) => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("new-chat-requested"));
+    }
+    if (pathname === "/chat" && currentChatId) {
+      router.replace("/chat");
     }
   };
 

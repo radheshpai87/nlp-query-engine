@@ -112,6 +112,9 @@ function ChatPageContent() {
     const handleNewChat = () => {
       setMessages([]);
       setInputValue("");
+      if (typeof router?.replace === "function") {
+        router.replace("/chat");
+      }
     };
     if (typeof window !== "undefined") {
       window.addEventListener("new-chat-requested", handleNewChat);
@@ -119,7 +122,7 @@ function ChatPageContent() {
         window.removeEventListener("new-chat-requested", handleNewChat);
       };
     }
-  }, []);
+  }, [router]);
 
   const loadSuggestions = React.useCallback(async () => {
     try {

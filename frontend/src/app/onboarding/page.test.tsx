@@ -32,17 +32,13 @@ describe("OnboardingPage Component", () => {
     expect(screen.getByText("Data Analyst")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
 
-    // Step 2: Name your workspace
-    expect(screen.getByText("Name your workspace")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Next Step/i }));
-
-    // Step 3: Connect your databases
+    // Step 2: Connect your databases
     expect(screen.getByText("Connect your databases")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Preview First Query/i }));
 
-    // Step 4: First Query Walkthrough
+    // Step 3: First Query Walkthrough
     expect(screen.getByText("How to ask your first question")).toBeInTheDocument();
-    const finishBtn = screen.getByRole("button", { name: /Enter Workspace & Start Querying/i });
+    const finishBtn = screen.getByRole("button", { name: /Start Querying/i });
     fireEvent.click(finishBtn);
 
     await waitFor(() => {

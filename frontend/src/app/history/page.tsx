@@ -62,7 +62,7 @@ export default function HistoryPage() {
         <div>
           <h1 className="text-lg font-medium tracking-tight">Query history</h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Every execution in this workspace, with its target, row count and duration.
+            Every execution across your connected databases, with its target, row count and duration.
           </p>
         </div>
         <Button
