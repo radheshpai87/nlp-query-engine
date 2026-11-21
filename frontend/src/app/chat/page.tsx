@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowUpRight,
   MessageSquare,
@@ -22,6 +22,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { NexusLogo } from "@/components/ui/nexus-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ import {
 } from "@/lib/query-plan-api";
 import { executeQueryPlan, ExecutionResult } from "@/lib/execution-api";
 import {
+  createConversation,
   listConversations,
   getMessages,
   deleteConversation,
@@ -82,17 +84,11 @@ function createMessageId(prefix: string): string {
   return `${prefix}_${messageCounter}`;
 }
 
-export default function ChatPage() {
+function ChatPageContent() {
   const { currentWorkspace, setMobileSidebarOpen, mobileSidebarOpen } = useShellStore();
   const router = useRouter();
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      setCurrentChatId(params.get("c"));
-    }
-  }, []);
+  const searchParams = useSearchParams();
+  const currentChatId = searchParams?.get("c") || null;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -104,6 +100,25 @@ export default function ChatPage() {
   const [suggestedQueries, setSuggestedQueries] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  const handleNewSession = React.useCallback(() => {
+    setMessages([]);
+    setInputValue("");
+    router.push("/chat");
+  }, [router]);
+
+  React.useEffect(() => {
+    const handleNewChat = () => {
+      setMessages([]);
+      setInputValue("");
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("new-chat-requested", handleNewChat);
+      return () => {
+        window.removeEventListener("new-chat-requested", handleNewChat);
+      };
+    }
+  }, []);
 
   const loadSuggestions = React.useCallback(async () => {
     try {
@@ -132,6 +147,7 @@ export default function ChatPage() {
     let ignore = false;
     if (!currentChatId) {
       setMessages([]);
+      setInputValue("");
       return;
     }
     getMessages(currentWorkspace.id, currentChatId)
@@ -159,12 +175,6 @@ export default function ChatPage() {
       ignore = true;
     };
   }, [currentWorkspace.id, currentChatId]);
-
-  const handleNewSession = () => {
-    setMessages([]);
-    setInputValue("");
-    router.push("/chat");
-  };
 
   React.useEffect(() => {
     if (typeof messagesEndRef.current?.scrollIntoView === "function") {
@@ -202,6 +212,23 @@ export default function ChatPage() {
 
     setMessages((prev) => [...prev, userMessage, initialAssistantMessage]);
     setIsSubmitting(true);
+
+    let activeChatId = currentChatId;
+    if (!activeChatId) {
+      try {
+        const title = text.length > 36 ? text.slice(0, 33) + "..." : text;
+        const newConv = await createConversation(currentWorkspace.id, title);
+        activeChatId = newConv.id;
+        if (typeof router?.replace === "function") {
+          router.replace(`/chat?c=${newConv.id}`);
+        }
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("conversations-updated"));
+        }
+      } catch (err) {
+        console.warn("Could not create conversation thread", err);
+      }
+    }
 
     try {
       const result: AmbiguityEvaluationResult = await evaluateQueryAmbiguity(
@@ -534,7 +561,10 @@ export default function ChatPage() {
         >
           <Menu className="h-4 w-4" />
         </Button>
-        <span className="text-xs font-semibold text-foreground">Nexus Query</span>
+        <div className="flex items-center gap-2">
+          <NexusLogo size={20} />
+          <span className="text-xs font-semibold text-foreground">Nexus Query</span>
+        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -551,9 +581,7 @@ export default function ChatPage() {
         {messages.length === 0 ? (
           <div className="mx-auto flex h-full max-w-xl flex-col items-center justify-center gap-8 py-16">
             <div className="space-y-3 text-center">
-              <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-[13px] font-semibold">
-                N
-              </span>
+              <NexusLogo size={38} className="mx-auto shadow-md" />
               <div className="space-y-1.5">
                 <h1 className="text-lg font-medium tracking-tight">
                   What would you like to explore today?
@@ -607,9 +635,7 @@ export default function ChatPage() {
                 }`}
               >
                 {message.role === "assistant" && (
-                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary text-[10px] font-semibold text-foreground">
-                    N
-                  </div>
+                  <NexusLogo size={24} className="mt-0.5 shrink-0 shadow-xs" />
                 )}
 
                 <div
@@ -826,5 +852,13 @@ export default function ChatPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <React.Suspense fallback={<div className="h-full bg-background" />}>
+      <ChatPageContent />
+    </React.Suspense>
   );
 }

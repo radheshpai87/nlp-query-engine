@@ -6,11 +6,12 @@ import * as executionApi from "@/lib/execution-api";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/chat",
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@/lib/conversation-api", () => ({
+  createConversation: vi.fn().mockResolvedValue({ id: "mock-conv-1", title: "Mock Conversation" }),
   listConversations: vi.fn().mockResolvedValue([]),
   getMessages: vi.fn().mockResolvedValue([]),
   deleteConversation: vi.fn().mockResolvedValue(true),

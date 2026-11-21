@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Bookmark,
   ChevronDown,
@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StatusIndicator, type ConnectionStatus } from "@/components/ui/status-indicator";
+import { NexusLogo } from "@/components/ui/nexus-logo";
 import { authFetch } from "@/lib/auth-api";
 import {
   listConversations,
@@ -45,17 +46,11 @@ interface SidebarConnection {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-export function Sidebar() {
+function SidebarContent() {
   const pathname = usePathname();
   const router = useRouter();
-  const [currentChatId, setCurrentChatId] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      setCurrentChatId(params.get("c"));
-    }
-  }, [pathname]);
+  const searchParams = useSearchParams();
+  const currentChatId = searchParams?.get("c") || null;
 
   const { sidebarCollapsed, toggleSidebar, currentWorkspace, currentUser, logoutUser } =
     useShellStore();
@@ -65,6 +60,12 @@ export function Sidebar() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [accountMenuOpen, setAccountMenuOpen] = React.useState(false);
   const accountMenuRef = React.useRef<HTMLDivElement>(null);
+
+  const handleNewChatClick = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("new-chat-requested"));
+    }
+  };
 
   // Close account menu when clicking outside
   React.useEffect(() => {
@@ -118,6 +119,15 @@ export function Sidebar() {
 
   React.useEffect(() => {
     loadConversations();
+    const handleUpdate = () => {
+      loadConversations();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("conversations-updated", handleUpdate);
+      return () => {
+        window.removeEventListener("conversations-updated", handleUpdate);
+      };
+    }
   }, [loadConversations, pathname, currentChatId]);
 
   const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
@@ -158,10 +168,8 @@ export function Sidebar() {
             sidebarCollapsed ? "justify-center px-2" : "justify-between px-3"
           )}
         >
-          <Link href="/chat" className="flex min-w-0 items-center gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-foreground text-[11px] font-semibold text-background shadow-xs">
-              N
-            </span>
+          <Link href="/chat" onClick={handleNewChatClick} className="flex min-w-0 items-center gap-2">
+            <NexusLogo size={26} />
             {!sidebarCollapsed && (
               <span className="truncate text-[13px] font-semibold tracking-tight text-foreground">
                 Nexus Query
@@ -211,7 +219,7 @@ export function Sidebar() {
           {sidebarCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href="/chat" aria-label="New chat">
+                <Link href="/chat" onClick={handleNewChatClick} aria-label="New chat">
                   <Button
                     variant="outline"
                     size="icon"
@@ -224,7 +232,7 @@ export function Sidebar() {
               <TooltipContent side="right">New chat</TooltipContent>
             </Tooltip>
           ) : (
-            <Link href="/chat" className="block">
+            <Link href="/chat" onClick={handleNewChatClick} className="block">
               <Button
                 variant="outline"
                 className="h-9 w-full justify-between border-border/80 bg-card/40 text-[13px] font-medium text-foreground hover:bg-muted/80 shadow-xs"
@@ -529,5 +537,13 @@ export function Sidebar() {
         </div>
       </aside>
     </TooltipProvider>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <React.Suspense fallback={<aside className="border-r border-border bg-sidebar shrink-0 md:w-64" />}>
+      <SidebarContent />
+    </React.Suspense>
   );
 }
