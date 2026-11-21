@@ -90,15 +90,18 @@ class ElasticsearchDSLGenerator:
         return {"bool": {"filter": clauses}}
 
     def _render_aggregations(
-        self, group_by: list[ColumnRef], aggregations: list[AggregateExpression]
+        self,
+        group_by: list[ColumnRef],
+        aggregations: list[AggregateExpression],
+        order_by: list[SortExpression] | None = None,
     ) -> dict[str, Any]:
         metric_aggs: dict[str, Any] = {}
         for agg in aggregations:
             alias = agg.alias
             field_name = self._render_field(agg.field) if agg.field else "_id"
 
-            if agg.function == AggregateFunction.COUNT and agg.field is None:
-                metric_aggs[alias] = {"value_count": {"field": "_id"}}
+            if agg.function == AggregateFunction.COUNT and (agg.field is None or field_name == "_id"):
+                metric_aggs[alias] = {"value_count": {"field": "_index"}}
             elif agg.function == AggregateFunction.COUNT:
                 metric_aggs[alias] = {"value_count": {"field": field_name}}
             elif agg.function == AggregateFunction.SUM:
@@ -130,6 +133,24 @@ class ElasticsearchDSLGenerator:
         if not group_by:
             return metric_aggs
 
+        # Determine bucket sort order if specified
+        agg_order: dict[str, str] | None = None
+        if order_by:
+            first_sort = order_by[0]
+            sort_field = (
+                self._render_field(first_sort.field)
+                if isinstance(first_sort.field, ColumnRef)
+                else str(first_sort.field)
+            )
+            sort_dir = "asc" if first_sort.direction == SortDirection.ASC else "desc"
+
+            if sort_field in metric_aggs:
+                agg_order = {sort_field: sort_dir}
+            elif "count" in sort_field.lower() or sort_field in ("_count", "doc_count"):
+                agg_order = {"_count": sort_dir}
+            elif any(self._render_field(g) == sort_field for g in group_by) or sort_field in ("_key", "key"):
+                agg_order = {"_key": sort_dir}
+
         # Nested terms aggregation for grouping
         root_agg: dict[str, Any] = {}
         current_node = root_agg
@@ -137,7 +158,11 @@ class ElasticsearchDSLGenerator:
         for i, g in enumerate(group_by):
             g_field = self._render_field(g)
             agg_name = f"group_by_{g_field}"
-            terms_spec: dict[str, Any] = {"terms": {"field": g_field, "size": 100}}
+            terms_inner: dict[str, Any] = {"field": g_field, "size": 100}
+            if i == 0 and agg_order:
+                terms_inner["order"] = agg_order
+
+            terms_spec: dict[str, Any] = {"terms": terms_inner}
 
             if i == len(group_by) - 1:
                 # Innermost group holds metric aggregations
@@ -185,7 +210,9 @@ class ElasticsearchDSLGenerator:
         # 2. Aggregations
         has_aggregations = bool(plan.aggregations or plan.group_by)
         if has_aggregations:
-            query_body["aggs"] = self._render_aggregations(plan.group_by, plan.aggregations)
+            query_body["aggs"] = self._render_aggregations(
+                plan.group_by, plan.aggregations, order_by=plan.order_by
+            )
             # When aggregations are requested without specific projections, set size to 0
             if not plan.projections:
                 query_body["size"] = 0
@@ -202,9 +229,21 @@ class ElasticsearchDSLGenerator:
             if plan.offset is not None and plan.offset > 0:
                 query_body["from"] = plan.offset
 
-        # 5. Sort
-        if plan.order_by:
-            query_body["sort"] = [self._render_sort(s) for s in plan.order_by]
+        # 5. Sort - only apply top-level document sort if not a grouped aggregation query,
+        # and do not sort document hits on synthetic aggregation aliases.
+        if plan.order_by and not plan.group_by:
+            agg_aliases = {agg.alias for agg in plan.aggregations if agg.alias}
+            valid_doc_sorts = []
+            for s in plan.order_by:
+                s_name = (
+                    self._render_field(s.field)
+                    if isinstance(s.field, ColumnRef)
+                    else str(s.field)
+                )
+                if s_name not in agg_aliases and not s_name.endswith("_count") and s_name != "count":
+                    valid_doc_sorts.append(self._render_sort(s))
+            if valid_doc_sorts and query_body.get("size", 10) > 0:
+                query_body["sort"] = valid_doc_sorts
 
         return CompiledElasticsearchQuery(
             dialect=DialectType.ELASTICSEARCH,

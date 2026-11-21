@@ -224,7 +224,32 @@ def test_elasticsearch_dsl_aggregations() -> None:
     category_agg = body["aggs"]["group_by_category"]
     assert category_agg["terms"]["field"] == "category"
     assert category_agg["aggs"]["avg_price"] == {"avg": {"field": "price"}}
-    assert category_agg["aggs"]["total_products"] == {"value_count": {"field": "_id"}}
+    assert category_agg["aggs"]["total_products"] == {"value_count": {"field": "_index"}}
+
+
+def test_elasticsearch_dsl_aggregation_sorting() -> None:
+    plan = (
+        LogicalPlanBuilder(workspace_id="ws-test")
+        .from_source("conn-es-1", "access_logs", alias="al")
+        .group_by("al", "endpoint")
+        .aggregate(AggregateFunction.COUNT, "al", "endpoint", alias="access_logs_count")
+        .aggregate(AggregateFunction.AVG, "al", "response_time_ms", alias="avg_response_time")
+        .sort("access_logs_count", direction=SortDirection.DESC)
+        .build()
+    )
+
+    generator = ElasticsearchDSLGenerator()
+    compiled = generator.generate(plan)
+
+    body = compiled.query_body
+    assert "sort" not in body  # Must NOT place unmapped agg alias in top-level sort
+    assert "aggs" in body
+    assert "group_by_endpoint" in body["aggs"]
+    endpoint_agg = body["aggs"]["group_by_endpoint"]
+    assert endpoint_agg["terms"]["field"] == "endpoint"
+    assert endpoint_agg["terms"]["order"] == {"access_logs_count": "desc"}
+    assert endpoint_agg["aggs"]["access_logs_count"] == {"value_count": {"field": "endpoint"}}
+    assert endpoint_agg["aggs"]["avg_response_time"] == {"avg": {"field": "response_time_ms"}}
 
 
 def test_multidialect_compiler_cross_database() -> None:

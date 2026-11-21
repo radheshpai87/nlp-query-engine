@@ -322,9 +322,24 @@ class LogicalPlanSynthesizer:
                 builder.aggregate(AggregateFunction.COUNT, alias, pk_col, f"{t_name}_count")
                 for fld in obj.fields:
                     f_name = fld.name.lower()
-                    if f_name != group_col.lower() and f_name in ("salary", "amount", "total", "price", "revenue", "cost", "quantity"):
-                        builder.aggregate(AggregateFunction.AVG, alias, fld.name, f"avg_{fld.name}")
-                        break
+                    if f_name != group_col.lower():
+                        if any(term in lower_q for term in (f_name, f_name.replace("_ms", ""), f_name.replace("_", " "))):
+                            builder.aggregate(AggregateFunction.AVG, alias, fld.name, f"avg_{fld.name}")
+                            break
+                        elif f_name in (
+                            "salary",
+                            "amount",
+                            "total",
+                            "price",
+                            "revenue",
+                            "cost",
+                            "quantity",
+                            "response_time_ms",
+                            "duration",
+                            "latency",
+                        ):
+                            builder.aggregate(AggregateFunction.AVG, alias, fld.name, f"avg_{fld.name}")
+                            break
                 builder.sort(f"{t_name}_count", direction=SortDirection.DESC)
                 builder.limit(intent.ranking_limit or 20)
                 return builder.build()
