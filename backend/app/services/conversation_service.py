@@ -9,6 +9,7 @@ from app.nlp.plan_synthesizer import LogicalPlanSynthesizer
 from app.nlp.providers.base import BaseLLMProvider
 from app.nlp.providers.factory import get_llm_provider
 from app.nlp.result_explainer import ResultExplainer
+from app.nlp.schema_rag import SchemaRAGService
 from app.repositories.connection_repository import (
     ConnectionRepository,
     get_connection_repository,
@@ -62,6 +63,7 @@ class ConversationService:
         self.intent_extractor = IntentExtractor(provider=llm_provider)
         self.plan_synthesizer = LogicalPlanSynthesizer()
         self.result_explainer = ResultExplainer(provider=llm_provider)
+        self.rag_service = SchemaRAGService(provider=llm_provider)
 
     def create_conversation(
         self, workspace_id: str, user_id: str, title: str | None = None
@@ -335,19 +337,36 @@ class ConversationService:
             )
 
         try:
-            # 1. Intent Extraction
-            intent = self.intent_extractor.extract(query=query, snapshots=snapshots)
+            plan = None
+            if self.rag_service:
+                try:
+                    rag_res = self.rag_service.evaluate_and_plan(
+                        workspace_id=workspace_id,
+                        query=query,
+                        connections=connections,
+                        snapshots=snapshots,
+                        relationships=relationships,
+                        resolved_context=conv.resolved_context,
+                    )
+                    if rag_res.plan:
+                        plan = rag_res.plan
+                except Exception as ex:
+                    logger.warning("SchemaRAG plan evaluation failed, using rule fallback: %s", ex)
 
-            # 2. Plan Synthesis
-            plan = self.plan_synthesizer.synthesize(
-                workspace_id=workspace_id,
-                query=query,
-                intent=intent,
-                connections=connections,
-                snapshots=snapshots,
-                relationships=relationships,
-                resolved_context=conv.resolved_context,
-            )
+            if not plan:
+                # 1. Intent Extraction Fallback
+                intent = self.intent_extractor.extract(query=query, snapshots=snapshots)
+
+                # 2. Plan Synthesis Fallback
+                plan = self.plan_synthesizer.synthesize(
+                    workspace_id=workspace_id,
+                    query=query,
+                    intent=intent,
+                    connections=connections,
+                    snapshots=snapshots,
+                    relationships=relationships,
+                    resolved_context=conv.resolved_context,
+                )
 
             # 3. Execution
             exec_result = self.execution_service.execute_plan(

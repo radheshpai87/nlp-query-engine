@@ -17,6 +17,10 @@ from app.repositories.schema_repository import (
     SchemaRepository,
     get_schema_repository,
 )
+from app.nlp.providers.base import BaseLLMProvider
+from app.nlp.providers.factory import get_llm_provider
+from app.nlp.providers.mock_provider import MockLLMProvider
+from app.nlp.schema_rag import SchemaRAGService
 from app.services.audit_service import AuditService, get_audit_service
 
 
@@ -26,11 +30,18 @@ class AmbiguityService:
         connection_repo: ConnectionRepository,
         schema_repo: SchemaRepository,
         audit_service: AuditService,
+        llm_provider: BaseLLMProvider | None = None,
     ) -> None:
         self.connection_repo = connection_repo
         self.schema_repo = schema_repo
         self.audit_service = audit_service
+        self.llm_provider = llm_provider
         self.engine = AmbiguityEngine()
+        self.rag = (
+            SchemaRAGService(provider=llm_provider)
+            if llm_provider and not isinstance(llm_provider, MockLLMProvider)
+            else None
+        )
 
     def evaluate_query(
         self,
@@ -39,11 +50,50 @@ class AmbiguityService:
         resolved_context: dict[str, Any] | None = None,
         user_id: str | None = None,
     ) -> AmbiguityEvaluationResult:
-        """Evaluate query against schemas and determine if clarification questions are needed."""
+        """Evaluate query against schemas using Schema-RAG and fall back to engine."""
         connections = {c.id: c for c in self.connection_repo.get_by_workspace(workspace_id)}
         snapshots = {
             s.connection_id: s for s in self.schema_repo.get_all_latest_for_workspace(workspace_id)
         }
+
+        # Try dynamic Schema-RAG first if LLM provider is available
+        if self.rag:
+            try:
+                rag_res = self.rag.evaluate_and_plan(
+                    workspace_id=workspace_id,
+                    query=query,
+                    connections=connections,
+                    snapshots=snapshots,
+                    resolved_context=resolved_context,
+                )
+                if rag_res.direct_response:
+                    return AmbiguityEvaluationResult(
+                        is_ambiguous=False,
+                        confidence=1.0,
+                        clarifications=[],
+                        inferred_intent={"raw_query": query, "category": rag_res.intent},
+                        suggested_action="conversational_response",
+                        conversational_response=rag_res.direct_response,
+                        is_metadata_query=(rag_res.intent == "metadata"),
+                        is_guardrail_blocked=(rag_res.intent == "guardrail_blocked"),
+                    )
+                if rag_res.intent == "ambiguous" and rag_res.clarification:
+                    return AmbiguityEvaluationResult(
+                        is_ambiguous=True,
+                        confidence=0.5,
+                        clarifications=[rag_res.clarification],
+                        suggested_action="request_clarification",
+                    )
+                if rag_res.intent == "data_query":
+                    return AmbiguityEvaluationResult(
+                        is_ambiguous=False,
+                        confidence=1.0,
+                        clarifications=[],
+                        inferred_intent={"raw_query": query, "category": "data_query"},
+                        suggested_action="proceed_to_plan",
+                    )
+            except Exception:
+                pass
 
         result = self.engine.evaluate_query(
             query=query,
@@ -112,9 +162,11 @@ def get_ambiguity_service(
     connection_repo: ConnectionRepository = Depends(get_connection_repository),
     schema_repo: SchemaRepository = Depends(get_schema_repository),
     audit_service: AuditService = Depends(get_audit_service),
+    llm_provider: BaseLLMProvider = Depends(get_llm_provider),
 ) -> AmbiguityService:
     return AmbiguityService(
         connection_repo=connection_repo,
         schema_repo=schema_repo,
         audit_service=audit_service,
+        llm_provider=llm_provider,
     )
