@@ -33,6 +33,14 @@ from app.services.audit_service import AuditService, get_audit_service
 logger = setup_logging()
 
 
+def _workspace_matches(w1: str, w2: str) -> bool:
+    if w1 == w2:
+        return True
+    if {w1, w2}.issubset({"ws-default", "ws_default", "default"}):
+        return True
+    return w1.replace("-", "_") == w2.replace("-", "_")
+
+
 class SchemaService:
     def __init__(
         self,
@@ -55,7 +63,7 @@ class SchemaService:
         """Introspect target database and persist new snapshot if schema has changed."""
         normalized_ws_id = "ws_default" if workspace_id in ("ws-default", "ws_default") else workspace_id
         connection = self.connection_repo.get_by_id(connection_id)
-        if not connection or (connection.workspace_id != workspace_id and connection.workspace_id != normalized_ws_id):
+        if not connection or not _workspace_matches(connection.workspace_id, workspace_id):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Database connection not found in this workspace",

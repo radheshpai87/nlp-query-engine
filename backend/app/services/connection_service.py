@@ -113,6 +113,24 @@ class ConnectionService:
 
         # Automatically test connectivity in background
         self.test_connection(workspace_id, created.id)
+
+        # Automatically trigger initial schema introspection
+        try:
+            from app.repositories.relationship_repository import RelationshipRepository
+            from app.repositories.schema_repository import SchemaRepository
+            from app.services.schema_service import SchemaService
+
+            schema_svc = SchemaService(
+                schema_repo=SchemaRepository(self.connection_repo.collection.database),
+                connection_repo=self.connection_repo,
+                relationship_repo=RelationshipRepository(self.connection_repo.collection.database),
+                audit_service=self.audit_service,
+            )
+            schema_svc.refresh_schema(workspace_id, created.id, user_id=user_id)
+        except Exception as e:
+            # Non-blocking for connection creation if database is still warming up
+            pass
+
         refreshed = self.connection_repo.get_by_id(created.id)
         return self._to_response(refreshed or created)
 

@@ -139,6 +139,13 @@ export function ConnectDatabaseDialog({
       }
 
       const created = await res.json();
+      try {
+        await authFetch(`${API_BASE}/workspaces/${workspaceId}/schemas/${created.id}/refresh`, {
+          method: "POST",
+        });
+      } catch (err) {
+        console.warn("Auto schema refresh on creation:", err);
+      }
       if (onConnectionCreated) {
         onConnectionCreated(created);
       }
