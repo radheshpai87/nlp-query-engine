@@ -97,6 +97,26 @@ class QueryPlanService:
         relationships = self.relationship_repo.get_by_workspace(workspace_id)
 
         effective_provider = llm_provider or get_llm_provider(settings=get_settings())
+
+        from app.nlp.providers.mock_provider import MockLLMProvider
+        from app.nlp.schema_rag import SchemaRAGService
+
+        if effective_provider and not isinstance(effective_provider, MockLLMProvider):
+            try:
+                rag = SchemaRAGService(provider=effective_provider)
+                rag_res = rag.evaluate_and_plan(
+                    workspace_id=workspace_id,
+                    query=query,
+                    connections=connections_map,
+                    snapshots=snapshots_map,
+                    relationships=relationships,
+                    resolved_context=resolved_context,
+                )
+                if rag_res.plan is not None:
+                    return rag_res.plan
+            except Exception as e:
+                logger.warning("SchemaRAG synthesis error, falling back to rule-based: %s", e)
+
         extractor = IntentExtractor(provider=effective_provider)
         intent = extractor.extract(
             query=query, snapshots=snapshots_map, connections=connections_map

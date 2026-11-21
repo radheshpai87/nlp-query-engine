@@ -108,6 +108,7 @@ class SchemaRAGService:
             "   - 'filters': list of {'table_alias': 'alias', 'column': 'col_name', 'operator': 'eq|gt|gte|lt|lte|ilike|in', 'value': val}\n"
             "   - 'group_by': list of {'table_alias': 'alias', 'column': 'col_name'}\n"
             "   - 'aggregations': list of {'function': 'count|sum|avg|min|max', 'table_alias': 'alias', 'column': 'col_name', 'alias': 'metric_alias'}\n"
+            "   - 'having': list of {'table_alias': 'alias', 'column': 'col_or_alias', 'operator': 'eq|gt|gte|lt|lte', 'value': val} (for aggregate conditions like count > X or avg < Y)\n"
             "   - 'order_by': list of {'field': 'col_or_alias', 'direction': 'asc|desc'}\n"
             "   - 'limit': integer (default 20)\n"
             "   - ONLY use tables and columns that exist in the Schema Context!\n\n"
@@ -127,6 +128,7 @@ class SchemaRAGService:
             '    "filters": [...],\n'
             '    "group_by": [...],\n'
             '    "aggregations": [...],\n'
+            '    "having": [...],\n'
             '    "order_by": [...],\n'
             '    "limit": 20\n'
             '  } or null,\n'
@@ -337,6 +339,28 @@ class SchemaRAGService:
                 column=col,
                 alias=agg.get("alias"),
             )
+
+        # Ground Having
+        for h in plan_data.get("having", []):
+            t_alias = h.get("table_alias") or primary_alias
+            col = h.get("column")
+            if not col:
+                continue
+            if "." in col:
+                t_alias, col = col.split(".", 1)
+            raw_op = str(h.get("operator", "gt")).lower()
+            op = ComparisonOperator.GT
+            if raw_op in ("gt", ">"):
+                op = ComparisonOperator.GT
+            elif raw_op in ("gte", ">="):
+                op = ComparisonOperator.GTE
+            elif raw_op in ("lt", "<"):
+                op = ComparisonOperator.LT
+            elif raw_op in ("lte", "<="):
+                op = ComparisonOperator.LTE
+            elif raw_op in ("eq", "="):
+                op = ComparisonOperator.EQ
+            builder.having(table=t_alias, column=col, operator=op, value=h.get("value"))
 
         # Ground Order By
         for o in plan_data.get("order_by", []):

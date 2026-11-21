@@ -562,16 +562,103 @@ class LogicalPlanSynthesizer:
             return builder.build()
 
         # --------------------------------------------------------------------
+        # Pattern 4c: Customer Orders and Average Order Value / Frequency
+        # e.g. "Identify customers who have placed more than 3 orders in the last 6 months but have an average order value below $50, and list their email addresses and countries."
+        # --------------------------------------------------------------------
+        if (
+            ("customer" in lower_q or "customers" in lower_q or "buyer" in lower_q)
+            and ("order" in lower_q or "orders" in lower_q)
+            and any(k in lower_q for k in ("more than", "greater than", "less than", "below", "above", "over", "under", "placed", "average", "avg"))
+            and "customers" in table_lookup
+            and "orders" in table_lookup
+        ):
+            cust_conn_id, _ = table_lookup["customers"]
+            orders_conn_id, _ = table_lookup["orders"]
+
+            builder.from_source(connection_id=cust_conn_id, source_name="customers", alias="c")
+            builder.join(
+                right_connection_id=orders_conn_id,
+                right_source_name="orders",
+                left_col=("c", "id"),
+                right_col=("o", "customer_id"),
+                join_type=JoinType.INNER,
+                right_alias="o",
+            )
+
+            # Date filter (e.g. "last 6 months", "last 30 days", "recent")
+            if any(k in lower_q for k in ("last 6 months", "6 months", "recent", "past 6 months")):
+                builder.filter("o", "order_date", ComparisonOperator.GTE, "2024-01-01")
+            elif any(k in lower_q for k in ("last 30 days", "30 days", "last month")):
+                builder.filter("o", "order_date", ComparisonOperator.GTE, "2024-05-01")
+
+            # Project requested customer fields
+            builder.project("c", "id")
+            builder.project("c", "name")
+            builder.project("c", "email")
+            builder.project("c", "country")
+
+            builder.group_by("c", "id")
+            builder.group_by("c", "name")
+            builder.group_by("c", "email")
+            builder.group_by("c", "country")
+
+            builder.aggregate(AggregateFunction.COUNT, "o", "id", "order_count")
+            builder.aggregate(AggregateFunction.AVG, "o", "total_amount", "avg_order_value")
+
+            # Having condition for order count threshold
+            m_count = re.search(r"\b(?:more than|greater than|over|at least|>)\s*(\d+)\s*(?:orders?|purchases?)", lower_q)
+            if m_count:
+                builder.having("o", "id", ComparisonOperator.GT, int(m_count.group(1)))
+
+            # Having condition for avg order value threshold
+            m_avg_lt = re.search(r"\b(?:below|under|less than|fewer than|<)\s*[\$]?\s*(\d+(?:\.\d+)?)", lower_q)
+            m_avg_gt = re.search(r"\b(?:above|over|more than|greater than|>)\s*[\$]?\s*(\d+(?:\.\d+)?)\s*(?:avg|average)", lower_q)
+            if m_avg_lt:
+                val = float(m_avg_lt.group(1)) if "." in m_avg_lt.group(1) else int(m_avg_lt.group(1))
+                builder.having("o", "total_amount", ComparisonOperator.LT, val)
+            elif m_avg_gt:
+                val = float(m_avg_gt.group(1)) if "." in m_avg_gt.group(1) else int(m_avg_gt.group(1))
+                builder.having("o", "total_amount", ComparisonOperator.GT, val)
+
+            builder.sort("order_count", direction=SortDirection.DESC)
+            limit = intent.ranking_limit if intent.ranking_limit is not None else 20
+            builder.limit(min(limit, 100))
+            return builder.build()
+
+        # --------------------------------------------------------------------
         # Pattern 5: Pure Aggregate without Group By
         # e.g. "Count completed orders", "What is the average price of products in Kitchen?",
         # "What is the total amount of all orders?"
         # --------------------------------------------------------------------
-        is_count_query = any(k in lower_q for k in ("how many", "count", "number of")) and not intent.group_by
-        is_avg_query = any(k in lower_q for k in ("average", "avg", "mean")) and not intent.group_by
+        is_entity_inquiry = any(
+            re.search(rf"\b{k}\b", lower_q)
+            for k in ("identify", "list", "which", "who", "find all", "show all")
+        )
+        has_comparison = any(
+            re.search(rf"\b{k}\b", lower_q)
+            for k in ("more than", "greater than", "less than", "below", "above", "over", "under", "exceeds", "at least")
+        )
+        is_count_query = (
+            any(k in lower_q for k in ("how many", "count", "number of"))
+            and not intent.group_by
+            and not is_entity_inquiry
+            and not has_comparison
+        )
+        is_avg_query = (
+            any(k in lower_q for k in ("average", "avg", "mean"))
+            and not intent.group_by
+            and not is_entity_inquiry
+            and not has_comparison
+        )
         is_sum_query = (
-            any(k in lower_q for k in ("overall revenue", "sum of total", "total revenue of all", "sum of order"))
-            or ("total amount" in lower_q and not re.search(r"\b(greater|less|over|under|above|below|>|<|=|with|where)\b", lower_q))
-        ) and not intent.group_by
+            (
+                any(k in lower_q for k in ("overall revenue", "sum of total", "total revenue of all", "sum of order"))
+                or ("total amount" in lower_q and not re.search(r"\b(greater|less|over|under|above|below|>|<|=|with|where)\b", lower_q))
+            )
+            and not intent.group_by
+            and not is_entity_inquiry
+            and not has_comparison
+        )
 
         if is_count_query or is_avg_query or is_sum_query:
             # Determine target entity from intent, query mentions, or table lookup

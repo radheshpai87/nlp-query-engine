@@ -43,12 +43,12 @@ class PostgresSQLGenerator:
         prefix = f'"{col.table}".' if col.table else ""
         return f'{prefix}"{col.column}"'
 
-    def _render_aggregate(self, agg: AggregateExpression) -> str:
+    def _render_aggregate_call(self, agg: AggregateExpression) -> str:
         if agg.function == AggregateFunction.COUNT and agg.field is None:
             inner = "*"
         elif agg.function == AggregateFunction.DISTINCT_COUNT:
             inner = f"DISTINCT {self._render_column(agg.field)}" if agg.field else "*"
-            return f'COUNT({inner}) AS "{agg.alias}"'
+            return f"COUNT({inner})"
         elif agg.multiplier and agg.field:
             inner = (
                 f"{self._render_column(agg.field)} * "
@@ -58,12 +58,31 @@ class PostgresSQLGenerator:
             inner = self._render_column(agg.field) if agg.field else "*"
 
         func_name = agg.function.value.upper()
-        return f'{func_name}({inner}) AS "{agg.alias}"'
+        return f"{func_name}({inner})"
+
+    def _render_aggregate(self, agg: AggregateExpression) -> str:
+        return f'{self._render_aggregate_call(agg)} AS "{agg.alias}"'
+
+    def _render_having_predicate(
+        self, predicate: FilterPredicate, plan: LogicalQueryPlan, parameterized: bool = True
+    ) -> str:
+        matched_agg = next(
+            (a for a in plan.aggregations if a.alias and a.alias.lower() == predicate.field.column.lower()),
+            None,
+        )
+        if matched_agg:
+            col_str = self._render_aggregate_call(matched_agg)
+        else:
+            col_str = self._render_column(predicate.field)
+        return self._render_predicate_comparison(col_str, predicate.operator, predicate.value, parameterized=parameterized)
 
     def _render_predicate(self, predicate: FilterPredicate, parameterized: bool = True) -> str:
         col_str = self._render_column(predicate.field)
-        op = predicate.operator
-        val = predicate.value
+        return self._render_predicate_comparison(col_str, predicate.operator, predicate.value, parameterized=parameterized)
+
+    def _render_predicate_comparison(
+        self, col_str: str, op: ComparisonOperator, val: Any, parameterized: bool = True
+    ) -> str:
 
         if op == ComparisonOperator.IS_NULL:
             return f"{col_str} IS NULL"
@@ -243,7 +262,7 @@ class PostgresSQLGenerator:
             having_clause = ""
             if plan.having:
                 having_clause = "HAVING " + " AND ".join(
-                    self._render_predicate(h, parameterized=parameterized) for h in plan.having
+                    self._render_having_predicate(h, plan, parameterized=parameterized) for h in plan.having
                 )
 
             # 7. ORDER BY clause
