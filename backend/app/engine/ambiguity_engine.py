@@ -60,27 +60,64 @@ class AmbiguityEngine:
         self,
         snapshots: dict[str, SchemaSnapshot],
         connections: dict[str, DatabaseConnection] | None = None,
+        target_connection_id: str | None = None,
     ) -> str:
         if not snapshots:
             return "No active tables or collections found. Please ensure your databases are connected and introspected."
 
         conns = connections or {}
-        lines = ["Here are the active tables and collections across your connected databases:\n"]
+
+        # If a specific target connection/database was requested
+        if target_connection_id and target_connection_id in snapshots:
+            snap = snapshots[target_connection_id]
+            conn = conns.get(target_connection_id)
+            conn_display = conn.name if conn else target_connection_id
+            db_type = (
+                conn.db_type.value.capitalize()
+                if (conn and hasattr(conn.db_type, "value"))
+                else "Database"
+            )
+            tbl_count = len(snap.objects)
+            lines = [
+                f"📊 **Database: `{conn_display}`** ({db_type})\n",
+                f"There are **{tbl_count} tables** present in the `{conn_display}` database:\n",
+            ]
+            for i, obj in enumerate(snap.objects, 1):
+                row_str = f" (~{obj.row_count_estimate:,} rows)" if obj.row_count_estimate is not None else ""
+                col_names = [f"`{f.name}`" for f in obj.fields[:5]]
+                cols_str = ", ".join(col_names)
+                if len(obj.fields) > 5:
+                    cols_str += f", +{len(obj.fields) - 5} more"
+                lines.append(f"{i}. `{obj.name}`{row_str} — fields: {cols_str}")
+
+            lines.append(f"\n💡 *You can query any table in `{conn_display}` or join them with other connected sources!*")
+            return "\n".join(lines)
+
+        # Cluster-wide tables across all databases
+        total_tables = sum(len(snap.objects) for snap in snapshots.values())
+        lines = [
+            f"Here are the **{total_tables} active tables and collections** across your connected databases:\n"
+        ]
 
         for conn_id, snap in snapshots.items():
             conn = conns.get(conn_id)
             conn_display = conn.name if conn else conn_id
-            db_type = conn.db_type.value.capitalize() if conn else "Database"
-            lines.append(f"• **{db_type} (`{conn_display}`)**:")
+            db_type = (
+                conn.db_type.value.capitalize()
+                if (conn and hasattr(conn.db_type, "value"))
+                else "Database"
+            )
+            lines.append(f"• **{db_type} (`{conn_display}`)** — {len(snap.objects)} table(s):")
             if not snap.objects:
                 lines.append("  - *(No tables discovered)*")
             else:
                 for obj in snap.objects:
+                    row_str = f" (~{obj.row_count_estimate:,} rows)" if obj.row_count_estimate is not None else ""
                     col_names = [f"`{f.name}`" for f in obj.fields[:7]]
                     cols_str = ", ".join(col_names)
                     if len(obj.fields) > 7:
                         cols_str += f", +{len(obj.fields) - 7} more"
-                    lines.append(f"  - `{obj.name}` ({cols_str})")
+                    lines.append(f"  - `{obj.name}`{row_str} ({cols_str})")
             lines.append("")
 
         lines.append("💡 *You can query any table or ask for cross-database comparisons!*")
@@ -191,13 +228,32 @@ class AmbiguityEngine:
             )
 
         # Asking about tables / collections / schema
-        if (
+        is_table_schema_query = bool(
             re.search(
-                r"\b(what\s+tables?|show\s+tables?|list\s+tables?|which\s+tables?|available\s+tables?|what\s+collections?|show\s+collections?|list\s+collections?|show\s+schema|what\s+schema|available\s+entities|what\s+can\s+i\s+query|tables?\s+(exsist|exist|in|present)|what\s+tables?\s+(exsist|exist))\b",
+                r"\b("
+                r"(?:how\s+many|count\s+of|number\s+of|total)\s+(?:tables?|collections?|entities?)|"
+                r"(?:what|which|show|list|tell\s+me|display|give\s+me)\s+(?:the\s+|all\s+)?(?:tables?|collections?|entities?|schema)|"
+                r"tables?\s+(?:are\s+)?(?:present|in|exist|available)|"
+                r"collections?\s+(?:are\s+)?(?:present|in|exist|available)|"
+                r"schema\s+(?:of|for|in)|"
+                r"available\s+(?:tables?|collections?|entities?|schema)"
+                r")\b",
                 lower_query,
             )
-            or lower_query in ("tables", "tables?", "collections", "schema", "schemas")
-        ):
+            or lower_query in ("tables", "tables?", "collections", "collections?", "schema", "schemas")
+        )
+
+        if is_table_schema_query:
+            target_conn_id = context.get("target_database") or context.get("target_connection")
+            if not target_conn_id:
+                for cid, conn in connections.items():
+                    if (
+                        conn.name.lower() in lower_query
+                        or (conn.database and conn.database.lower() in lower_query)
+                    ):
+                        target_conn_id = cid
+                        break
+
             return AmbiguityEvaluationResult(
                 is_ambiguous=False,
                 confidence=1.0,
@@ -205,7 +261,9 @@ class AmbiguityEngine:
                 inferred_intent={"raw_query": clean_query, "category": "metadata_tables"},
                 suggested_action="conversational_response",
                 is_metadata_query=True,
-                conversational_response=self._format_tables_response(snapshots, connections),
+                conversational_response=self._format_tables_response(
+                    snapshots, connections, target_connection_id=target_conn_id
+                ),
             )
 
         # Database specific stats or data volume inquiries

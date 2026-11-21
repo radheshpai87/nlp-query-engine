@@ -605,7 +605,12 @@ class LogicalPlanSynthesizer:
                         break
 
             if not cand:
-                cand = "products" if "products" in table_lookup else next(iter(table_lookup.keys()), "products")
+                # If the query is asking about schema concepts (tables, collections, databases),
+                # do not fabricate an arbitrary aggregation on a random table.
+                if any(w in lower_q for w in ("table", "tables", "collection", "collections", "database", "databases", "schema", "entity", "entities")):
+                    cand = None
+                else:
+                    cand = "products" if "products" in table_lookup else next(iter(table_lookup.keys()), "products")
 
             if cand in table_lookup:
                 conn_id, s_obj = table_lookup[cand]
