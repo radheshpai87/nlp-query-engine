@@ -53,6 +53,7 @@ import { ResultChart } from "@/components/chat/result-chart";
 import { ProvenanceInspector } from "@/components/chat/provenance-inspector";
 import { QueryDialectPreview } from "@/components/chat/query-dialect-preview";
 import { MarkdownContent } from "@/components/chat/markdown-content";
+import { QueryFeedbackBar } from "@/components/chat/query-feedback-bar";
 
 export interface ChatMessage {
   id: string;
@@ -801,6 +802,24 @@ function ChatPageContent() {
                         resolvedContext={message.resolvedContext}
                       />
                     </div>
+                  )}
+
+                  {message.role === "assistant" && message.status !== "evaluating" && (
+                    <QueryFeedbackBar
+                      workspaceId={currentWorkspace.id}
+                      queryText={message.userQuery || (message.plan?.query_text as string) || message.content}
+                      conversationId={currentChatId}
+                      messageId={message.id}
+                      generatedQuery={
+                        (message.compilation?.single_query && "sql" in message.compilation.single_query
+                          ? (message.compilation.single_query as { sql: string }).sql
+                          : undefined) ||
+                        (message.plan?.generated_query as string) ||
+                        message.compilation?.summary
+                      }
+                      generatedPlan={message.plan}
+                      targetDatabases={message.plan?.target_databases as string[]}
+                    />
                   )}
 
                   <div className="text-[10px] text-muted-foreground flex justify-end">

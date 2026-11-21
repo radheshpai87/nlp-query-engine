@@ -13,6 +13,10 @@ from app.repositories.connection_repository import (
     ConnectionRepository,
     get_connection_repository,
 )
+from app.repositories.feedback_repository import (
+    FeedbackRepository,
+    get_feedback_repository,
+)
 from app.repositories.schema_repository import (
     SchemaRepository,
     get_schema_repository,
@@ -31,11 +35,13 @@ class AmbiguityService:
         schema_repo: SchemaRepository,
         audit_service: AuditService,
         llm_provider: BaseLLMProvider | None = None,
+        feedback_repo: FeedbackRepository | None = None,
     ) -> None:
         self.connection_repo = connection_repo
         self.schema_repo = schema_repo
         self.audit_service = audit_service
         self.llm_provider = llm_provider
+        self.feedback_repo = feedback_repo
         self.engine = AmbiguityEngine()
         self.rag = (
             SchemaRAGService(provider=llm_provider)
@@ -59,12 +65,18 @@ class AmbiguityService:
         # Try dynamic Schema-RAG first if LLM provider is available
         if self.rag:
             try:
+                learning_examples = (
+                    self.feedback_repo.get_learning_examples(workspace_id)
+                    if self.feedback_repo
+                    else None
+                )
                 rag_res = self.rag.evaluate_and_plan(
                     workspace_id=workspace_id,
                     query=query,
                     connections=connections,
                     snapshots=snapshots,
                     resolved_context=resolved_context,
+                    learning_examples=learning_examples,
                 )
                 if rag_res.direct_response:
                     return AmbiguityEvaluationResult(
@@ -163,10 +175,12 @@ def get_ambiguity_service(
     schema_repo: SchemaRepository = Depends(get_schema_repository),
     audit_service: AuditService = Depends(get_audit_service),
     llm_provider: BaseLLMProvider = Depends(get_llm_provider),
+    feedback_repo: FeedbackRepository = Depends(get_feedback_repository),
 ) -> AmbiguityService:
     return AmbiguityService(
         connection_repo=connection_repo,
         schema_repo=schema_repo,
         audit_service=audit_service,
         llm_provider=llm_provider,
+        feedback_repo=feedback_repo,
     )

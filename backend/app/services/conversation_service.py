@@ -18,6 +18,10 @@ from app.repositories.conversation_repository import (
     ConversationRepository,
     get_conversation_repository,
 )
+from app.repositories.feedback_repository import (
+    FeedbackRepository,
+    get_feedback_repository,
+)
 from app.repositories.relationship_repository import (
     RelationshipRepository,
     get_relationship_repository,
@@ -50,6 +54,7 @@ class ConversationService:
         execution_service: ExecutionService,
         audit_service: AuditService,
         llm_provider: BaseLLMProvider,
+        feedback_repo: FeedbackRepository | None = None,
     ) -> None:
         self.conversation_repo = conversation_repo
         self.connection_repo = connection_repo
@@ -59,6 +64,7 @@ class ConversationService:
         self.execution_service = execution_service
         self.audit_service = audit_service
         self.llm_provider = llm_provider
+        self.feedback_repo = feedback_repo
 
         self.intent_extractor = IntentExtractor(provider=llm_provider)
         self.plan_synthesizer = LogicalPlanSynthesizer()
@@ -350,6 +356,11 @@ class ConversationService:
             plan = None
             if self.rag_service:
                 try:
+                    learning_examples = (
+                        self.feedback_repo.get_learning_examples(workspace_id)
+                        if self.feedback_repo
+                        else None
+                    )
                     rag_res = self.rag_service.evaluate_and_plan(
                         workspace_id=workspace_id,
                         query=query,
@@ -357,6 +368,7 @@ class ConversationService:
                         snapshots=snapshots,
                         relationships=relationships,
                         resolved_context=conv.resolved_context,
+                        learning_examples=learning_examples,
                     )
                     if rag_res.plan:
                         plan = rag_res.plan
@@ -437,6 +449,7 @@ def get_conversation_service(
     execution_service: ExecutionService = Depends(get_execution_service),
     audit_service: AuditService = Depends(get_audit_service),
     llm_provider: BaseLLMProvider = Depends(get_llm_provider),
+    feedback_repo: FeedbackRepository = Depends(get_feedback_repository),
 ) -> ConversationService:
     return ConversationService(
         conversation_repo=conversation_repo,
@@ -447,4 +460,5 @@ def get_conversation_service(
         execution_service=execution_service,
         audit_service=audit_service,
         llm_provider=llm_provider,
+        feedback_repo=feedback_repo,
     )

@@ -18,6 +18,7 @@ from app.models.ambiguity import (
     PendingClarification,
 )
 from app.models.connection import DatabaseConnection
+from app.models.feedback import QueryFeedback
 from app.models.schema import SchemaSnapshot, UserDefinedRelationship
 from app.nlp.providers.base import BaseLLMProvider, LLMMessage
 from app.nlp.schema_context import format_schema_context_for_llm
@@ -56,6 +57,7 @@ class SchemaRAGService:
         snapshots: dict[str, SchemaSnapshot],
         relationships: list[UserDefinedRelationship] | None = None,
         resolved_context: dict[str, Any] | None = None,
+        learning_examples: list[QueryFeedback] | None = None,
     ) -> SchemaRAGResult:
         """Run full Schema-RAG turn: retrieve schema, classify intent, and synthesize answer or plan."""
         clean_query = query.strip()
@@ -83,6 +85,26 @@ class SchemaRAGService:
             connections=connections,
             relationships=relationships,
         )
+
+        learning_context = ""
+        if learning_examples:
+            learning_lines = []
+            for ex in learning_examples[:10]:
+                if ex.is_correct and ex.generated_query:
+                    learning_lines.append(
+                        f'- Query: "{ex.query_text}" -> VERIFIED RIGHT: {ex.generated_query}'
+                    )
+                elif not ex.is_correct:
+                    correction = ex.user_notes or ex.corrected_query or ex.category or "Incorrect logic"
+                    learning_lines.append(
+                        f'- Query: "{ex.query_text}" -> FLAGGED NOT RIGHT: {correction}. Do not repeat this mistake.'
+                    )
+            if learning_lines:
+                learning_context = (
+                    "\nUser Feedback & Learned Corrections from Past Queries (Few-Shot Continuous Learning):\n"
+                    + "\n".join(learning_lines)
+                    + "\n\n"
+                )
 
         # 3. LLM Reasoning Prompt (The 'Augmentation & Generation' Step in RAG)
         system_prompt = (
@@ -112,6 +134,7 @@ class SchemaRAGService:
             "   - 'order_by': list of {'field': 'col_or_alias', 'direction': 'asc|desc'}\n"
             "   - 'limit': integer (default 20)\n"
             "   - ONLY use tables and columns that exist in the Schema Context!\n\n"
+            f"{learning_context}"
             f"Schema Context:\n{schema_context}\n\n"
             "Return strictly valid JSON only matching this schema:\n"
             "{\n"

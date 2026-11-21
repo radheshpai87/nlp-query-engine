@@ -12,6 +12,7 @@ from app.api.routes import (
     connections,
     conversations,
     execution,
+    feedback,
     health,
     nlp,
     query_plan,
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(query_plan.router, prefix="/api/v1")
     app.include_router(execution.router, prefix="/api/v1")
     app.include_router(conversations.router, prefix="/api/v1")
+    app.include_router(feedback.router, prefix="/api/v1")
     app.include_router(nlp.router, prefix="/api/v1")
     app.include_router(audit.router, prefix="/api/v1")
 
