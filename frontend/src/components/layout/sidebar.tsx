@@ -62,12 +62,12 @@ function SidebarContent() {
   const accountMenuRef = React.useRef<HTMLDivElement>(null);
 
   const handleNewChatClick = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("new-chat-requested"));
     }
-    if (pathname === "/chat" && currentChatId) {
-      router.replace("/chat");
-    }
+    router.replace("/chat");
   };
 
   // Close account menu when clicking outside
@@ -222,30 +222,29 @@ function SidebarContent() {
           {sidebarCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href="/chat" onClick={handleNewChatClick} aria-label="New chat">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 border-border bg-card/60 text-foreground hover:bg-muted"
-                  >
-                    <SquarePen className="h-4 w-4" />
-                  </Button>
-                </Link>
+                <Button
+                  onClick={handleNewChatClick}
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9 border-border bg-card/60 text-foreground hover:bg-muted"
+                  aria-label="New chat"
+                >
+                  <SquarePen className="h-4 w-4" />
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="right">New chat</TooltipContent>
             </Tooltip>
           ) : (
-            <Link href="/chat" onClick={handleNewChatClick} className="block">
-              <Button
-                variant="outline"
-                className="h-9 w-full justify-between border-border/80 bg-card/40 text-[13px] font-medium text-foreground hover:bg-muted/80 shadow-xs"
-              >
-                <div className="flex items-center gap-2">
-                  <SquarePen className="h-4 w-4 text-foreground/80" />
-                  <span>New chat</span>
-                </div>
-              </Button>
-            </Link>
+            <Button
+              onClick={handleNewChatClick}
+              variant="outline"
+              className="h-9 w-full justify-between border-border/80 bg-card/40 text-[13px] font-medium text-foreground hover:bg-muted/80 shadow-xs"
+            >
+              <div className="flex items-center gap-2">
+                <SquarePen className="h-4 w-4 text-foreground/80" />
+                <span>New chat</span>
+              </div>
+            </Button>
           )}
 
           {/* Search Chats Input (ChatGPT style) */}

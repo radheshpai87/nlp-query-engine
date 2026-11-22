@@ -79,7 +79,12 @@ class SchemaRAGService:
                 explanation="Blocked modifying command",
             )
 
-        # 2. Build Schema Context (The 'Retrieval' Step in RAG)
+        # 2. Fast Accurate Metadata & Schema Inspection Resolver
+        metadata_result = self._check_metadata_query(clean_query, connections, snapshots)
+        if metadata_result:
+            return metadata_result
+
+        # 3. Build Schema Context (The 'Retrieval' Step in RAG)
         schema_context = format_schema_context_for_llm(
             snapshots=snapshots,
             connections=connections,
@@ -128,6 +133,7 @@ class SchemaRAGService:
             "   - 'joins': list of joins with {'right_table': 'table_name', 'right_alias': 'alias', 'join_type': 'inner|left', 'left_col': ['alias', 'col'], 'right_col': ['alias', 'col']}\n"
             "   - 'projections': list of {'table_alias': 'alias', 'column': 'col_name', 'alias': 'optional_alias'}\n"
             "   - 'filters': list of {'table_alias': 'alias', 'column': 'col_name', 'operator': 'eq|gt|gte|lt|lte|ilike|in', 'value': val}\n"
+            "   - Date filter values: For Elasticsearch or MongoDB use relative date math or ISO strings ('now-30d', 'now-6M', '2024-01-01T00:00:00Z'). For PostgreSQL use SQL interval or ISO strings ('CURRENT_DATE - INTERVAL \\'30 days\\'', '2024-01-01').\n"
             "   - 'group_by': list of {'table_alias': 'alias', 'column': 'col_name'}\n"
             "   - 'aggregations': list of {'function': 'count|sum|avg|min|max', 'table_alias': 'alias', 'column': 'col_name', 'alias': 'metric_alias'}\n"
             "   - 'having': list of {'table_alias': 'alias', 'column': 'col_or_alias', 'operator': 'eq|gt|gte|lt|lte', 'value': val} (for aggregate conditions like count > X or avg < Y)\n"
@@ -165,12 +171,24 @@ class SchemaRAGService:
         ]
 
         try:
-            llm_res = self.provider.generate(messages, temperature=0.0)
+            llm_res = self.provider.generate(messages, temperature=0.0, max_tokens=3500)
             text = llm_res.content.strip()
             if text.startswith("```"):
                 text = re.sub(r"^```(?:json)?\s*", "", text)
                 text = re.sub(r"\s*```$", "", text)
-            parsed = json.loads(text)
+            try:
+                parsed = json.loads(text, strict=False)
+            except Exception:
+                m = re.search(r"(\{.*\})", text, re.DOTALL)
+                if m:
+                    cleaned_json = m.group(1)
+                    try:
+                        parsed = json.loads(cleaned_json, strict=False)
+                    except Exception:
+                        cleaned_json = re.sub(r'[\x00-\x09\x0b-\x1f\x7f]', ' ', cleaned_json)
+                        parsed = json.loads(cleaned_json, strict=False)
+                else:
+                    raise
 
             intent = parsed.get("intent", "data_query")
             direct_response = parsed.get("direct_response")
@@ -397,3 +415,134 @@ class SchemaRAGService:
         builder.limit(limit)
 
         return builder.build()
+
+    def _check_metadata_query(
+        self,
+        query: str,
+        connections: dict[str, DatabaseConnection],
+        snapshots: dict[str, SchemaSnapshot],
+    ) -> SchemaRAGResult | None:
+        """Deterministically answer metadata questions directly from introspected schema snapshots."""
+        q = query.lower().strip()
+
+        table_count_patterns = [
+            r"how many tables",
+            r"number of tables",
+            r"count (of )?tables",
+            r"total tables",
+        ]
+        table_list_patterns = [
+            r"what tables",
+            r"which tables",
+            r"list (all )?tables",
+            r"show (all )?tables",
+            r"get (all )?tables",
+        ]
+        db_patterns = [
+            r"what databases",
+            r"which databases",
+            r"list (all )?databases",
+            r"show (all )?databases",
+            r"databases do i have access to",
+            r"what connections",
+            r"connected databases",
+        ]
+
+        is_table_count = any(re.search(p, q) for p in table_count_patterns)
+        is_table_list = any(re.search(p, q) for p in table_list_patterns)
+        is_db_query = any(re.search(p, q) for p in db_patterns)
+
+        if not (is_table_count or is_table_list or is_db_query):
+            return None
+
+        conn_meta = []
+        for c_id, conn in connections.items():
+            snap = snapshots.get(c_id)
+            tables = [o.name for o in snap.objects] if snap else []
+            db_type = conn.db_type.value if hasattr(conn.db_type, "value") else str(conn.db_type)
+            conn_meta.append({
+                "id": conn.id,
+                "name": conn.name,
+                "database": conn.database or "",
+                "db_type": db_type,
+                "tables": sorted(tables),
+            })
+
+        matched_conns = []
+        for cm in conn_meta:
+            c_name_lower = cm["name"].lower()
+            c_db_lower = cm["database"].lower()
+            c_type_lower = cm["db_type"].lower()
+
+            name_tokens = [w for w in re.split(r"[_\s\W]+", c_name_lower) if len(w) > 3]
+            db_tokens = [w for w in re.split(r"[_\s\W]+", c_db_lower) if len(w) > 3]
+
+            is_match = False
+            for token in name_tokens + db_tokens:
+                if token in q:
+                    is_match = True
+                    break
+            if is_match or (c_type_lower in q and len(conn_meta) > 1 and f"{c_type_lower} database" in q):
+                matched_conns.append(cm)
+
+        if matched_conns:
+            cm = matched_conns[0]
+            tables = cm["tables"]
+            table_list_md = "\n".join(f"{i+1}. `{t}`" for i, t in enumerate(tables))
+            unit = "collections" if cm["db_type"] == "mongodb" else ("indices" if cm["db_type"] == "elasticsearch" else "tables")
+
+            if is_table_count:
+                resp = (
+                    f"The **{cm['name']}** database contains **{len(tables)} {unit}**:\n\n"
+                    f"{table_list_md}"
+                )
+            else:
+                resp = (
+                    f"The following **{len(tables)} {unit}** are present in **{cm['name']}** ({cm['db_type']}):\n\n"
+                    f"{table_list_md}"
+                )
+
+            return SchemaRAGResult(
+                intent="metadata",
+                direct_response=resp,
+                confidence=1.0,
+                explanation=f"Introspected schema metadata for {cm['name']}",
+            )
+
+        if is_table_count or is_table_list:
+            total_tables = sum(len(cm["tables"]) for cm in conn_meta)
+            sections = []
+            for cm in conn_meta:
+                unit = "collections" if cm["db_type"] == "mongodb" else ("indices" if cm["db_type"] == "elasticsearch" else "tables")
+                t_str = ", ".join(f"`{t}`" for t in cm["tables"]) if cm["tables"] else "*(none)*"
+                sections.append(f"- **{cm['name']}** ({cm['db_type']}): {len(cm['tables'])} {unit} — {t_str}")
+
+            resp = (
+                f"Across your {len(conn_meta)} connected databases, there are **{total_tables} total tables and collections**:\n\n"
+                + "\n".join(sections)
+            )
+            return SchemaRAGResult(
+                intent="metadata",
+                direct_response=resp,
+                confidence=1.0,
+                explanation="Introspected all connected schemas",
+            )
+
+        if is_db_query:
+            sections = []
+            for i, cm in enumerate(conn_meta, 1):
+                unit = "collections" if cm["db_type"] == "mongodb" else ("indices" if cm["db_type"] == "elasticsearch" else "tables")
+                sections.append(
+                    f"{i}. **{cm['name']}**\n"
+                    f"   - Engine: `{cm['db_type']}`\n"
+                    f"   - Schema Objects: {len(cm['tables'])} {unit} ({', '.join(f'`{t}`' for t in cm['tables'][:5])}{', ...' if len(cm['tables']) > 5 else ''})"
+                )
+            resp = f"You have access to **{len(conn_meta)} connected databases** in this cluster:\n\n" + "\n\n".join(sections)
+            return SchemaRAGResult(
+                intent="metadata",
+                direct_response=resp,
+                confidence=1.0,
+                explanation="Introspected database connections",
+            )
+
+        return None

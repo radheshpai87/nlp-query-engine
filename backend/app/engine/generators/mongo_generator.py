@@ -27,12 +27,40 @@ class MongoPipelineGenerator:
             return f"{col.table}.{col.column}"
         return col.column
 
+    def _normalize_mongo_value(self, val: Any) -> Any:
+        if not isinstance(val, str):
+            return val
+        s = val.strip()
+        from datetime import datetime, timezone, timedelta
+        m = re.search(r"(\d+)\s*(day|month|year|hour|minute|week|d|m|y|h|w)s?", s, re.IGNORECASE)
+        if any(k in s.lower() for k in ("interval", "now", "current", "ago", "last", "past")) and m:
+            qty = int(m.group(1))
+            unit_str = m.group(2).lower()
+            if unit_str in ("day", "d"):
+                delta = timedelta(days=qty)
+            elif unit_str in ("week", "w"):
+                delta = timedelta(weeks=qty)
+            elif unit_str in ("month", "m"):
+                delta = timedelta(days=qty * 30)
+            elif unit_str in ("year", "y"):
+                delta = timedelta(days=qty * 365)
+            elif unit_str in ("hour", "h"):
+                delta = timedelta(hours=qty)
+            elif unit_str in ("minute",):
+                delta = timedelta(minutes=qty)
+            else:
+                delta = timedelta(days=qty)
+            return (datetime.now(timezone.utc) - delta).isoformat()
+        if s.lower() in ("now()", "current_date", "current_timestamp", "now"):
+            return datetime.now(timezone.utc).isoformat()
+        return val
+
     def _render_predicate(
         self, predicate: FilterPredicate, primary_table: str, primary_alias: str = ""
     ) -> dict[str, Any]:
         field = self._render_field_name(predicate.field, primary_table, primary_alias)
         op = predicate.operator
-        val = predicate.value
+        val = self._normalize_mongo_value(predicate.value)
 
         if op == ComparisonOperator.IS_NULL:
             return {field: None}

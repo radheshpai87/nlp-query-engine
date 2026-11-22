@@ -19,46 +19,78 @@ export function NexusLogo({ className, size = 24, ...props }: NexusLogoProps) {
       {...props}
     >
       <defs>
-        <linearGradient id="nq-brand-grad" x1="6" y1="6" x2="26" y2="26" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#F59E0B" />
-          <stop offset="0.5" stopColor="#D97706" />
+        {/* Luminous Ember & Sunburst Gradients */}
+        <linearGradient id="nq-primary-grad" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FBBF24" />
+          <stop offset="0.5" stopColor="#F59E0B" />
+          <stop offset="1" stopColor="#D97706" />
+        </linearGradient>
+
+        <linearGradient id="nq-accent-grad" x1="28" y1="4" x2="4" y2="28" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FCD34D" />
+          <stop offset="0.6" stopColor="#F59E0B" />
           <stop offset="1" stopColor="#B45309" />
         </linearGradient>
-        <filter id="nq-glow" x="2" y="2" width="28" height="28" filterUnits="userSpaceOnUse">
-          <feGaussianBlur stdDeviation="1" result="blur" />
+
+        <linearGradient id="nq-core-glow" x1="16" y1="10" x2="16" y2="22" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#FFFBEB" stopOpacity="0.9" />
+          <stop offset="1" stopColor="#F59E0B" stopOpacity="0.3" />
+        </linearGradient>
+
+        <linearGradient id="nq-container-border" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#F59E0B" stopOpacity="0.45" />
+          <stop offset="1" stopColor="#D97706" stopOpacity="0.15" />
+        </linearGradient>
+
+        <filter id="nq-bloom" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+          <feGaussianBlur stdDeviation="1.2" result="blur" />
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
       </defs>
 
-      {/* Modern Squircle Badge Container */}
+      {/* Sleek Rounded Hex-Container Frame */}
       <rect
-        x="1.5"
-        y="1.5"
-        width="29"
-        height="29"
-        rx="7.5"
-        className="fill-amber-500/10 stroke-amber-500/30 dark:fill-amber-500/15 dark:stroke-amber-500/40"
-        strokeWidth="1"
+        x="2"
+        y="2"
+        width="28"
+        height="28"
+        rx="8"
+        fill="#12151B"
+        stroke="url(#nq-container-border)"
+        strokeWidth="1.2"
       />
 
-      {/* Interconnected Multi-Database Query Paths */}
+      {/* Central Intersecting Multi-Database Geometric Prism */}
+      {/* Top Facet (Relational / SQL Paradigm) */}
       <path
-        d="M8.5 22.5V9.5L23.5 22.5V9.5"
-        stroke="url(#nq-brand-grad)"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        filter="url(#nq-glow)"
+        d="M16 6.5L24 11.2V15.8L16 11.2L8 15.8V11.2L16 6.5Z"
+        fill="url(#nq-primary-grad)"
+        fillOpacity="0.9"
       />
 
-      {/* Target Database Nodes (Postgres, Mongo, ES) */}
-      <circle cx="8.5" cy="9.5" r="2" fill="#FBBF24" />
-      <circle cx="23.5" cy="9.5" r="2" fill="#F59E0B" />
-      <circle cx="8.5" cy="22.5" r="2" fill="#D97706" />
-      <circle cx="23.5" cy="22.5" r="2" fill="#B45309" />
+      {/* Right Facet (Document / Mongo Paradigm) */}
+      <path
+        d="M24 16.5V21.5L16.8 25.5V20.5L24 16.5Z"
+        fill="url(#nq-accent-grad)"
+        fillOpacity="0.95"
+      />
 
-      {/* Core Synthesizer Intersection Spark */}
-      <circle cx="16" cy="16" r="1.5" fill="#FEF3C7" className="animate-pulse" />
+      {/* Left Facet (Search / ES Paradigm) */}
+      <path
+        d="M8 16.5L15.2 20.5V25.5L8 21.5V16.5Z"
+        fill="url(#nq-primary-grad)"
+        fillOpacity="0.75"
+      />
+
+      {/* Core Dynamic Focal Prism (The Nexus) */}
+      <polygon
+        points="16,11.5 20.8,16 16,20.5 11.2,16"
+        fill="url(#nq-core-glow)"
+        filter="url(#nq-bloom)"
+      />
+
+      {/* Central Point of Convergence */}
+      <circle cx="16" cy="16" r="1.8" fill="#FFFFFF" />
     </svg>
   );
 }

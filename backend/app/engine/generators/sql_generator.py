@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from app.engine.generators.models import CompiledSQLQuery, DialectType
@@ -28,6 +29,35 @@ class PostgresSQLGenerator:
         self._params[param_name] = value
         return param_name
 
+    def _clean_sql_expression(self, value: Any) -> str:
+        s = str(value).strip()
+        # Clean any relative date math like "now-6M", "now-30d", "now-1y"
+        m_rel = re.match(r"^now\s*-\s*(\d+)\s*([a-zA-Z]+)", s, re.IGNORECASE)
+        if m_rel:
+            num, unit = m_rel.group(1), m_rel.group(2).lower()
+            unit_map = {
+                "d": "days",
+                "day": "days",
+                "days": "days",
+                "m": "months",
+                "month": "months",
+                "months": "months",
+                "y": "years",
+                "year": "years",
+                "years": "years",
+                "w": "weeks",
+                "week": "weeks",
+                "weeks": "weeks",
+                "h": "hours",
+                "hour": "hours",
+                "hours": "hours",
+            }
+            mapped_unit = unit_map.get(unit, "days")
+            return f"CURRENT_DATE - INTERVAL '{num} {mapped_unit}'"
+
+        # Clean any stripped "() - interval" or "() -" to "CURRENT_DATE - "
+        return re.sub(r"^\(\)\s*-\s*", "CURRENT_DATE - ", s, flags=re.IGNORECASE)
+
     def _is_sql_expression(self, value: Any) -> bool:
         if not isinstance(value, str):
             return False
@@ -36,7 +66,9 @@ class PostgresSQLGenerator:
             val_upper.startswith("CURRENT_DATE")
             or val_upper.startswith("CURRENT_TIMESTAMP")
             or val_upper.startswith("NOW()")
+            or val_upper.startswith("()")
             or "INTERVAL" in val_upper
+            or bool(re.match(r"^NOW\s*-\s*\d+", val_upper))
         )
 
     def _format_literal(self, value: Any) -> str:
@@ -47,7 +79,7 @@ class PostgresSQLGenerator:
         if isinstance(value, bool):
             return "TRUE" if value else "FALSE"
         if self._is_sql_expression(value):
-            return str(value).strip()
+            return self._clean_sql_expression(value)
         # Escape single quotes for literal display SQL
         safe_str = str(value).replace("'", "''")
         return f"'{safe_str}'"
@@ -163,7 +195,7 @@ class PostgresSQLGenerator:
             pat = val
 
         if self._is_sql_expression(pat):
-            return f"{col_str} {sql_op} {str(pat).strip()}"
+            return f"{col_str} {sql_op} {self._clean_sql_expression(pat)}"
 
         if parameterized:
             p = f":{self._next_param(pat)}"

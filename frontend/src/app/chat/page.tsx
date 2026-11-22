@@ -102,19 +102,31 @@ function ChatPageContent() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
   const handleNewSession = React.useCallback(() => {
     setMessages([]);
     setInputValue("");
-    router.push("/chat");
+    setActiveCompilingId(null);
+    setActiveExecutingId(null);
+    router.replace("/chat");
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
   }, [router]);
 
   React.useEffect(() => {
     const handleNewChat = () => {
       setMessages([]);
       setInputValue("");
+      setActiveCompilingId(null);
+      setActiveExecutingId(null);
       if (typeof router?.replace === "function") {
         router.replace("/chat");
       }
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     };
     if (typeof window !== "undefined") {
       window.addEventListener("new-chat-requested", handleNewChat);
@@ -157,7 +169,7 @@ function ChatPageContent() {
     getMessages(currentWorkspace.id, currentChatId)
       .then((msgs) => {
         if (ignore) return;
-        if (Array.isArray(msgs)) {
+        if (Array.isArray(msgs) && msgs.length > 0) {
           const mapped: ChatMessage[] = msgs.map((m) => ({
             id: m.id,
             role: m.role as "user" | "assistant",
@@ -852,6 +864,7 @@ function ChatPageContent() {
         >
           <div className="relative flex items-center rounded-xl border border-input bg-card px-2.5 py-1 transition-colors focus-within:border-ring">
             <Input
+              ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask anything about your databases (e.g. Show me top 5 products...)"

@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from app.engine.generators.models import CompiledElasticsearchQuery, DialectType
@@ -18,13 +19,37 @@ from app.engine.ir.models import (
 class ElasticsearchDSLGenerator:
     """Compiles a LogicalQueryPlan into an Elasticsearch Query DSL payload."""
 
+    def _normalize_es_value(self, val: Any) -> Any:
+        if not isinstance(val, str):
+            return val
+        s = val.strip()
+        # Convert SQL-style intervals / relative date math to Elasticsearch syntax
+        # e.g., "() - interval '30 days'", "now() - interval '30 days'", "CURRENT_DATE - INTERVAL '30 days'", "last 30 days" -> "now-30d"
+        m = re.search(r"(\d+)\s*(day|month|year|hour|minute|week|d|m|y|h|w)s?", s, re.IGNORECASE)
+        if any(k in s.lower() for k in ("interval", "now", "current", "ago", "last", "past")) and m:
+            qty = m.group(1)
+            unit_str = m.group(2).lower()
+            unit_map = {
+                "day": "d", "d": "d",
+                "month": "M",
+                "year": "y", "y": "y",
+                "hour": "h", "h": "h",
+                "minute": "m",
+                "week": "w", "w": "w",
+            }
+            unit = unit_map.get(unit_str, "d")
+            return f"now-{qty}{unit}"
+        if s.lower() in ("now()", "current_date", "current_timestamp", "now"):
+            return "now"
+        return val
+
     def _render_field(self, col: ColumnRef) -> str:
         return col.column
 
     def _render_predicate(self, predicate: FilterPredicate) -> dict[str, Any]:
         field = self._render_field(predicate.field)
         op = predicate.operator
-        val = predicate.value
+        val = self._normalize_es_value(predicate.value)
 
         if op == ComparisonOperator.IS_NULL:
             return {"bool": {"must_not": [{"exists": {"field": field}}]}}
@@ -54,9 +79,9 @@ class ElasticsearchDSLGenerator:
 
         if op == ComparisonOperator.BETWEEN:
             if isinstance(val, (list, tuple)) and len(val) >= 2:
-                low, high = val[0], val[1]
+                low, high = self._normalize_es_value(val[0]), self._normalize_es_value(val[1])
             else:
-                low, high = val, val
+                low, high = self._normalize_es_value(val), self._normalize_es_value(val)
             return {"range": {field: {"gte": low, "lte": high}}}
 
         if op == ComparisonOperator.CONTAINS:
@@ -229,9 +254,9 @@ class ElasticsearchDSLGenerator:
             if plan.offset is not None and plan.offset > 0:
                 query_body["from"] = plan.offset
 
-        # 5. Sort - only apply top-level document sort if not a grouped aggregation query,
+        # 5. Sort - only apply top-level document sort if not an aggregation query,
         # and do not sort document hits on synthetic aggregation aliases.
-        if plan.order_by and not plan.group_by:
+        if plan.order_by and not has_aggregations:
             agg_aliases = {agg.alias for agg in plan.aggregations if agg.alias}
             valid_doc_sorts = []
             for s in plan.order_by:
