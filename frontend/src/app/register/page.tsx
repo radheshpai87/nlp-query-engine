@@ -68,6 +68,16 @@ export default function RegisterPage() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const err = urlParams.get("error");
+    if (err) {
+      setError(decodeURIComponent(err));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Password validation checks
   const hasMinLength = password.length >= 8;
   const hasNumber = /\d/.test(password);
@@ -102,7 +112,7 @@ export default function RegisterPage() {
 
   const handleOAuthSignUp = (provider: "google" | "github") => {
     setError(null);
-    window.location.href = `${API_BASE}/auth/${provider}/login`;
+    window.location.href = `${API_BASE}/auth/${provider}/login?mode=signup`;
   };
 
   return (

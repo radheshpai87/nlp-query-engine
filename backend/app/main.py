@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routes import (
+    admin,
     ambiguity,
     audit,
     auth,
@@ -100,6 +101,7 @@ def create_app() -> FastAPI:
 
     # API v1 routers
     app.include_router(auth.router, prefix="/api/v1")
+    app.include_router(admin.router, prefix="/api/v1")
     app.include_router(workspaces.router, prefix="/api/v1")
     app.include_router(connections.router, prefix="/api/v1")
     app.include_router(schemas.router, prefix="/api/v1")

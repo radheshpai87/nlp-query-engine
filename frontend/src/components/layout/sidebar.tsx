@@ -19,6 +19,7 @@ import {
   ScrollText,
   Search,
   Settings,
+  ShieldAlert,
   SquarePen,
   TableProperties,
   Trash2,
@@ -428,6 +429,17 @@ function SidebarContent() {
               </div>
 
               <div className="space-y-0.5">
+                {currentUser?.is_superuser && (
+                  <Link
+                    href="/nexus-ops-7x9q"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-amber-400 hover:bg-amber-500/10 transition-colors font-medium"
+                  >
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    <span>Admin Console</span>
+                  </Link>
+                )}
+
                 <Link
                   href="/settings"
                   onClick={() => setAccountMenuOpen(false)}

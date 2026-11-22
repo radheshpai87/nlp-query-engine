@@ -1,13 +1,23 @@
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from fastapi import Depends
 
 from app.core.auth import create_access_token, hash_password, verify_password
 from app.core.exceptions import AppError
+from app.models.token import RefreshToken
 from app.models.user import User, UserCreate, UserUpdate
 from app.models.workspace import Workspace, WorkspaceRole
+from app.repositories.token_repository import (
+    RefreshTokenRepository,
+    get_refresh_token_repository,
+    hash_token,
+)
 from app.repositories.user_repository import UserRepository, get_user_repository
 from app.repositories.workspace_repository import WorkspaceRepository, get_workspace_repository
+
+REFRESH_TOKEN_EXPIRE_DAYS = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Standard secure access token lifetime
 
 
 class AuthService:
@@ -15,16 +25,33 @@ class AuthService:
         self,
         user_repo: UserRepository | None = None,
         workspace_repo: WorkspaceRepository | None = None,
+        token_repo: RefreshTokenRepository | None = None,
     ) -> None:
         self.user_repo = user_repo or UserRepository()
         self.workspace_repo = workspace_repo or WorkspaceRepository()
+        self.token_repo = token_repo or RefreshTokenRepository()
 
-    def register(self, user_in: UserCreate) -> tuple[User, str]:
+    def create_refresh_token(self, user_id: str) -> str:
+        """Create and persist a hashed refresh token for the user."""
+        raw_token = secrets.token_urlsafe(48)
+        token_hash = hash_token(raw_token)
+        expires_at = datetime.now(UTC) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+        refresh_entity = RefreshToken(
+            user_id=user_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            is_revoked=False,
+        )
+        self.token_repo.create(refresh_entity)
+        return raw_token
+
+    def register(self, user_in: UserCreate) -> tuple[User, str, str]:
         """Register a new user and create their initial default personal workspace."""
         normalized_email = user_in.email.lower().strip()
         existing = self.user_repo.get_by_email(normalized_email)
         if existing:
-            raise AppError(f"User with email '{normalized_email}' already exists")
+            raise AppError(f"User with email '{normalized_email}' already exists. Please sign in.")
 
         # Create user
         user = User(
@@ -43,7 +70,7 @@ class AuthService:
         )
         created_ws = self.workspace_repo.create(initial_workspace)
 
-        # Bind as admin
+        # Bind as admin of personal workspace
         self.workspace_repo.add_member(
             workspace_id=created_ws.id,
             user_id=created_user.id,
@@ -54,24 +81,41 @@ class AuthService:
         self.user_repo.update(created_user.id, {"default_workspace_id": created_ws.id})
         created_user.default_workspace_id = created_ws.id
 
-        # Generate JWT
-        token = create_access_token({"sub": created_user.id, "email": created_user.email})
-        return created_user, token
+        # Generate Access and Refresh Tokens
+        access_token = create_access_token(
+            {"sub": created_user.id, "email": created_user.email, "is_superuser": created_user.is_superuser},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        refresh_token = self.create_refresh_token(created_user.id)
+        return created_user, access_token, refresh_token
 
-    def authenticate(self, email: str, password: str) -> tuple[User, str]:
-        """Verify user credentials and return authenticated user and token."""
+    def authenticate(self, email: str, password: str) -> tuple[User, str, str]:
+        """Verify user credentials and return authenticated user, access token and refresh token."""
         normalized_email = email.lower().strip()
         user = self.user_repo.get_by_email(normalized_email)
-        if not user or not verify_password(password, user.hashed_password):
+        if not user:
+            raise AppError("No account found with this email. Please sign up first.")
+
+        if not verify_password(password, user.hashed_password):
             raise AppError("Invalid email or password")
 
         if not user.is_active:
             raise AppError("User account is deactivated")
 
-        token = create_access_token({"sub": user.id, "email": user.email})
-        return user, token
+        access_token = create_access_token(
+            {"sub": user.id, "email": user.email, "is_superuser": user.is_superuser},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        refresh_token = self.create_refresh_token(user.id)
+        return user, access_token, refresh_token
 
-    def authenticate_oauth(self, email: str, full_name: str, provider: str = "oauth") -> tuple[User, str]:
+    def authenticate_oauth(
+        self,
+        email: str,
+        full_name: str,
+        provider: str = "oauth",
+        mode: str = "login",
+    ) -> tuple[User, str, str]:
         """Authenticate or register a user logging in via an OAuth provider (Google or GitHub)."""
         normalized_email = email.lower().strip()
         user = self.user_repo.get_by_email(normalized_email)
@@ -82,10 +126,18 @@ class AuthService:
             if not user.full_name and full_name:
                 self.user_repo.update(user.id, {"full_name": full_name})
                 user.full_name = full_name
-            token = create_access_token({"sub": user.id, "email": user.email})
-            return user, token
+            access_token = create_access_token(
+                {"sub": user.id, "email": user.email, "is_superuser": user.is_superuser},
+                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+            )
+            refresh_token = self.create_refresh_token(user.id)
+            return user, access_token, refresh_token
 
-        # Register new OAuth user
+        # User does not exist
+        if mode == "login":
+            raise AppError("No account found with this email. Please sign up first.")
+
+        # Register new OAuth user (mode == "signup")
         user = User(
             email=normalized_email,
             full_name=full_name or normalized_email.split("@")[0],
@@ -119,15 +171,47 @@ class AuthService:
 
         self.user_repo.update(created_user.id, {"default_workspace_id": ws_id})
         created_user.default_workspace_id = ws_id
-        token = create_access_token({"sub": created_user.id, "email": created_user.email})
-        return created_user, token
+
+        access_token = create_access_token(
+            {"sub": created_user.id, "email": created_user.email, "is_superuser": created_user.is_superuser},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        refresh_token = self.create_refresh_token(created_user.id)
+        return created_user, access_token, refresh_token
+
+    def refresh_access_token(self, refresh_token: str) -> tuple[User, str, str]:
+        """Validate refresh token and issue new access & rotated refresh token."""
+        token_doc = self.token_repo.get_active_by_token(refresh_token)
+        if not token_doc:
+            raise AppError("Invalid or expired refresh token. Please sign in again.")
+
+        user = self.user_repo.get_by_id(token_doc.user_id)
+        if not user or not user.is_active:
+            raise AppError("User account not found or deactivated.")
+
+        # Rotate token: revoke old token
+        self.token_repo.revoke_token(refresh_token)
+
+        # Issue new token pair
+        new_access_token = create_access_token(
+            {"sub": user.id, "email": user.email, "is_superuser": user.is_superuser},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        new_refresh_token = self.create_refresh_token(user.id)
+        return user, new_access_token, new_refresh_token
+
+    def logout(self, refresh_token: str | None = None, user_id: str | None = None) -> None:
+        """Revoke active refresh token or all user tokens."""
+        if refresh_token:
+            self.token_repo.revoke_token(refresh_token)
+        elif user_id:
+            self.token_repo.revoke_all_for_user(user_id)
 
     def forgot_password(self, email: str) -> str:
         """Generate secure password reset token (valid for 1 hour)."""
         normalized_email = email.lower().strip()
         user = self.user_repo.get_by_email(normalized_email)
         if not user or not user.is_active:
-            # Return pseudo-token to prevent email enumeration attacks
             return "simulated-reset-token-sent"
 
         reset_token = secrets.token_urlsafe(32)
@@ -204,5 +288,6 @@ class AuthService:
 def get_auth_service(
     user_repo: UserRepository = Depends(get_user_repository),
     workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+    token_repo: RefreshTokenRepository = Depends(get_refresh_token_repository),
 ) -> AuthService:
-    return AuthService(user_repo=user_repo, workspace_repo=workspace_repo)
+    return AuthService(user_repo=user_repo, workspace_repo=workspace_repo, token_repo=token_repo)

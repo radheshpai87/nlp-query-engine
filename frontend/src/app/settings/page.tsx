@@ -2,41 +2,30 @@
 
 import * as React from "react";
 import {
-  Shield,
-  Sliders,
   User,
-  Building2,
-  Users,
   KeyRound,
-  Trash2,
-  UserPlus,
+  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   Loader2,
   Lock,
-  Layers,
-  Database,
-  ArrowRight,
+  Mail,
+  LogOut,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useShellStore } from "@/lib/store";
-import { updateUserProfile, changeUserPassword, authFetch } from "@/lib/auth-api";
-import { API_BASE } from "@/lib/api-config";
-
-interface WorkspaceMember {
-  id: string;
-  user_id: string;
-  role: string;
-  created_at: string;
-}
+import { updateUserProfile, changeUserPassword, logout } from "@/lib/auth-api";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
-  const { currentUser, setCurrentUser, currentWorkspace, setCurrentWorkspace } = useShellStore();
+  const router = useRouter();
+  const { currentUser, setCurrentUser } = useShellStore();
 
-  const [activeTab, setActiveTab] = React.useState<"profile" | "workspace" | "governance">("profile");
+  const [activeTab, setActiveTab] = React.useState<"profile" | "security">("profile");
 
   // Profile Form state
   const [fullName, setFullName] = React.useState(currentUser?.full_name || "");
@@ -52,40 +41,11 @@ export default function SettingsPage() {
   const [pwSuccess, setPwSuccess] = React.useState<string | null>(null);
   const [pwError, setPwError] = React.useState<string | null>(null);
 
-  // Workspace Settings state
-  const [wsName, setWsName] = React.useState(currentWorkspace.name || "Default Workspace");
-  const [wsLoading, setWsLoading] = React.useState(false);
-  const [wsSuccess, setWsSuccess] = React.useState<string | null>(null);
-  const [wsError, setWsError] = React.useState<string | null>(null);
-
-  // Members state
-  const [members, setMembers] = React.useState<WorkspaceMember[]>([]);
-  const [inviteEmail, setInviteEmail] = React.useState("");
-  const [inviteRole, setInviteRole] = React.useState("member");
-  const [inviteLoading, setInviteLoading] = React.useState(false);
-  const [inviteError, setInviteError] = React.useState<string | null>(null);
-
-  // Load workspace members
   React.useEffect(() => {
-    let ignore = false;
-    async function loadMembers() {
-      try {
-        const res = await authFetch(`${API_BASE}/workspaces/${currentWorkspace.id}/members`);
-        if (res.ok) {
-          const data = await res.json();
-          if (!ignore && Array.isArray(data)) {
-            setMembers(data);
-          }
-        }
-      } catch {
-        // Fallback
-      }
+    if (currentUser?.full_name) {
+      setFullName(currentUser.full_name);
     }
-    void loadMembers();
-    return () => {
-      ignore = true;
-    };
-  }, [currentWorkspace.id]);
+  }, [currentUser]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,7 +58,7 @@ export default function SettingsPage() {
       setCurrentUser(updated);
       setProfileSuccess("Profile updated successfully.");
     } catch (err: unknown) {
-      setProfileError(err instanceof Error ? err.message : "Failed to update profile");
+      setProfileError(err instanceof Error ? err.message : "Failed to update profile.");
     } finally {
       setProfileLoading(false);
     }
@@ -109,12 +69,13 @@ export default function SettingsPage() {
     setPwError(null);
     setPwSuccess(null);
 
-    if (newPassword.length < 8) {
-      setPwError("New password must be at least 8 characters long.");
-      return;
-    }
     if (newPassword !== confirmPassword) {
       setPwError("New passwords do not match.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPwError("New password must be at least 8 characters long.");
       return;
     }
 
@@ -126,462 +87,265 @@ export default function SettingsPage() {
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: unknown) {
-      setPwError(err instanceof Error ? err.message : "Failed to change password");
+      setPwError(err instanceof Error ? err.message : "Failed to change password.");
     } finally {
       setPwLoading(false);
     }
   };
 
-  const handleUpdateWorkspace = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setWsError(null);
-    setWsSuccess(null);
-    setWsLoading(true);
-
-    try {
-      const res = await authFetch(`${API_BASE}/workspaces/${currentWorkspace.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: wsName.trim() }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentWorkspace({ ...currentWorkspace, name: data.name });
-        setWsSuccess("Workspace name updated successfully.");
-      } else {
-        const err = await res.json().catch(() => null);
-        throw new Error(err?.detail || "Failed to update workspace");
-      }
-    } catch (err: unknown) {
-      setWsError(err instanceof Error ? err.message : "Failed to update workspace");
-    } finally {
-      setWsLoading(false);
-    }
-  };
-
-  const handleInviteMember = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setInviteError(null);
-    setInviteLoading(true);
-
-    try {
-      const res = await authFetch(`${API_BASE}/workspaces/${currentWorkspace.id}/members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
-      });
-      if (res.ok) {
-        const newMember = await res.json();
-        setMembers((prev) => [
-          ...prev,
-          {
-            id: newMember.user_id,
-            user_id: newMember.user_id,
-            role: newMember.role,
-            created_at: new Date().toISOString(),
-          },
-        ]);
-        setInviteEmail("");
-      } else {
-        const err = await res.json().catch(() => null);
-        throw new Error(err?.detail || "Failed to invite member");
-      }
-    } catch (err: unknown) {
-      setInviteError(err instanceof Error ? err.message : "Failed to invite member");
-    } finally {
-      setInviteLoading(false);
-    }
-  };
-
-  const handleRemoveMember = async (userId: string) => {
-    try {
-      const res = await authFetch(`${API_BASE}/workspaces/${currentWorkspace.id}/members/${userId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setMembers((prev) => prev.filter((m) => m.user_id !== userId));
-      }
-    } catch {
-      // Ignore
-    }
+  const handleLogout = async () => {
+    await logout();
+    router.push("/login");
   };
 
   return (
-    <div className="flex-1 p-6 md:p-8 max-w-4xl mx-auto space-y-6 animate-in fade-in-50 duration-300">
-      <div className="border-b border-border pb-4">
-        <h1 className="text-lg font-medium tracking-tight text-foreground">
-          Enterprise Settings & Governance
-        </h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Manage personal credentials, team access, query execution safety, and LLM configuration.
-        </p>
+    <div className="flex-1 space-y-6 p-6 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground flex items-center gap-2">
+            <span>Account Settings</span>
+            {currentUser?.is_superuser && (
+              <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/30">
+                Admin
+              </Badge>
+            )}
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage your personal profile, credentials, and active security sessions.
+          </p>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleLogout}
+          className="h-8 gap-2 text-xs border-border text-muted-foreground hover:text-rose-400 hover:border-rose-800/50"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span>Sign Out</span>
+        </Button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border pb-2 text-xs">
+      <div className="flex items-center gap-2 border-b border-border pb-1">
         <button
           type="button"
           onClick={() => setActiveTab("profile")}
-          className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
             activeTab === "profile"
-              ? "bg-zinc-800 text-white"
+              ? "bg-muted text-foreground font-semibold shadow-xs"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Personal Profile
+          <User className="h-3.5 w-3.5" />
+          <span>Personal Profile</span>
         </button>
+
         <button
           type="button"
-          onClick={() => setActiveTab("workspace")}
-          className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-            activeTab === "workspace"
-              ? "bg-zinc-800 text-white"
+          onClick={() => setActiveTab("security")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+            activeTab === "security"
+              ? "bg-muted text-foreground font-semibold shadow-xs"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Team & Access
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("governance")}
-          className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-            activeTab === "governance"
-              ? "bg-zinc-800 text-white"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Query Safety & Governance
+          <KeyRound className="h-3.5 w-3.5" />
+          <span>Password & Security</span>
         </button>
       </div>
 
-      {/* TAB 1: Personal Profile */}
+      {/* Profile Tab */}
       {activeTab === "profile" && (
         <div className="space-y-6">
-          <Card className="bg-card border-border/80">
-            <CardHeader>
-              <div className="flex items-center gap-2">
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <User className="h-4 w-4 text-brand" />
-                <CardTitle className="text-sm">Personal Information</CardTitle>
-              </div>
+                <span>Profile Information</span>
+              </CardTitle>
               <CardDescription className="text-xs">
-                Your identity used in query audit logs and workspace membership.
+                Update your display name and review account credentials.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {profileSuccess && (
-                <div className="mb-4 p-2.5 rounded-lg bg-brand-muted border border-brand/20 text-brand text-xs flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>{profileSuccess}</span>
-                </div>
-              )}
-              {profileError && (
-                <div className="mb-4 p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{profileError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="font-medium text-foreground">Full Name</label>
-                    <Input
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="h-8 bg-background border-border/80 text-xs"
-                    />
+              <form onSubmit={handleUpdateProfile} className="space-y-4 max-w-md">
+                {profileError && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-950/40 border border-red-800/50 text-red-300 text-xs">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                    <span>{profileError}</span>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="font-medium text-foreground">Work Email</label>
-                    <Input
-                      value={currentUser?.email || ""}
-                      disabled
-                      className="h-8 bg-muted border-border/80 text-xs text-zinc-400"
-                    />
+                )}
+
+                {profileSuccess && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 text-xs">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                    <span>{profileSuccess}</span>
                   </div>
-                </div>
+                )}
 
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={profileLoading}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
-                >
-                  {profileLoading ? "Saving..." : "Save Profile"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border/80">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-brand" />
-                <CardTitle className="text-sm">Change Password</CardTitle>
-              </div>
-              <CardDescription className="text-xs">
-                Ensure your account uses a strong password with at least 8 characters.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {pwSuccess && (
-                <div className="mb-4 p-2.5 rounded-lg bg-brand-muted border border-brand/20 text-brand text-xs flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>{pwSuccess}</span>
-                </div>
-              )}
-              {pwError && (
-                <div className="mb-4 p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{pwError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleChangePassword} className="space-y-4 text-xs">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="font-medium text-foreground">Current Password</label>
-                    <Input
-                      type="password"
-                      required
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="h-8 bg-background border-border/80 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="font-medium text-foreground">New Password</label>
-                    <Input
-                      type="password"
-                      required
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="h-8 bg-background border-border/80 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="font-medium text-foreground">Confirm New Password</label>
-                    <Input
-                      type="password"
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="h-8 bg-background border-border/80 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={pwLoading}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
-                >
-                  {pwLoading ? "Updating..." : "Update Password"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 2: Workspace & Members */}
-      {activeTab === "workspace" && (
-        <div className="space-y-6">
-          <Card className="bg-card border-border/80">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-brand" />
-                <CardTitle className="text-sm">Workspace Details</CardTitle>
-              </div>
-              <CardDescription className="text-xs">
-                Manage workspace identification and team metadata.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {wsSuccess && (
-                <div className="mb-4 p-2.5 rounded-lg bg-brand-muted border border-brand/20 text-brand text-xs flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>{wsSuccess}</span>
-                </div>
-              )}
-              {wsError && (
-                <div className="mb-4 p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{wsError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleUpdateWorkspace} className="space-y-4 text-xs">
                 <div className="space-y-1.5">
-                  <label className="font-medium text-foreground">Workspace Name</label>
+                  <label className="text-xs font-medium text-foreground">Email Address</label>
+                  <div className="relative">
+                    <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <Input
+                      type="email"
+                      disabled
+                      value={currentUser?.email || ""}
+                      className="pl-9 h-9 text-xs bg-muted/40 cursor-not-allowed border-secondary"
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    Email address is tied to your account authentication and cannot be edited.
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">Full Name</label>
                   <Input
-                    value={wsName}
-                    onChange={(e) => setWsName(e.target.value)}
-                    className="h-8 bg-background border-border/80 text-xs max-w-md"
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Your name"
+                    className="h-9 text-xs border-secondary"
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  size="sm"
-                  disabled={wsLoading}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
+                  disabled={profileLoading}
+                  className="h-8 text-xs bg-white text-black hover:bg-zinc-200"
                 >
-                  {wsLoading ? "Saving..." : "Rename Workspace"}
+                  {profileLoading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
-          <Card className="bg-card border-border/80">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-brand" />
-                  <CardTitle className="text-sm">Workspace Members & RBAC</CardTitle>
-                </div>
-                <Badge variant="outline" className="text-[10px]">
-                  {members.length} Active Member(s)
-                </Badge>
-              </div>
+          {/* Session details */}
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-brand" />
+                <span>Active Session & Storage Isolation</span>
+              </CardTitle>
               <CardDescription className="text-xs">
-                Invite team members and configure role-based access control (Admin, Member, Viewer).
+                Your session is secured with dual-token authentication. User identity is isolated in private system storage.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {inviteError && (
-                <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{inviteError}</span>
+            <CardContent className="space-y-3 text-xs text-muted-foreground">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg border border-border/60 bg-muted/20">
+                  <span className="text-[10px] uppercase text-zinc-400 block font-medium">Session Token</span>
+                  <span className="text-xs font-mono text-foreground mt-0.5 block">Short-Lived JWT (30m)</span>
                 </div>
-              )}
-
-              {/* Invite Form */}
-              <form onSubmit={handleInviteMember} className="flex gap-2">
-                <Input
-                  type="email"
-                  required
-                  placeholder="colleague@company.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="h-8 bg-background border-border/80 text-xs flex-1"
-                />
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="h-8 px-2.5 bg-background border border-border/80 rounded-md text-xs text-white"
-                >
-                  <option value="member">Member</option>
-                  <option value="admin">Admin</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={inviteLoading || !inviteEmail.trim()}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs gap-1.5"
-                >
-                  <UserPlus className="h-3.5 w-3.5" />
-                  <span>Invite</span>
-                </Button>
-              </form>
-
-              {/* Members List */}
-              <div className="border border-border/60 rounded-xl divide-y divide-border/60 overflow-hidden">
-                {members.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-muted-foreground">
-                    No additional team members invited yet.
-                  </div>
-                ) : (
-                  members.map((m) => (
-                    <div key={m.id} className="p-3 flex items-center justify-between text-xs">
-                      <div>
-                        <span className="font-medium text-white block">{m.user_id}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          Added: {new Date(m.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] capitalize">
-                          {m.role}
-                        </Badge>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMember(m.user_id)}
-                          className="text-zinc-500 hover:text-rose-400 p-1"
-                          title="Remove member"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+                <div className="p-3 rounded-lg border border-border/60 bg-muted/20">
+                  <span className="text-[10px] uppercase text-zinc-400 block font-medium">Refresh Token</span>
+                  <span className="text-xs font-mono text-emerald-400 mt-0.5 block">30-Day Rotated & Hashed</span>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* TAB 3: Query Safety & Governance */}
-      {activeTab === "governance" && (
-        <div className="space-y-4">
-          <Card className="bg-card border-border/80">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-brand" />
-                  <CardTitle className="text-sm">Query Safety Policy</CardTitle>
+      {/* Security Tab */}
+      {activeTab === "security" && (
+        <Card className="border-border bg-card">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-brand" />
+              <span>Change Password</span>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Ensure your account is using a long, random password for maximum security.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+              {pwError && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-950/40 border border-red-800/50 text-red-300 text-xs">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                  <span>{pwError}</span>
                 </div>
-                <Badge variant="success">Enforced</Badge>
-              </div>
-              <CardDescription className="text-xs">
-                Hard constraints applied to all query generation and adapter executions.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="font-medium text-foreground">Max Execution Timeout (Seconds)</label>
-                  <Input defaultValue="30" className="h-8 bg-background border-border/80" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="font-medium text-foreground">Max Result Rows</label>
-                  <Input defaultValue="1000" className="h-8 bg-background border-border/80" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t border-border/60">
-                <span className="text-muted-foreground">Allow Write Operations (DML/DDL)</span>
-                <Badge variant="destructive">Disabled (Read-Only)</Badge>
-              </div>
-            </CardContent>
-          </Card>
+              )}
 
-          <Card className="bg-card border-border/80">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-brand" />
-                <CardTitle className="text-sm">LLM & Ambiguity Provider</CardTitle>
-              </div>
-              <CardDescription className="text-xs">
-                Configure model endpoints for intent classification and ambiguity evaluation.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="font-medium text-foreground">Active Provider</label>
-                  <Input defaultValue="mock (Deterministic for Tests)" disabled className="h-8 bg-muted border-border/80" />
+              {pwSuccess && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 text-xs">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span>{pwSuccess}</span>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="font-medium text-foreground">Ollama Endpoint</label>
-                  <Input defaultValue="http://localhost:11434" className="h-8 bg-background border-border/80" />
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Current Password</label>
+                <div className="relative">
+                  <Lock className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Input
+                    type="password"
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="pl-9 h-9 text-xs border-secondary"
+                  />
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">New Password</label>
+                <div className="relative">
+                  <Lock className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Minimum 8 characters"
+                    className="pl-9 h-9 text-xs border-secondary"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Confirm New Password</label>
+                <div className="relative">
+                  <Lock className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-9 h-9 text-xs border-secondary"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={pwLoading}
+                className="h-8 text-xs bg-white text-black hover:bg-zinc-200"
+              >
+                {pwLoading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    Updating Password...
+                  </>
+                ) : (
+                  "Update Password"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

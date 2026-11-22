@@ -58,7 +58,25 @@ def test_user(mock_db: Database) -> User:
 
 @pytest.fixture
 def user_auth_headers(test_user: User) -> dict[str, str]:
-    token = create_access_token({"sub": test_user.id, "email": test_user.email})
+    token = create_access_token({"sub": test_user.id, "email": test_user.email, "is_superuser": False})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def admin_user(mock_db: Database) -> User:
+    repo = UserRepository(db=mock_db)
+    user = User(
+        email="superadmin@example.com",
+        full_name="System Administrator",
+        hashed_password=hash_password("SuperSecretAdmin123!"),
+        is_superuser=True,
+    )
+    return repo.create(user)
+
+
+@pytest.fixture
+def admin_auth_headers(admin_user: User) -> dict[str, str]:
+    token = create_access_token({"sub": admin_user.id, "email": admin_user.email, "is_superuser": True})
     return {"Authorization": f"Bearer {token}"}
 
 

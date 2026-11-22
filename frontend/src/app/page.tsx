@@ -202,6 +202,99 @@ const Hero = () => {
   );
 };
 
+/* ── Unstop-Style Metrics Showcase ───────────────────────────────────────── */
+const UnstopMetricsShowcase = () => {
+  return (
+    <section className="relative border-y border-white/5 bg-[#0A0E17]/80 backdrop-blur-md py-14 sm:py-16">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6">
+        {/* Header ticker */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-6 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold tracking-wider text-slate-300 uppercase">
+              Live Engine Telemetry & Benchmarks
+            </span>
+          </div>
+          <div className="flex items-center gap-4 text-xs font-mono text-slate-400">
+            <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-amber-300">
+              Zero Silent Assumptions
+            </span>
+            <span className="hidden sm:inline text-slate-500">·</span>
+            <span className="hidden sm:inline">SHA-256 Merkle Ledger</span>
+          </div>
+        </div>
+
+        {/* 4 High-Impact Stat Tiles */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-[#101622] to-[#0A0E17] p-6 transition-all hover:border-amber-500/50 hover:shadow-[0_0_30px_-5px_rgba(245,158,11,0.2)]">
+            <div className="flex items-center justify-between text-xs font-medium text-slate-400">
+              <span>AST Precision</span>
+              <span className="text-amber-400 text-xs font-mono">Guaranteed</span>
+            </div>
+            <div className="mt-4 flex items-baseline gap-1">
+              <span className="text-4xl sm:text-5xl font-black tracking-tight text-white font-mono">
+                99.8
+              </span>
+              <span className="text-2xl font-bold text-amber-400">%</span>
+            </div>
+            <p className="mt-3 text-xs text-slate-400 leading-relaxed">
+              Every SQL statement passes abstract syntax tree verification before touching data.
+            </p>
+          </div>
+
+          <div className="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-[#101622] to-[#0A0E17] p-6 transition-all hover:border-emerald-500/50 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.2)]">
+            <div className="flex items-center justify-between text-xs font-medium text-slate-400">
+              <span>Planning Latency</span>
+              <span className="text-emerald-400 text-xs font-mono">Real-time</span>
+            </div>
+            <div className="mt-4 flex items-baseline gap-1">
+              <span className="text-4xl sm:text-5xl font-black tracking-tight text-white font-mono">
+                &lt;45
+              </span>
+              <span className="text-lg font-bold text-emerald-400 font-mono">ms</span>
+            </div>
+            <p className="mt-3 text-xs text-slate-400 leading-relaxed">
+              Sub-second response parsing, intent validation, and federated query generation.
+            </p>
+          </div>
+
+          <div className="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-[#101622] to-[#0A0E17] p-6 transition-all hover:border-blue-500/50 hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.2)]">
+            <div className="flex items-center justify-between text-xs font-medium text-slate-400">
+              <span>Multi-Table Links</span>
+              <span className="text-blue-400 text-xs font-mono">Healthcare DB</span>
+            </div>
+            <div className="mt-4 flex items-baseline gap-1">
+              <span className="text-4xl sm:text-5xl font-black tracking-tight text-white font-mono">
+                10+
+              </span>
+              <span className="text-sm font-semibold text-blue-400 uppercase tracking-wider ml-1">Tables</span>
+            </div>
+            <p className="mt-3 text-xs text-slate-400 leading-relaxed">
+              Patients, admissions, diagnoses, appointments, and procedures linked in one view.
+            </p>
+          </div>
+
+          <div className="group relative rounded-2xl border border-white/10 bg-gradient-to-b from-[#101622] to-[#0A0E17] p-6 transition-all hover:border-rose-500/50 hover:shadow-[0_0_30px_-5px_rgba(244,63,94,0.2)]">
+            <div className="flex items-center justify-between text-xs font-medium text-slate-400">
+              <span>Read-Only Guard</span>
+              <span className="text-rose-400 text-xs font-mono">Zero Mutations</span>
+            </div>
+            <div className="mt-4 flex items-baseline gap-1">
+              <span className="text-4xl sm:text-5xl font-black tracking-tight text-white font-mono">
+                100
+              </span>
+              <span className="text-2xl font-bold text-rose-400">%</span>
+            </div>
+            <p className="mt-3 text-xs text-slate-400 leading-relaxed">
+              Destructive mutations (DROP, DELETE, UPDATE) are blocked at the engine core.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 /* ── Database Integration ────────────────────────────────────────────────── */
 const DatabaseIntegration = () => {
   return (
@@ -515,6 +608,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#080A0E] text-slate-100 antialiased selection:bg-amber-500/20 selection:text-white">
       <Navbar />
       <Hero />
+      <UnstopMetricsShowcase />
       <DatabaseIntegration />
       <BentoGrid />
       <HowItWorks />

@@ -76,6 +76,7 @@ export default function LoginPage() {
 
     const urlParams = new URLSearchParams(window.location.search);
     const callbackToken = urlParams.get("token");
+    const callbackRefreshToken = urlParams.get("refresh_token");
     const callbackError = urlParams.get("error");
 
     if (callbackError) {
@@ -89,7 +90,7 @@ export default function LoginPage() {
       setLoading(true);
       setSuccess(true);
       window.history.replaceState({}, document.title, window.location.pathname);
-      handleOAuthCallbackToken(callbackToken)
+      handleOAuthCallbackToken(callbackToken, callbackRefreshToken)
         .then((user) => {
           if (user) {
             setCurrentUser(user);
@@ -154,7 +155,7 @@ export default function LoginPage() {
 
   const handleOAuthLogin = (provider: "google" | "github") => {
     setError(null);
-    window.location.href = `${API_BASE}/auth/${provider}/login`;
+    window.location.href = `${API_BASE}/auth/${provider}/login?mode=login`;
   };
 
   return (
@@ -195,9 +196,21 @@ export default function LoginPage() {
         {/* Login Box */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xl text-left">
           {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-950/40 border border-red-800/50 text-red-300 text-xs animate-in fade-in">
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
-              <span>{error}</span>
+            <div className="p-3 rounded-lg bg-red-950/40 border border-red-800/50 text-red-300 text-xs animate-in fade-in space-y-1.5">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+                <span>{error}</span>
+              </div>
+              {error.toLowerCase().includes("sign up") && (
+                <div className="pt-1">
+                  <Link
+                    href="/register"
+                    className="inline-flex items-center gap-1 font-semibold text-amber-400 hover:underline"
+                  >
+                    <span>Click here to create an account →</span>
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 
