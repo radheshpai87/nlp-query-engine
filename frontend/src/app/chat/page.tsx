@@ -46,7 +46,7 @@ import {
   deleteConversation,
   type Conversation,
 } from "@/lib/conversation-api";
-import { authFetch } from "@/lib/auth-api";
+import { authFetch, getStoredToken, getStoredUser } from "@/lib/auth-api";
 import { ClarificationPrompt } from "@/components/chat/clarification-prompt";
 import { ResultTable } from "@/components/chat/result-table";
 import { ResultChart } from "@/components/chat/result-chart";
@@ -104,6 +104,14 @@ function ChatPageContent() {
 
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  React.useEffect(() => {
+    const token = getStoredToken();
+    const user = getStoredUser();
+    if (!token && !user) {
+      router.replace("/login");
+    }
+  }, [router]);
+
   const handleNewSession = React.useCallback(() => {
     setMessages([]);
     setInputValue("");
@@ -137,6 +145,11 @@ function ChatPageContent() {
   }, [router]);
 
   const loadSuggestions = React.useCallback(async () => {
+    const token = getStoredToken();
+    if (!token) {
+      setSuggestedQueries(SAMPLE_QUERIES);
+      return;
+    }
     try {
       setLoadingSuggestions(true);
       const res = await authFetch(`${API_BASE}/workspaces/${currentWorkspace.id}/suggested-queries`);

@@ -46,7 +46,14 @@ export const useShellStore = create<ShellState>((set) => ({
   setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
   setCurrentUser: (user) => set({ currentUser: user }),
   logoutUser: () => {
-    clearAuth();
+    try {
+      clearAuth();
+    } catch {
+      // Best-effort
+    }
     set({ currentUser: null });
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   },
 }));

@@ -48,8 +48,10 @@ export function setStoredToken(token: string | null): void {
   try {
     if (token) {
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      document.cookie = "nlp_logged_in=1; path=/; max-age=2592000; SameSite=Lax";
     } else {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
+      document.cookie = "nlp_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
     }
   } catch {
     // Ignore storage quota or security errors
@@ -117,6 +119,13 @@ export async function logout(): Promise<void> {
   setStoredToken(null);
   setStoredRefreshToken(null);
   setStoredUser(null);
+  if (typeof window !== "undefined") {
+    try {
+      document.cookie = "nlp_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 /**
@@ -185,8 +194,8 @@ export async function registerWithCredentials(
  * Log in using email and password credentials.
  */
 export async function loginWithCredentials(
-  email = DEMO_CREDENTIALS.email,
-  password = DEMO_CREDENTIALS.password
+  email: string,
+  password: string
 ): Promise<LoginResponse> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
@@ -283,8 +292,8 @@ export async function changeUserPassword(currentPassword: string, newPassword: s
  * Backward-compatible login function returning access_token.
  */
 export async function login(
-  email = DEMO_CREDENTIALS.email,
-  password = DEMO_CREDENTIALS.password
+  email: string,
+  password: string
 ): Promise<string> {
   const data = await loginWithCredentials(email, password);
   return data.access_token;
@@ -326,16 +335,16 @@ export async function handleOAuthCallbackToken(
 }
 
 /**
- * Ensures an active JWT access token exists.
+ * Ensures an active JWT access token exists or returns null if unauthenticated.
  */
-export async function ensureAuthToken(): Promise<string> {
-  let existing = getStoredToken();
+export async function ensureAuthToken(): Promise<string | null> {
+  const existing = getStoredToken();
   if (existing) return existing;
 
   const refreshed = await refreshAccessToken();
   if (refreshed) return refreshed;
 
-  return login();
+  return null;
 }
 
 /**
@@ -371,13 +380,6 @@ export async function authFetch(
     let token = getStoredToken();
     if (!token) {
       token = await refreshAccessToken();
-    }
-    if (!token) {
-      try {
-        token = await login();
-      } catch {
-        // Fallback
-      }
     }
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;

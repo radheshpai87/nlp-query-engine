@@ -29,6 +29,12 @@ vi.mock("@/lib/execution-api", () => ({
   getQueryExecution: vi.fn(),
 }));
 
+vi.mock("@/lib/auth-api", () => ({
+  authFetch: vi.fn().mockResolvedValue({ ok: true, json: async () => [] }),
+  getStoredToken: vi.fn().mockReturnValue("mock-token"),
+  getStoredUser: vi.fn().mockReturnValue({ id: "usr_admin", email: "admin@example.com", full_name: "Admin" }),
+}));
+
 vi.mock("@/lib/query-plan-api", () => ({
   compileLogicalPlan: vi.fn(),
   synthesizeLogicalPlan: vi.fn().mockResolvedValue({
@@ -59,7 +65,7 @@ describe("ChatPage Component", () => {
     expect(screen.getByText("What would you like to explore today?")).toBeInTheDocument();
     expect(screen.getByText("Suggested queries")).toBeInTheDocument();
     expect(
-      screen.getByText("Show me top 5 products by revenue this month")
+      screen.getByText("How many tables are present in healthcare_demo database")
     ).toBeInTheDocument();
   });
 
@@ -93,14 +99,14 @@ describe("ChatPage Component", () => {
 
     // Click sample query
     fireEvent.click(
-      screen.getByText("High-value customers who purchased electronics recently")
+      screen.getByText("How many tables are present in healthcare_demo database")
     );
 
     // Should call API
     await waitFor(() => {
       expect(ambiguityApi.evaluateQueryAmbiguity).toHaveBeenCalledWith(
         "ws_default",
-        "High-value customers who purchased electronics recently"
+        "How many tables are present in healthcare_demo database"
       );
     });
 

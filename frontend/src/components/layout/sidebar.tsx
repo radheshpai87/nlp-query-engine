@@ -484,6 +484,9 @@ function SidebarContent() {
                     onClick={() => {
                       setAccountMenuOpen(false);
                       logoutUser();
+                      if (typeof window !== "undefined") {
+                        window.location.href = "/";
+                      }
                     }}
                     className="flex w-full items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-colors"
                   >
@@ -509,16 +512,16 @@ function SidebarContent() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link
-                  href="/settings"
+                  href={currentUser ? "/settings" : "/login"}
                   className="mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground hover:bg-muted"
-                  aria-label="Settings"
+                  aria-label={currentUser ? "Settings" : "Sign in"}
                 >
-                  {userInitial}
+                  {currentUser ? userInitial : <LogIn className="h-4 w-4" />}
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right">Settings & Account</TooltipContent>
+              <TooltipContent side="right">{currentUser ? "Settings & Account" : "Sign in"}</TooltipContent>
             </Tooltip>
-          ) : (
+          ) : currentUser ? (
             <button
               type="button"
               onClick={() => setAccountMenuOpen(!accountMenuOpen)}
@@ -534,10 +537,10 @@ function SidebarContent() {
                 </span>
                 <div className="min-w-0">
                   <span className="block truncate text-xs font-medium leading-tight text-foreground">
-                    {currentUser?.full_name || "Demo Admin"}
+                    {currentUser.full_name}
                   </span>
                   <span className="block truncate text-[11px] text-muted-foreground">
-                    {currentUser?.email || "admin@example.com"}
+                    {currentUser.email}
                   </span>
                 </div>
               </div>
@@ -547,6 +550,14 @@ function SidebarContent() {
                 <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               )}
             </button>
+          ) : (
+            <Link
+              href="/login"
+              className="flex w-full items-center gap-2.5 rounded-lg p-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <LogIn className="h-4 w-4 text-amber-500" />
+              <span>Sign in to your account</span>
+            </Link>
           )}
         </div>
       </aside>
