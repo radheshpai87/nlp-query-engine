@@ -1,0 +1,135 @@
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Application Metadata Storage (Isolated for Healthcare System)
+  # ----------------------------------------------------------------------------
+  metadata-db:
+    image: mongo:7.0
+    container_name: nlp_query_metadata_db
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27019:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: appsecret
+      MONGO_INITDB_DATABASE: nlp_query_engine_meta
+    volumes:
+      - metadata_db_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 2. Target Healthcare Database: Alpine PostgreSQL (10 interlinked clinical tables)
+  # ----------------------------------------------------------------------------
+  postgres-target:
+    image: postgres:16-alpine
+    container_name: nlp_query_postgres_target
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5435:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: healthcare_demo
+    volumes:
+      - postgres_target_data:/var/lib/postgresql/data
+      - ./docker/postgres/healthcare_init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d healthcare_demo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 3. Application Backend (FastAPI Query Engine)
+  # ----------------------------------------------------------------------------
+  backend:
+    image: nlp-query-engine-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nlp_query_backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8007:8000"
+    volumes:
+      - ./backend/app:/app/backend/app:ro
+      - ./backend/scripts:/app/backend/scripts:ro
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      HOST: "0.0.0.0"
+      PORT: 8000
+      CORS_ORIGINS: "http://localhost:3007,http://127.0.0.1:3007,http://frontend:3000,https://nlp.radhesh.me"
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:-https://nlp.radhesh.me}
+      SECRET_KEY: dev-secret-key-must-be-changed-in-production-min-32-chars
+      ENCRYPTION_KEY: dGhpcy1pcy1hLWR1bW15LWtleS1mb3ItZGV2LW9ubHk=
+      SEED_ON_STARTUP: "true"
+      HEALTHCARE_ONLY: "true"
+      APP_MONGO_URI: mongodb://root:appsecret@metadata-db:27017/nlp_query_engine_meta?authSource=admin
+      APP_MONGO_DB_NAME: nlp_query_engine_meta
+      LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-qwen/qwen3.8-27b}
+      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-ministral-8b-latest}
+      MISTRAL_BASE_URL: ${MISTRAL_BASE_URL:-https://api.mistral.ai/v1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-45}
+      DEMO_POSTGRES_URI: postgresql://postgres:postgrespassword@postgres-target:5432/healthcare_demo
+    depends_on:
+      metadata-db:
+        condition: service_healthy
+      postgres-target:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # 4. Application Frontend (Next.js App Router)
+  # ----------------------------------------------------------------------------
+  frontend:
+    image: nlp-query-engine-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nlp_query_frontend
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:3007:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      INTERNAL_API_URL: http://backend:8000/api/v1/:path*
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  metadata_db_data:
+  postgres_target_data:

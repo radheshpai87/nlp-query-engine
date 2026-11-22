@@ -8,8 +8,7 @@ import { ConnectionCard, type DatabaseConnectionItem } from "@/components/connec
 import { ConnectDatabaseDialog } from "@/components/connections/connect-database-dialog";
 import { useShellStore } from "@/lib/store";
 import { authFetch } from "@/lib/auth-api";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE } from "@/lib/api-config";
 
 export default function ConnectionsPage() {
   const { currentWorkspace } = useShellStore();

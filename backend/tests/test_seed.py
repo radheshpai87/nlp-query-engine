@@ -83,6 +83,20 @@ def test_seed_metadata_idempotency(mock_mongo_client: mongomock.MongoClient) -> 
     assert db["connections"].count_documents({}) == 3
 
 
+def test_seed_metadata_healthcare_only(mock_mongo_client: mongomock.MongoClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify single-database mode seeds only Healthcare DB and removes others."""
+    monkeypatch.setenv("HEALTHCARE_ONLY", "true")
+    success = seed_metadata(introspect=False)
+    assert success is True
+
+    db = mock_mongo_client["nlp_query_engine_meta"]
+    conns = list(db["connections"].find({"workspace_id": "ws_default"}))
+    assert len(conns) == 1
+    assert conns[0]["_id"] == "conn_healthcare_demo"
+    assert conns[0]["database"] == "healthcare_demo"
+    assert conns[0]["name"] == "Healthcare Hospital System"
+
+
 def test_seed_mongodb_target_mocked(mock_mongo_client: mongomock.MongoClient) -> None:
     """Verify target MongoDB collections (events, reviews) are seeded."""
     success = seed_mongodb_target(

@@ -71,6 +71,57 @@ class AuthService:
         token = create_access_token({"sub": user.id, "email": user.email})
         return user, token
 
+    def authenticate_oauth(self, email: str, full_name: str, provider: str = "oauth") -> tuple[User, str]:
+        """Authenticate or register a user logging in via an OAuth provider (Google or GitHub)."""
+        normalized_email = email.lower().strip()
+        user = self.user_repo.get_by_email(normalized_email)
+
+        if user:
+            if not user.is_active:
+                raise AppError("User account is deactivated")
+            if not user.full_name and full_name:
+                self.user_repo.update(user.id, {"full_name": full_name})
+                user.full_name = full_name
+            token = create_access_token({"sub": user.id, "email": user.email})
+            return user, token
+
+        # Register new OAuth user
+        user = User(
+            email=normalized_email,
+            full_name=full_name or normalized_email.split("@")[0],
+            hashed_password=hash_password(secrets.token_urlsafe(32)),
+            onboarding_completed=True,
+        )
+        created_user = self.user_repo.create(user)
+
+        # Assign to default workspace if available or create a personal one
+        default_ws = self.workspace_repo.get_by_id("ws_default")
+        if default_ws:
+            self.workspace_repo.add_member(
+                workspace_id="ws_default",
+                user_id=created_user.id,
+                role=WorkspaceRole.MEMBER,
+            )
+            ws_id = "ws_default"
+        else:
+            initial_workspace = Workspace(
+                name=f"{created_user.full_name}'s Workspace",
+                description="Personal workspace",
+                owner_id=created_user.id,
+            )
+            created_ws = self.workspace_repo.create(initial_workspace)
+            self.workspace_repo.add_member(
+                workspace_id=created_ws.id,
+                user_id=created_user.id,
+                role=WorkspaceRole.ADMIN,
+            )
+            ws_id = created_ws.id
+
+        self.user_repo.update(created_user.id, {"default_workspace_id": ws_id})
+        created_user.default_workspace_id = ws_id
+        token = create_access_token({"sub": created_user.id, "email": created_user.email})
+        return created_user, token
+
     def forgot_password(self, email: str) -> str:
         """Generate secure password reset token (valid for 1 hour)."""
         normalized_email = email.lower().strip()

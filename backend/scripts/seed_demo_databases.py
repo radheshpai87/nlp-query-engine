@@ -960,6 +960,48 @@ def seed_metadata(
         resolved_es_host = es_host or (parsed_es.hostname if parsed_es and parsed_es.hostname else None) or os.getenv("DEMO_ES_HOST", "localhost")
         resolved_es_port = (parsed_es.port if parsed_es and parsed_es.port else None) or es_port
 
+        healthcare_only = os.getenv("HEALTHCARE_ONLY", "false").lower() in ("true", "1", "yes")
+        if healthcare_only:
+            logger.info("Operating in Healthcare-Only Database Mode: removing non-healthcare databases...")
+            # Clean up other connections, relations and snapshots
+            db["connections"].delete_many({"_id": {"$in": ["conn_postgres_demo", "conn_mongo_demo", "conn_es_demo"]}})
+            db["schema_snapshots"].delete_many({"connection_id": {"$in": ["conn_postgres_demo", "conn_mongo_demo", "conn_es_demo"]}})
+            db["user_defined_relationships"].delete_many({})
+
+            conn_hc = DatabaseConnection(
+                id="conn_healthcare_demo",
+                workspace_id="ws_default",
+                name="Healthcare Hospital System",
+                db_type=DatabaseType.POSTGRESQL,
+                host=resolved_pg_host,
+                port=resolved_pg_port,
+                database="healthcare_demo",
+                username="postgres",
+                encrypted_secret=encrypt_secret("postgrespassword"),
+                status=ConnectionStatus.ONLINE,
+                status_message="Connected to Alpine PostgreSQL (healthcare_demo)",
+                is_enabled=True,
+            )
+            db["connections"].replace_one(
+                {"_id": conn_hc.id}, conn_hc.to_mongo(), upsert=True
+            )
+
+            if introspect:
+                try:
+                    adapter = create_adapter(conn_hc, decrypted_secret="postgrespassword")
+                    snapshot = adapter.discover_schema(workspace_id="ws_default")
+                    s_dict = snapshot.to_mongo()
+                    s_dict["workspace_id"] = "ws_default"
+                    s_dict["connection_id"] = conn_hc.id
+                    db["schema_snapshots"].delete_many({"connection_id": conn_hc.id})
+                    db["schema_snapshots"].insert_one(s_dict)
+                    logger.info("Introspected and persisted schema snapshot for Healthcare Hospital System (%d objects)", len(s_dict.get("objects", [])))
+                except Exception as ex:
+                    logger.info("Schema introspection for Healthcare deferred: %s", ex)
+
+            logger.info("Successfully seeded Application Metadata with ONLY Healthcare DB.")
+            return True
+
         # 4. Target Database Connections
         conn_pg = DatabaseConnection(
             id="conn_postgres_demo",
@@ -1107,6 +1149,13 @@ def seed_all(
         os.environ["DEMO_ELASTICSEARCH_URL"] = es_url
     if meta_uri:
         os.environ["APP_MONGO_URI"] = meta_uri
+
+    healthcare_only = os.getenv("HEALTHCARE_ONLY", "false").lower() in ("true", "1", "yes")
+    if healthcare_only:
+        results["postgres"] = True
+        results["metadata"] = seed_metadata(meta_uri)
+        logger.info("Healthcare-only seeding completed with status summary: %s", results)
+        return results
 
     results["postgres"] = seed_postgres(pg_uri)
     results["mongodb_target"] = seed_mongodb_target(mongo_uri)

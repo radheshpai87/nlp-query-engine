@@ -102,6 +102,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend/app:/app/backend/app:ro
+      - ./backend/scripts:/app/backend/scripts:ro
     # Provider keys and other secrets live in the gitignored root .env file.
     env_file:
       - path: .env
@@ -111,10 +112,16 @@ services:
       DEBUG: "true"
       HOST: "0.0.0.0"
       PORT: 8000
-      CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000"
+      CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://frontend:3000,https://nlp.radhesh.me"
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:-https://nlp.radhesh.me}
       SECRET_KEY: dev-secret-key-must-be-changed-in-production-min-32-chars
       ENCRYPTION_KEY: dGhpcy1pcy1hLWR1bW15LWtleS1mb3ItZGV2LW9ubHk=
       SEED_ON_STARTUP: "true"
+      HEALTHCARE_ONLY: "true"
       APP_MONGO_URI: mongodb://root:appsecret@metadata-db:27017/nlp_query_engine_meta?authSource=admin
       APP_MONGO_DB_NAME: nlp_query_engine_meta
       LLM_PROVIDER: ${LLM_PROVIDER:-auto}
@@ -163,6 +170,7 @@ services:
       - "127.0.0.1:3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      INTERNAL_API_URL: http://backend:8000/api/v1/:path*
     depends_on:
       backend:
         condition: service_healthy

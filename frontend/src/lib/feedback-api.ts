@@ -39,7 +39,7 @@ export interface FeedbackLearningSummary {
   active_learning_rules_count: number;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE } from "./api-config";
 
 export async function submitQueryFeedback(
   workspaceId: string,

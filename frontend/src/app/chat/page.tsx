@@ -70,13 +70,13 @@ export interface ChatMessage {
   timestamp: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE } from "@/lib/api-config";
 
 const SAMPLE_QUERIES = [
-  "Show me top 5 products by revenue this month",
-  "High-value customers who purchased electronics recently",
-  "Which customers have placed orders but have not paid?",
-  "What is the average transaction value for customers from Bengaluru?",
+  "How many tables are present in healthcare_demo database",
+  "Show all patients with their blood type and gender",
+  "List all physicians and their medical specialties",
+  "How many patients are currently admitted in the hospital?",
 ];
 
 let messageCounter = 0;

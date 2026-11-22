@@ -1,8 +1,8 @@
 /**
  * Client-side Authentication & Session Management
  */
+import { API_BASE } from "./api-config";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const TOKEN_STORAGE_KEY = "nlp_query_auth_token";
 const USER_STORAGE_KEY = "nlp_query_auth_user";
 
@@ -236,6 +236,18 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
   } catch {
     return getStoredUser();
   }
+}
+
+/**
+ * Handle incoming OAuth callback JWT token and initialize session.
+ */
+export async function handleOAuthCallbackToken(token: string): Promise<AuthUser | null> {
+  setStoredToken(token);
+  const user = await fetchCurrentUser();
+  if (user) {
+    setStoredUser(user);
+  }
+  return user;
 }
 
 /**

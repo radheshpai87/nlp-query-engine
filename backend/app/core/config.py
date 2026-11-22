@@ -65,6 +65,13 @@ class Settings(BaseSettings):
     MAX_RESULT_BYTES: int = 10 * 1024 * 1024  # 10 MB
     ALLOW_WRITE_OPERATIONS: bool = False
 
+    # OAuth Providers
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
+    OAUTH_REDIRECT_BASE_URL: str = "https://nlp.radhesh.me"
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:

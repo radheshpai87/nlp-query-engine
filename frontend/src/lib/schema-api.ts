@@ -122,7 +122,7 @@ export interface SchemaGraphResponse {
   statistics: SchemaGraphStatistics;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE } from "./api-config";
 
 export async function fetchWorkspaceSchemas(
   workspaceId: string,
