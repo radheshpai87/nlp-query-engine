@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Sparkles, Mail, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NexusLogo } from "@/components/ui/nexus-logo";
 import { requestPasswordReset } from "@/lib/auth-api";
 
 export default function ForgotPasswordPage() {
@@ -36,9 +37,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-between p-4 sm:p-6 antialiased selection:bg-brand/30">
       <div className="flex items-center justify-between max-w-5xl mx-auto w-full py-2">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="h-8 w-8 rounded-lg bg-brand-muted border border-brand/20 flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
-            <Sparkles className="h-4 w-4" />
-          </div>
+          <NexusLogo size={28} className="group-hover:scale-105 transition-transform" />
           <span className="font-semibold text-sm tracking-tight text-white">Nexus Query</span>
         </Link>
 
@@ -53,6 +52,7 @@ export default function ForgotPasswordPage() {
       <div className="max-w-md mx-auto w-full my-auto py-8">
         <div className="bg-card border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
           <div className="text-center mb-6">
+            <NexusLogo size={42} className="mx-auto mb-3 drop-shadow-[0_0_15px_rgba(245,158,11,0.25)]" />
             <h1 className="text-2xl font-bold text-white tracking-tight">Reset your password</h1>
             <p className="text-xs text-zinc-400 mt-1.5">
               Enter your registered work email to receive password reset instructions.

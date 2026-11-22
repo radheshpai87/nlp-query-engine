@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
     creator: "@nexusquery",
   },
-  robots: {
+    robots: {
     index: true,
     follow: true,
     googleBot: {
@@ -71,6 +71,19 @@ export const metadata: Metadata = {
       "max-image-preview": "large",
       "max-snippet": -1,
     },
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: "/site.webmanifest",
+  appleWebApp: {
+    title: "Nexus Query",
   },
 };
 

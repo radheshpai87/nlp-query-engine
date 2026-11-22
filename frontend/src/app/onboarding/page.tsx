@@ -19,6 +19,7 @@ import {
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NexusLogo } from "@/components/ui/nexus-logo";
 import { useShellStore } from "@/lib/store";
 import { updateUserProfile, getStoredUser } from "@/lib/auth-api";
 
@@ -61,9 +62,7 @@ export default function OnboardingPage() {
       {/* Header */}
       <div className="flex items-center justify-between max-w-4xl mx-auto w-full py-4 border-b border-zinc-800/80">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-brand-muted border border-brand/20 flex items-center justify-center text-brand">
-            <Sparkles className="h-4 w-4" />
-          </div>
+          <NexusLogo size={32} />
           <div>
             <span className="font-semibold text-sm tracking-tight text-white block">Nexus Query Engine</span>
             <span className="text-[11px] text-zinc-400">Enterprise Onboarding Walkthrough</span>

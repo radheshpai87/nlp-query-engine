@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Preview } from "@/components/preview";
 import { BentoGridContent } from "@/components/bento-grid";
+import { NexusLogo } from "@/components/ui/nexus-logo";
 
 const NAV_LINKS = [
   { href: "#product", label: "Product" },
@@ -39,10 +40,8 @@ const Navbar = () => {
     <header className="sticky top-0 z-50 border-b border-white/5 bg-[#080A0E]/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-6">
         {/* Left: Brand */}
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500 text-zinc-950 text-xs font-bold shadow-[0_0_12px_rgba(245,158,11,0.35)]">
-            N
-          </span>
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <NexusLogo size={28} className="group-hover:scale-105 transition-transform" />
           <span className="text-sm font-semibold tracking-tight text-slate-100">
             Nexus Query
           </span>
@@ -577,9 +576,7 @@ const Footer = () => {
     <footer className="border-t border-white/5 bg-[#06080C] py-10">
       <div className="mx-auto max-w-6xl px-5 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-5 text-xs text-slate-400">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-500 text-zinc-950 text-[10px] font-bold">
-            N
-          </span>
+          <NexusLogo size={20} />
           <span>Nexus Query — ambiguity-aware data access.</span>
         </div>
 

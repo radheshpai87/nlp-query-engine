@@ -30,6 +30,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { NexusLogo } from "@/components/ui/nexus-logo";
 import { useShellStore } from "@/lib/store";
 import { adminApi, AdminMetrics, DirectQueryResult, AuthUser } from "@/lib/auth-api";
 
@@ -225,9 +226,7 @@ export default function AdminConsolePage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <ShieldAlert className="h-4 w-4" />
-            </div>
+            <NexusLogo size={28} />
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               <span>Platform Ops & Control Console</span>
               <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[10px] font-mono">

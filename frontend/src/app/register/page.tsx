@@ -17,6 +17,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NexusLogo } from "@/components/ui/nexus-logo";
 import { registerWithCredentials } from "@/lib/auth-api";
 import { API_BASE } from "@/lib/api-config";
 import { useShellStore } from "@/lib/store";
@@ -120,9 +121,7 @@ export default function RegisterPage() {
       {/* Top Header */}
       <div className="flex items-center justify-between max-w-5xl mx-auto w-full py-2">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="h-8 w-8 rounded-lg bg-brand-muted border border-brand/20 flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
-            <Sparkles className="h-4 w-4" />
-          </div>
+          <NexusLogo size={28} className="group-hover:scale-105 transition-transform" />
           <span className="font-semibold text-sm tracking-tight text-white">Nexus Query</span>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-brand-muted text-brand border border-brand/20">
             Enterprise
@@ -144,6 +143,7 @@ export default function RegisterPage() {
       <div className="max-w-md mx-auto w-full my-auto py-8">
         <div className="bg-card border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
           <div className="text-center mb-6">
+            <NexusLogo size={42} className="mx-auto mb-3 drop-shadow-[0_0_15px_rgba(245,158,11,0.25)]" />
             <h1 className="text-2xl font-bold text-white tracking-tight">Create your account</h1>
             <p className="text-xs text-zinc-400 mt-1.5">
               Start querying PostgreSQL, MongoDB, and Elasticsearch with natural language.

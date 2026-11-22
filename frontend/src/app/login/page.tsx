@@ -16,6 +16,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NexusLogo } from "@/components/ui/nexus-logo";
 import {
   loginWithCredentials,
   getStoredUser,
@@ -163,9 +164,7 @@ export default function LoginPage() {
       {/* Top Header */}
       <div className="flex items-center justify-between max-w-5xl mx-auto w-full py-2">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-brand border border-muted group-hover:border-brand/50 transition-colors">
-            <Sparkles className="h-4 w-4" />
-          </div>
+          <NexusLogo size={28} className="group-hover:scale-105 transition-transform" />
           <span className="font-medium text-xs sm:text-sm tracking-tight text-white">
             Nexus Query
           </span>
@@ -181,6 +180,7 @@ export default function LoginPage() {
       {/* Main Center Card */}
       <div className="max-w-md w-full mx-auto my-auto space-y-5">
         <div className="text-center space-y-1.5">
+          <NexusLogo size={42} className="mx-auto mb-2 drop-shadow-[0_0_15px_rgba(245,158,11,0.25)]" />
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand/10 border border-brand/30 text-brand text-xs font-medium">
             <ShieldCheck className="h-3.5 w-3.5" />
             <span>Secure AST Engine Access</span>

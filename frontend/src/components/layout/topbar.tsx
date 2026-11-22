@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NexusLogo } from "@/components/ui/nexus-logo";
 import { useShellStore } from "@/lib/store";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -36,6 +37,7 @@ export function Topbar() {
         >
           <Menu className="h-4 w-4" />
         </Button>
+        <NexusLogo size={20} className="md:hidden shrink-0" />
         <span className="text-[13px] font-medium">{title}</span>
         <span className="hidden text-[11px] text-muted-foreground sm:inline">
           {currentWorkspace.name}

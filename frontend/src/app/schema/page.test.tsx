@@ -177,7 +177,7 @@ describe("SchemaPage Component", () => {
     });
 
     // Inspect columns of default entity (customers)
-    expect(screen.getByText("email")).toBeInTheDocument();
+    expect(await screen.findByText("email")).toBeInTheDocument();
     expect(screen.getByText("character varying")).toBeInTheDocument();
     expect(screen.getByText("PK")).toBeInTheDocument();
 
