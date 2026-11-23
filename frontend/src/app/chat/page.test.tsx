@@ -155,7 +155,7 @@ describe("ChatPage Component", () => {
     render(<ChatPage />);
 
     // Type query
-    const input = screen.getByPlaceholderText(/e\.g\. Show me top 5 products/i);
+    const input = screen.getByPlaceholderText(/Ask Nexus Query/i);
     fireEvent.change(input, { target: { value: "Show recent sales" } });
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
 
@@ -184,7 +184,7 @@ describe("ChatPage Component", () => {
     render(<ChatPage />);
 
     // Type and send
-    const input = screen.getByPlaceholderText(/e\.g\. Show me top 5 products/i);
+    const input = screen.getByPlaceholderText(/Ask Nexus Query/i);
     fireEvent.change(input, { target: { value: "Test Query" } });
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
 
@@ -222,7 +222,7 @@ describe("ChatPage Component", () => {
     render(<ChatPage />);
 
     // Type and send a clear query
-    const input = screen.getByPlaceholderText(/e\.g\. Show me top 5 products/i);
+    const input = screen.getByPlaceholderText(/Ask Nexus Query/i);
     fireEvent.change(input, { target: { value: "Show completed orders" } });
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
 
@@ -258,7 +258,7 @@ describe("ChatPage Component", () => {
 
     render(<ChatPage />);
 
-    const input = screen.getByPlaceholderText(/e\.g\. Show me top 5 products/i);
+    const input = screen.getByPlaceholderText(/Ask Nexus Query/i);
     fireEvent.change(input, { target: { value: "How many databases are present" } });
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
 
@@ -285,7 +285,7 @@ describe("ChatPage Component", () => {
 
     render(<ChatPage />);
 
-    const input = screen.getByPlaceholderText(/e\.g\. Show me top 5 products/i);
+    const input = screen.getByPlaceholderText(/Ask Nexus Query/i);
     fireEvent.change(input, { target: { value: "What is the capital of France?" } });
     fireEvent.click(screen.getByRole("button", { name: /send/i }));
 

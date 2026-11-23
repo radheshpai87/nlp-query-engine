@@ -880,7 +880,7 @@ function ChatPageContent() {
               ref={inputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask anything about your databases (e.g. Show me top 5 products...)"
+              placeholder="Ask Nexus Query..."
               className="flex-1 bg-transparent border-0 text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 px-1 py-2 text-sm shadow-none"
               disabled={isSubmitting}
             />
