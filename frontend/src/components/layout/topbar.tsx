@@ -45,10 +45,8 @@ export function Topbar() {
       </div>
 
       <Link
-        href="http://localhost:8000/docs"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+        href="/docs"
+        className="text-[11px] text-muted-foreground transition-colors hover:text-amber-400"
       >
         API docs
       </Link>

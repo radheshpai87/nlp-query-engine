@@ -13,12 +13,17 @@ const nextConfig: NextConfig = {
     },
   },
   async rewrites() {
+    const backendBase =
+      process.env.NODE_ENV === "production"
+        ? "http://backend:8000"
+        : "http://127.0.0.1:8000";
     const backendUrl =
-      process.env.INTERNAL_API_URL ||
-      (process.env.NODE_ENV === "production"
-        ? "http://backend:8000/api/v1/:path*"
-        : "http://127.0.0.1:8000/api/v1/:path*");
+      process.env.INTERNAL_API_URL || `${backendBase}/api/v1/:path*`;
     return [
+      {
+        source: "/api/openapi.json",
+        destination: `${backendBase}/openapi.json`,
+      },
       {
         source: "/api/v1/:path*",
         destination: backendUrl,

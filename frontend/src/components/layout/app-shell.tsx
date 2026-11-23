@@ -14,7 +14,7 @@ interface AppShellProps {
 }
 
 // Pages that live outside the authenticated application shell.
-const STANDALONE_ROUTES = ["/", "/login", "/register", "/forgot-password", "/reset-password"];
+const STANDALONE_ROUTES = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/docs"];
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
@@ -22,7 +22,7 @@ export function AppShell({ children }: AppShellProps) {
   const { mobileSidebarOpen, setMobileSidebarOpen, currentUser, setCurrentUser } = useShellStore();
   const [authChecked, setAuthChecked] = React.useState(false);
 
-  const isStandalone = STANDALONE_ROUTES.includes(pathname ?? "");
+  const isStandalone = STANDALONE_ROUTES.includes(pathname ?? "") || (pathname?.startsWith("/docs") ?? false);
 
   React.useEffect(() => {
     if (isStandalone) {
