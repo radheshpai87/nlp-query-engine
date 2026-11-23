@@ -12,6 +12,17 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async headers() {
+    return [
+      {
+        source: "/sitemap.xsl",
+        headers: [
+          { key: "Content-Type", value: "text/xsl; charset=utf-8" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     const backendBase =
       process.env.NODE_ENV === "production"

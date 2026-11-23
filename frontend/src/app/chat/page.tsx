@@ -70,6 +70,7 @@ export interface ChatMessage {
   plan?: Record<string, unknown>;
   compilation?: CompilationResult;
   executionResult?: ExecutionResult;
+  error?: string;
   timestamp: string;
 }
 
@@ -103,6 +104,7 @@ function ChatPageContent() {
   const [messageViewModes, setMessageViewModes] = useState<Record<string, "table" | "chart">>({});
   const [suggestedQueries, setSuggestedQueries] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -180,11 +182,14 @@ function ChatPageContent() {
     if (!currentChatId) {
       setMessages([]);
       setInputValue("");
+      setLoadingHistory(false);
       return;
     }
+    setLoadingHistory(true);
     getMessages(currentWorkspace.id, currentChatId)
       .then(async (msgs) => {
         if (ignore) return;
+        setLoadingHistory(false);
         if (Array.isArray(msgs) && msgs.length > 0) {
           const mapped: ChatMessage[] = msgs.map((m) => ({
             id: m.id,
@@ -206,10 +211,10 @@ function ChatPageContent() {
           }));
           setMessages(mapped);
         } else {
-          // If conversation has no persisted messages yet (e.g. legacy/interrupted), recover query from title
+          // If conversation has no persisted messages yet (e.g. legacy/interrupted), recover query from title if not truncated
           try {
             const conv = await getConversation(currentWorkspace.id, currentChatId);
-            if (conv && conv.title && conv.title !== "New Conversation" && !ignore) {
+            if (conv && conv.title && conv.title !== "New Conversation" && !conv.title.endsWith("...") && !ignore) {
               handleSend(conv.title);
             } else {
               setMessages([]);
@@ -219,7 +224,11 @@ function ChatPageContent() {
           }
         }
       })
-      .catch((err) => console.error("Error loading chat messages", err));
+      .catch((err) => {
+        if (ignore) return;
+        setLoadingHistory(false);
+        console.error("Error loading chat messages", err);
+      });
 
     return () => {
       ignore = true;
@@ -560,7 +569,7 @@ function ChatPageContent() {
             ? {
                 ...msg,
                 status: "error",
-                content: `${msg.content}\n\n⚠️ **Compilation Error:** ${errorMessage}`,
+                error: errorMessage,
               }
             : msg
         )
@@ -628,7 +637,7 @@ function ChatPageContent() {
             ? {
                 ...msg,
                 status: "error",
-                content: `${msg.content}\n\n⚠️ **Execution Error:** ${errorMessage}`,
+                error: errorMessage,
               }
             : msg
         )
@@ -668,7 +677,12 @@ function ChatPageContent() {
 
       {/* Main Conversation Stream */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-        {messages.length === 0 ? (
+        {loadingHistory ? (
+          <div className="mx-auto flex h-full max-w-xl flex-col items-center justify-center gap-4 py-20 text-center">
+            <RefreshCw className="h-6 w-6 animate-spin text-brand" />
+            <p className="text-xs text-muted-foreground">Loading conversational thread...</p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="mx-auto flex h-full max-w-xl flex-col items-center justify-center gap-8 py-16">
             <div className="space-y-3 text-center">
               <NexusLogo size={38} className="mx-auto shadow-md" />
@@ -750,7 +764,9 @@ function ChatPageContent() {
                   )}
 
                   {message.role === "assistant" ? (
-                    <MarkdownContent content={message.content} />
+                    message.status === "error" && !message.error ? null : (
+                      <MarkdownContent content={message.content} />
+                    )
                   ) : (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                   )}
@@ -810,10 +826,10 @@ function ChatPageContent() {
                   )}
 
                   {/* Error Alert */}
-                  {message.status === "error" && (
-                    <div className="p-2.5 rounded-xl border border-red-500/40 bg-red-950/20 text-xs text-red-300 flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
-                      <span>{message.content}</span>
+                  {(message.error || (message.status === "error" && message.content)) && (
+                    <div className="p-3 rounded-xl border border-red-500/40 bg-red-950/20 text-xs text-red-300 flex items-start gap-2.5">
+                      <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                      <span className="leading-relaxed whitespace-pre-wrap">{message.error || message.content}</span>
                     </div>
                   )}
 
