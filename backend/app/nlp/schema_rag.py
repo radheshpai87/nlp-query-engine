@@ -20,6 +20,7 @@ from app.models.ambiguity import (
 from app.models.connection import DatabaseConnection
 from app.models.feedback import QueryFeedback
 from app.models.schema import SchemaSnapshot, UserDefinedRelationship
+from app.nlp.domain_guard import DomainCheckResult, DomainGuard, DomainQueryCategory
 from app.nlp.providers.base import BaseLLMProvider, LLMMessage
 from app.nlp.schema_context import format_schema_context_for_llm
 
@@ -63,20 +64,14 @@ class SchemaRAGService:
         clean_query = query.strip()
         lower_query = clean_query.lower()
 
-        # 1. Guardrail Check (Mutating / Destructive Operations)
-        if re.search(
-            r"\b(drop\s+(table|database|index|collection)|delete\s+from|truncate\s+(table)?|insert\s+into|update\s+\w+\s+set|alter\s+table|grant\s+|revoke\s+)\b",
-            lower_query,
-        ) or re.search(r"^\s*(drop|delete|truncate|insert|update|alter)\b", lower_query):
+        # 1. Deterministic Domain Guardrail Check (Mutating, Off-topic, Greetings)
+        guard_result = DomainGuard.check_query(clean_query, connections, snapshots)
+        if not guard_result.is_allowed and guard_result.category != DomainQueryCategory.METADATA:
             return SchemaRAGResult(
-                intent="guardrail_blocked",
-                direct_response=(
-                    "⚠️ **Security Policy Violation**: Destructive and mutating statements "
-                    "(`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `TRUNCATE`) are strictly blocked. "
-                    "This engine operates strictly in read-only analytical mode."
-                ),
+                intent="guardrail_blocked" if guard_result.category in (DomainQueryCategory.UNSAFE_MUTATION, DomainQueryCategory.OUT_OF_DOMAIN) else "conversational",
+                direct_response=guard_result.direct_response,
                 confidence=1.0,
-                explanation="Blocked modifying command",
+                explanation=guard_result.reason or "Domain guardrail enforcement",
             )
 
         # 2. Fast Accurate Metadata & Schema Inspection Resolver

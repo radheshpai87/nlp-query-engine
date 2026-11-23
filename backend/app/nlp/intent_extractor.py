@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.models.connection import DatabaseConnection
 from app.models.schema import SchemaSnapshot
+from app.nlp.domain_guard import DomainGuard
 from app.nlp.providers.base import BaseLLMProvider, LLMMessage
 from app.nlp.schema_context import format_schema_context_for_llm
 
@@ -227,6 +228,20 @@ class IntentExtractor:
         connections: dict[str, DatabaseConnection] | list[DatabaseConnection] | None = None,
     ) -> ExtractedIntent:
         """Extract structured intent using LLM provider with fallback."""
+        snap_dict = (
+            snapshots
+            if isinstance(snapshots, dict)
+            else ({s.connection_id: s for s in snapshots} if snapshots else None)
+        )
+        conn_dict = (
+            connections
+            if isinstance(connections, dict)
+            else ({c.id: c for c in connections} if connections else None)
+        )
+        guard_res = DomainGuard.check_query(query, conn_dict, snap_dict)
+        if not guard_res.is_allowed:
+            return self._rule_based_fallback(query, snapshots)
+
         effective_context = schema_context
         if not effective_context:
             effective_context = format_schema_context_for_llm(

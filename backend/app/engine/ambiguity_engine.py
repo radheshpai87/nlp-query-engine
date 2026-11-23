@@ -10,6 +10,7 @@ from app.models.ambiguity import (
 )
 from app.models.connection import DatabaseConnection, DatabaseType
 from app.models.schema import SchemaSnapshot
+from app.nlp.domain_guard import DomainCheckResult, DomainGuard, DomainQueryCategory
 
 
 class AmbiguityEngine:
@@ -163,47 +164,22 @@ class AmbiguityEngine:
                     break
 
         # --------------------------------------------------------------------
-        # Guard Rail 1: Unsafe / Mutating Operations
+        # Guard Rail: Domain Scoping & Read-Only Safety (0 LLM Tokens)
         # --------------------------------------------------------------------
-        if re.search(
-            r"\b(drop\s+(table|database|index|collection)|delete\s+from|truncate\s+(table)?|insert\s+into|update\s+\w+\s+set|alter\s+table|grant\s+|revoke\s+)\b",
-            lower_query,
-        ) or re.search(r"^\s*(drop|delete|truncate|insert|update|alter)\b", lower_query):
+        guard_result = DomainGuard.check_query(
+            query=clean_query,
+            connections=connections,
+            snapshots=snapshots,
+        )
+        if not guard_result.is_allowed and guard_result.category != DomainQueryCategory.METADATA:
             return AmbiguityEvaluationResult(
                 is_ambiguous=False,
                 confidence=1.0,
                 clarifications=[],
-                inferred_intent={"raw_query": clean_query, "guardrail": "unsafe_mutation"},
-                suggested_action="guardrail_blocked",
-                is_guardrail_blocked=True,
-                conversational_response=(
-                    "⚠️ **Operation Blocked by Read-Only Guard Rails**\n\n"
-                    "Nexus Query strictly enforces read-only analytical queries (SELECT and AGGREGATE). "
-                    "Mutating, updating, or destructive database operations are disallowed to protect your data."
-                ),
-            )
-
-        # --------------------------------------------------------------------
-        # Guard Rail 2: General Knowledge / Completely Off-Topic Questions
-        # --------------------------------------------------------------------
-        if re.search(
-            r"\b(capital\s+of|weather\s+in|who\s+(is|was)\b(?!.*\b(customer|user|buyer|seller)\b)|tell\s+me\s+a\s+joke|write\s+a\s+poem|recipe\s+for|translate\s+|meaning\s+of\s+life|president\s+of|prime\s+minister|how\s+to\s+cook|lyrics\s+of|sing\s+a\s+song)\b",
-            lower_query,
-        ):
-            return AmbiguityEvaluationResult(
-                is_ambiguous=False,
-                confidence=1.0,
-                clarifications=[],
-                inferred_intent={"raw_query": clean_query, "guardrail": "off_topic"},
-                suggested_action="guardrail_blocked",
-                is_guardrail_blocked=True,
-                conversational_response=(
-                    "🛡️ **Guard Rail Notice: Query Out of Scope**\n\n"
-                    "I am a specialized assistant strictly scoped to your connected databases "
-                    "(PostgreSQL, MongoDB, Elasticsearch). I cannot answer general knowledge or external questions.\n\n"
-                    "You can ask me questions about your **products**, **customers**, **orders**, **reviews**, "
-                    "or **database schemas**."
-                ),
+                inferred_intent={"raw_query": clean_query, "guardrail": guard_result.category.value},
+                suggested_action="conversational_response" if guard_result.category == DomainQueryCategory.GREETING else "guardrail_blocked",
+                is_guardrail_blocked=(guard_result.category in (DomainQueryCategory.UNSAFE_MUTATION, DomainQueryCategory.OUT_OF_DOMAIN)),
+                conversational_response=guard_result.direct_response,
             )
 
         # --------------------------------------------------------------------

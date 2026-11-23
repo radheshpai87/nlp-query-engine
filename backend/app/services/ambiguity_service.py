@@ -9,6 +9,7 @@ from app.models.ambiguity import (
     ClarificationResolutionResponse,
     PendingClarification,
 )
+from app.nlp.domain_guard import DomainCheckResult, DomainGuard, DomainQueryCategory
 from app.repositories.connection_repository import (
     ConnectionRepository,
     get_connection_repository,
@@ -62,7 +63,34 @@ class AmbiguityService:
             s.connection_id: s for s in self.schema_repo.get_all_latest_for_workspace(workspace_id)
         }
 
-        # Try dynamic Schema-RAG first if LLM provider is available
+        # 1. Deterministic Domain Guardrail check BEFORE Schema-RAG or any LLM invocation
+        guard_result = DomainGuard.check_query(
+            query=query,
+            connections=connections,
+            snapshots=snapshots,
+        )
+        if not guard_result.is_allowed and guard_result.category != DomainQueryCategory.METADATA:
+            return AmbiguityEvaluationResult(
+                is_ambiguous=False,
+                confidence=1.0,
+                clarifications=[],
+                inferred_intent={"raw_query": query, "category": guard_result.category.value},
+                suggested_action="conversational_response" if guard_result.category == DomainQueryCategory.GREETING else "guardrail_blocked",
+                conversational_response=guard_result.direct_response,
+                is_metadata_query=False,
+                is_guardrail_blocked=(guard_result.category in (DomainQueryCategory.UNSAFE_MUTATION, DomainQueryCategory.OUT_OF_DOMAIN)),
+            )
+
+        # 2. If it's a structural metadata query, handle deterministically without calling LLM
+        if guard_result.category == DomainQueryCategory.METADATA:
+            return self.engine.evaluate_query(
+                query=query,
+                connections=connections,
+                snapshots=snapshots,
+                resolved_context=resolved_context,
+            )
+
+        # 3. Try dynamic Schema-RAG for valid database queries if LLM provider is available
         if self.rag:
             try:
                 learning_examples = (
