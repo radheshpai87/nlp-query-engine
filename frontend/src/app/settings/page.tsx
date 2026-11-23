@@ -230,31 +230,6 @@ export default function SettingsPage() {
               </form>
             </CardContent>
           </Card>
-
-          {/* Session details */}
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-brand" />
-                <span>Active Session & Storage Isolation</span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Your session is secured with dual-token authentication. User identity is isolated in private system storage.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-xs text-muted-foreground">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg border border-border/60 bg-muted/20">
-                  <span className="text-[10px] uppercase text-zinc-400 block font-medium">Session Token</span>
-                  <span className="text-xs font-mono text-foreground mt-0.5 block">Short-Lived JWT (30m)</span>
-                </div>
-                <div className="p-3 rounded-lg border border-border/60 bg-muted/20">
-                  <span className="text-[10px] uppercase text-zinc-400 block font-medium">Refresh Token</span>
-                  <span className="text-xs font-mono text-emerald-400 mt-0.5 block">30-Day Rotated & Hashed</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       )}
 

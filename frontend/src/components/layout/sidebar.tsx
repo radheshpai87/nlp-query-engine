@@ -111,6 +111,10 @@ function SidebarContent() {
 
   // Load chat history
   const loadConversations = React.useCallback(async () => {
+    if (!currentUser) {
+      setConversations([]);
+      return;
+    }
     try {
       const data = await listConversations(currentWorkspace.id);
       if (Array.isArray(data)) {
@@ -119,9 +123,13 @@ function SidebarContent() {
     } catch {
       // ignore offline/unauthenticated
     }
-  }, [currentWorkspace.id]);
+  }, [currentWorkspace.id, currentUser]);
 
   React.useEffect(() => {
+    if (!currentUser) {
+      setConversations([]);
+      return;
+    }
     loadConversations();
     const handleUpdate = () => {
       loadConversations();
@@ -132,7 +140,7 @@ function SidebarContent() {
         window.removeEventListener("conversations-updated", handleUpdate);
       };
     }
-  }, [loadConversations, pathname, currentChatId]);
+  }, [loadConversations, pathname, currentChatId, currentUser]);
 
   const handleDeleteConversation = async (convId: string, e: React.MouseEvent) => {
     e.preventDefault();

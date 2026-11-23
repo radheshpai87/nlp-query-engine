@@ -47,13 +47,8 @@ def list_conversations(
     service: ConversationService = Depends(get_conversation_service),
     _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker()),
 ) -> list[Conversation]:
-    """List all active conversations in the workspace."""
-    filter_user = (
-        None
-        if (current_user.is_superuser or workspace_id in ("default", "ws_default", "ws-default"))
-        else current_user.id
-    )
-    return service.list_conversations(workspace_id=workspace_id, user_id=filter_user)
+    """List all active conversations for the authenticated user in the workspace."""
+    return service.list_conversations(workspace_id=workspace_id, user_id=current_user.id)
 
 
 @router.post("", response_model=Conversation, status_code=status.HTTP_201_CREATED)
@@ -77,12 +72,16 @@ def create_conversation(
 def get_conversation(
     workspace_id: str,
     conversation_id: str,
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     service: ConversationService = Depends(get_conversation_service),
     _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker()),
 ) -> Conversation:
     """Retrieve conversation thread by ID."""
-    return service.get_conversation(workspace_id=workspace_id, conversation_id=conversation_id)
+    return service.get_conversation(
+        workspace_id=workspace_id,
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+    )
 
 
 @router.patch("/{conversation_id}", response_model=Conversation)
@@ -90,7 +89,7 @@ def update_conversation(
     workspace_id: str,
     conversation_id: str,
     payload: UpdateConversationRequest,
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     service: ConversationService = Depends(get_conversation_service),
     _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker()),
 ) -> Conversation:
@@ -99,6 +98,7 @@ def update_conversation(
         workspace_id=workspace_id,
         conversation_id=conversation_id,
         title=payload.title,
+        user_id=current_user.id,
     )
 
 
@@ -106,24 +106,32 @@ def update_conversation(
 def delete_conversation(
     workspace_id: str,
     conversation_id: str,
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     service: ConversationService = Depends(get_conversation_service),
     _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker()),
 ) -> None:
     """Delete a conversation thread and its messages."""
-    service.delete_conversation(workspace_id=workspace_id, conversation_id=conversation_id)
+    service.delete_conversation(
+        workspace_id=workspace_id,
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+    )
 
 
 @router.get("/{conversation_id}/messages", response_model=list[Message])
 def get_messages(
     workspace_id: str,
     conversation_id: str,
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     service: ConversationService = Depends(get_conversation_service),
     _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker()),
 ) -> list[Message]:
     """Retrieve message history for a conversation thread."""
-    return service.get_messages(workspace_id=workspace_id, conversation_id=conversation_id)
+    return service.get_messages(
+        workspace_id=workspace_id,
+        conversation_id=conversation_id,
+        user_id=current_user.id,
+    )
 
 
 @router.post("/{conversation_id}/messages", response_model=PostMessageResponse)

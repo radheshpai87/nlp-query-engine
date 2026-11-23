@@ -102,16 +102,20 @@ class ConversationService:
         """List active conversations for a workspace."""
         return self.conversation_repo.get_by_workspace(workspace_id=workspace_id, user_id=user_id)
 
-    def get_conversation(self, workspace_id: str, conversation_id: str) -> Conversation:
-        """Retrieve conversation by ID within a workspace."""
+    def get_conversation(
+        self, workspace_id: str, conversation_id: str, user_id: str | None = None
+    ) -> Conversation:
+        """Retrieve conversation by ID within a workspace, optionally filtered by user."""
         ws_filter = (
             {"$in": ["ws_default", "ws-default", "default"]}
             if workspace_id in ("default", "ws_default", "ws-default")
             else workspace_id
         )
-        conv = self.conversation_repo.find_one(
-            {"_id": conversation_id, "workspace_id": ws_filter}
-        )
+        query: dict[str, Any] = {"_id": conversation_id, "workspace_id": ws_filter}
+        if user_id:
+            query["user_id"] = user_id
+
+        conv = self.conversation_repo.find_one(query)
         if not conv:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -119,9 +123,11 @@ class ConversationService:
             )
         return conv
 
-    def delete_conversation(self, workspace_id: str, conversation_id: str) -> bool:
+    def delete_conversation(
+        self, workspace_id: str, conversation_id: str, user_id: str | None = None
+    ) -> bool:
         """Delete conversation and its associated messages."""
-        conv = self.get_conversation(workspace_id, conversation_id)
+        conv = self.get_conversation(workspace_id, conversation_id, user_id=user_id)
         deleted = self.conversation_repo.delete_by_id_and_workspace(
             workspace_id=workspace_id, conversation_id=conversation_id
         )
@@ -136,10 +142,10 @@ class ConversationService:
         return deleted
 
     def update_conversation_title(
-        self, workspace_id: str, conversation_id: str, title: str
+        self, workspace_id: str, conversation_id: str, title: str, user_id: str | None = None
     ) -> Conversation:
         """Rename conversation thread."""
-        self.get_conversation(workspace_id, conversation_id)
+        self.get_conversation(workspace_id, conversation_id, user_id=user_id)
         updated = self.conversation_repo.update_title(conversation_id, title)
         if not updated:
             raise HTTPException(
@@ -148,9 +154,11 @@ class ConversationService:
             )
         return updated
 
-    def get_messages(self, workspace_id: str, conversation_id: str) -> list[Message]:
+    def get_messages(
+        self, workspace_id: str, conversation_id: str, user_id: str | None = None
+    ) -> list[Message]:
         """Fetch all messages for a conversation thread."""
-        self.get_conversation(workspace_id, conversation_id)
+        self.get_conversation(workspace_id, conversation_id, user_id=user_id)
         return self.conversation_repo.get_messages(conversation_id)
 
     def post_message(
@@ -161,7 +169,7 @@ class ConversationService:
         content: str,
     ) -> tuple[Message, Message]:
         """Execute a conversational query turn: evaluate ambiguity, extract intent, compile, and execute."""
-        conv = self.get_conversation(workspace_id, conversation_id)
+        conv = self.get_conversation(workspace_id, conversation_id, user_id=user_id)
 
         # 1. Persist user message
         user_msg = self.conversation_repo.add_message(
@@ -252,7 +260,7 @@ class ConversationService:
         custom_input: str | None = None,
     ) -> tuple[Message, Message]:
         """Resolve an active clarification prompt and resume the query execution workflow."""
-        conv = self.get_conversation(workspace_id, conversation_id)
+        conv = self.get_conversation(workspace_id, conversation_id, user_id=user_id)
         if not conv.pending_clarification:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

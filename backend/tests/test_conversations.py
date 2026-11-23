@@ -228,3 +228,64 @@ def test_nlp_intent_api(
     assert res.status_code == 200
     intent = res.json()
     assert intent["limit"] == 10
+
+
+def test_conversation_user_isolation(
+    client: TestClient,
+    test_workspace: Workspace,
+    user_auth_headers: dict[str, str],
+    admin_auth_headers: dict[str, str],
+) -> None:
+    """Ensure User A cannot see or delete User B's conversations."""
+    # 1. User A creates a conversation
+    res_a = client.post(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations",
+        headers=user_auth_headers,
+        json={"title": "User A Private Chat"},
+    )
+    assert res_a.status_code == 201
+    conv_a_id = res_a.json()["id"]
+
+    # 2. User B (admin) creates a conversation
+    res_b = client.post(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations",
+        headers=admin_auth_headers,
+        json={"title": "User B Admin Chat"},
+    )
+    assert res_b.status_code == 201
+    conv_b_id = res_b.json()["id"]
+
+    # 3. User A lists conversations -> only sees User A's thread
+    list_a = client.get(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations",
+        headers=user_auth_headers,
+    )
+    assert list_a.status_code == 200
+    ids_a = [c["id"] for c in list_a.json()]
+    assert conv_a_id in ids_a
+    assert conv_b_id not in ids_a
+
+    # 4. User B lists conversations -> only sees User B's thread
+    list_b = client.get(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations",
+        headers=admin_auth_headers,
+    )
+    assert list_b.status_code == 200
+    ids_b = [c["id"] for c in list_b.json()]
+    assert conv_b_id in ids_b
+    assert conv_a_id not in ids_b
+
+    # 5. User A attempts to access User B's conversation -> 404
+    cross_get = client.get(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations/{conv_b_id}",
+        headers=user_auth_headers,
+    )
+    assert cross_get.status_code == 404
+
+    # 6. User A attempts to delete User B's conversation -> 404
+    cross_del = client.delete(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations/{conv_b_id}",
+        headers=user_auth_headers,
+    )
+    assert cross_del.status_code == 404
+
