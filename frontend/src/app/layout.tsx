@@ -85,6 +85,9 @@ export const metadata: Metadata = {
   appleWebApp: {
     title: "Nexus Query",
   },
+  verification: {
+    google: "KZMUB26AubqL4vYUneFOakWjkEYCgMUDeaBu3pp9jCg",
+  },
 };
 
 const jsonLd = {
@@ -116,6 +119,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark h-full antialiased scroll-smooth">
       <head>
+        <meta
+          name="google-site-verification"
+          content="KZMUB26AubqL4vYUneFOakWjkEYCgMUDeaBu3pp9jCg"
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
