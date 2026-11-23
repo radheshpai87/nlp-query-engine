@@ -56,20 +56,23 @@ class LogicalPlanOptimizer:
             plan.projections = [copy.deepcopy(g) for g in plan.group_by]
 
     def _enforce_group_by_projection_consistency(self, plan: LogicalQueryPlan) -> None:
-        """Ensure standard SQL compliance when group_by is present.
+        """Ensure standard SQL compliance when group_by or aggregations are present.
         In SQL (and specifically PostgreSQL), every column in SELECT that is not an
         aggregate must appear in the GROUP BY clause.
-        If the plan has group_by and a projection column is not in group_by:
-        1. If it represents a metric/numeric value (e.g. rate, amount, price, revenue, total, cost),
-           wrap it in an aggregate function (SUM) so it doesn't fail execution.
-        2. Otherwise (a categorical/dimension field), add it to group_by.
+        
+        Rules:
+        1. If aggregations exist or group_by exists:
+           - Metric/numeric columns in projections (e.g. rate, amount, price, revenue, total, cost)
+             must be moved to aggregations (SUM) if not already aggregated.
+           - All other dimension columns in projections must appear in GROUP BY.
+        2. Column matching is alias-aware and case-insensitive.
         """
-        if not plan.group_by:
+        if not plan.group_by and not plan.aggregations:
             return
 
         from app.engine.ir.models import AggregateExpression, AggregateFunction
 
-        grouped_cols = {(g.table or "", g.column) for g in plan.group_by}
+        grouped_col_names = {g.column.lower() for g in plan.group_by}
         metric_keywords = (
             "rate",
             "price",
@@ -86,19 +89,19 @@ class LogicalPlanOptimizer:
             "salary",
             "budget",
             "balance",
+            "daily_rate",
         )
 
         new_projections = []
         for p in plan.projections:
-            col_key = (p.table or "", p.column)
-            if col_key in grouped_cols:
+            col_name_lower = p.column.lower()
+            if col_name_lower in grouped_col_names:
                 new_projections.append(p)
             else:
-                col_name_lower = p.column.lower()
                 if any(k in col_name_lower for k in metric_keywords):
                     # Metric column: wrap in SUM aggregation if not already aggregated
                     agg_exists = any(
-                        (a.field and a.field.column == p.column and (a.field.table or "") == (p.table or ""))
+                        (a.field and a.field.column.lower() == col_name_lower)
                         for a in plan.aggregations
                     )
                     if not agg_exists:
@@ -110,8 +113,10 @@ class LogicalPlanOptimizer:
                             )
                         )
                 else:
-                    # Dimension column: add to group_by so GROUP BY does not fail
-                    plan.group_by.append(copy.deepcopy(p))
+                    # Dimension column: ensure it is in group_by
+                    if plan.aggregations or plan.group_by:
+                        plan.group_by.append(copy.deepcopy(p))
+                        grouped_col_names.add(col_name_lower)
                     new_projections.append(p)
 
         plan.projections = new_projections

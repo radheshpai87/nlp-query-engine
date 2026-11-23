@@ -145,11 +145,76 @@ class ExecutionService:
 
                 adapter = self._get_adapter_for_connection(conn_id)
                 try:
-                    rows = adapter.execute_query(
-                        query=query_obj,
-                        limit=min(plan.limit or MAX_EXECUTION_ROWS, MAX_EXECUTION_ROWS),
-                        timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
-                    )
+                    try:
+                        rows = adapter.execute_query(
+                            query=query_obj,
+                            limit=min(plan.limit or MAX_EXECUTION_ROWS, MAX_EXECUTION_ROWS),
+                            timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
+                        )
+                    except Exception as exec_err:
+                        err_str = str(exec_err)
+                        if "must appear in the GROUP BY clause" in err_str and isinstance(query_obj, CompiledSQLQuery):
+                            logger.warning("Attempting automated GROUP BY self-healing for: %s", err_str)
+                            import re
+                            m = re.search(r'column "([^"]+)" must appear in the GROUP BY', err_str)
+                            if m:
+                                raw_col = m.group(1)
+                                col_name = raw_col.split(".")[-1]
+                                matching_proj = next(
+                                    (p for p in optimized_plan.projections if p.column.lower() == col_name.lower()),
+                                    None,
+                                )
+                                if matching_proj:
+                                    from app.engine.ir.models import AggregateExpression, AggregateFunction
+
+                                    metric_keywords = (
+                                        "rate",
+                                        "price",
+                                        "amount",
+                                        "revenue",
+                                        "cost",
+                                        "total",
+                                        "fee",
+                                        "val",
+                                        "count",
+                                        "num",
+                                        "quantity",
+                                        "score",
+                                        "salary",
+                                        "budget",
+                                        "balance",
+                                    )
+                                    if any(k in col_name.lower() for k in metric_keywords):
+                                        optimized_plan.projections = [
+                                            p for p in optimized_plan.projections if p.column.lower() != col_name.lower()
+                                        ]
+                                        optimized_plan.aggregations.append(
+                                            AggregateExpression(
+                                                function=AggregateFunction.SUM,
+                                                field=matching_proj,
+                                                alias=matching_proj.alias or f"total_{col_name}",
+                                            )
+                                        )
+                                    else:
+                                        optimized_plan.group_by.append(matching_proj)
+
+                                    recompiled: CompilationResult = self.compiler.compile(optimized_plan, connection_types)
+                                    if recompiled.single_query and isinstance(recompiled.single_query, CompiledSQLQuery):
+                                        query_obj = recompiled.single_query
+                                        generated_queries["postgres"] = query_obj.sql
+                                        rows = adapter.execute_query(
+                                            query=query_obj,
+                                            limit=min(plan.limit or MAX_EXECUTION_ROWS, MAX_EXECUTION_ROWS),
+                                            timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
+                                        )
+                                    else:
+                                        raise exec_err
+                                else:
+                                    raise exec_err
+                            else:
+                                raise exec_err
+                        else:
+                            raise exec_err
                 finally:
                     adapter.close()
 
