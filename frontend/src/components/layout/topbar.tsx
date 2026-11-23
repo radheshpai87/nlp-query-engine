@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NexusLogo } from "@/components/ui/nexus-logo";
+import { GitHubStarButton } from "@/components/ui/github-star-button";
 import { useShellStore } from "@/lib/store";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -44,12 +45,16 @@ export function Topbar() {
         </span>
       </div>
 
-      <Link
-        href="/docs"
-        className="text-[11px] text-muted-foreground transition-colors hover:text-amber-400"
-      >
-        API docs
-      </Link>
+      <div className="flex items-center gap-3">
+        <GitHubStarButton label="Star" className="text-[11px] py-0.5 px-2 h-7" />
+
+        <Link
+          href="/docs"
+          className="text-[11px] text-muted-foreground transition-colors hover:text-amber-400"
+        >
+          API docs
+        </Link>
+      </div>
     </header>
   );
 }

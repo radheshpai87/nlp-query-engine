@@ -19,6 +19,7 @@ import {
 import { Preview } from "@/components/preview";
 import { BentoGridContent } from "@/components/bento-grid";
 import { NexusLogo } from "@/components/ui/nexus-logo";
+import { GitHubStarButton } from "@/components/ui/github-star-button";
 
 const NAV_LINKS = [
   { href: "#product", label: "Product" },
@@ -73,6 +74,7 @@ const Navbar = () => {
 
         {/* Right: Auth CTA */}
         <div className="hidden items-center gap-3 md:flex">
+          <GitHubStarButton label="Star on GitHub" />
           {currentUser ? (
             <Link href="/chat">
               <Button
@@ -142,6 +144,9 @@ const Navbar = () => {
                   Get started
                 </Button>
               </Link>
+            </div>
+            <div className="pt-2">
+              <GitHubStarButton label="Star on GitHub" className="w-full justify-center py-2 text-xs" />
             </div>
           </nav>
         </div>
@@ -595,6 +600,15 @@ const Footer = () => {
           <Link href="#product" className="hover:text-amber-300 transition-colors">Product</Link>
           <Link href="#security" className="hover:text-amber-300 transition-colors">Security</Link>
           <Link href="/docs" className="hover:text-amber-300 transition-colors">API docs</Link>
+          <a
+            href="https://github.com/radheshpai87/nlp-query-engine"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-amber-300 transition-colors flex items-center gap-1.5"
+          >
+            <span>GitHub</span>
+            <span className="text-amber-400">★</span>
+          </a>
         </div>
 
         <div className="text-[11px] font-mono text-slate-500">© 2026 Nexus Query.</div>
