@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NexusLogo } from "@/components/ui/nexus-logo";
-import { GitHubStarButton } from "@/components/ui/github-star-button";
 import { useShellStore } from "@/lib/store";
 import { getStoredToken, getStoredUser } from "@/lib/auth-api";
 import {
@@ -864,8 +863,6 @@ export default function DocsPage() {
 
           {/* Quick links & CTA */}
           <div className="flex items-center gap-3">
-            <GitHubStarButton label="Star on GitHub" className="hidden sm:inline-flex h-8 text-xs" />
-
             <a
               href="/api/openapi.json"
               target="_blank"
