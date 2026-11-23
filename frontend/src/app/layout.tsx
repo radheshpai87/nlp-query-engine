@@ -132,6 +132,16 @@ export default function RootLayout({
           name="google-site-verification"
           content="KZMUB26AubqL4vYUneFOakWjkEYCgMUDeaBu3pp9jCg"
         />
+        <meta property="og:image" content="https://nlp.radhesh.me/og-image.png" />
+        <meta property="og:image:secure_url" content="https://nlp.radhesh.me/og-image.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Nexus Query - The Natural Language Query Engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://nlp.radhesh.me/og-image.png" />
+        <meta name="twitter:image:width" content="1200" />
+        <meta name="twitter:image:height" content="630" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
