@@ -83,6 +83,12 @@ export function setStoredRefreshToken(token: string | null): void {
 export function getStoredUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
   try {
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (!token) {
+      localStorage.removeItem(USER_STORAGE_KEY);
+      localStorage.removeItem("stored-user");
+      return null;
+    }
     const raw = localStorage.getItem(USER_STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
@@ -97,6 +103,7 @@ export function setStoredUser(user: AuthUser | null): void {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
     } else {
       localStorage.removeItem(USER_STORAGE_KEY);
+      localStorage.removeItem("stored-user");
     }
   } catch {
     // Ignore
@@ -105,6 +112,25 @@ export function setStoredUser(user: AuthUser | null): void {
 
 export async function logout(): Promise<void> {
   const refreshToken = getStoredRefreshToken();
+
+  // 1. Immediately and synchronously clear all local and session storage
+  setStoredToken(null);
+  setStoredRefreshToken(null);
+  setStoredUser(null);
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("stored-user");
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(USER_STORAGE_KEY);
+      sessionStorage.clear();
+      document.cookie = "nlp_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+    } catch {
+      // Ignore
+    }
+  }
+
+  // 2. Best-effort server side revocation
   if (refreshToken) {
     try {
       await fetch(`${API_BASE}/auth/logout`, {
@@ -114,16 +140,6 @@ export async function logout(): Promise<void> {
       });
     } catch {
       // Best-effort
-    }
-  }
-  setStoredToken(null);
-  setStoredRefreshToken(null);
-  setStoredUser(null);
-  if (typeof window !== "undefined") {
-    try {
-      document.cookie = "nlp_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-    } catch {
-      // Ignore
     }
   }
 }

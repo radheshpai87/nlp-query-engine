@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useShellStore } from "@/lib/store";
+import { getStoredToken, getStoredUser } from "@/lib/auth-api";
 import {
   X as MenuX,
   Menu,
@@ -32,8 +33,18 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
-    const existing = localStorage.getItem("stored-user");
-    if (existing) setCurrentUser(JSON.parse(existing));
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("stored-user");
+      const token = getStoredToken();
+      const user = getStoredUser();
+      if (!token || !user) {
+        if (useShellStore.getState().currentUser) {
+          setCurrentUser(null);
+        }
+      } else if (!useShellStore.getState().currentUser) {
+        setCurrentUser(user);
+      }
+    }
   }, [setCurrentUser]);
 
   return (
@@ -597,8 +608,18 @@ export default function LandingPage() {
   const { currentUser, setCurrentUser } = useShellStore();
 
   React.useEffect(() => {
-    const existing = localStorage.getItem("stored-user");
-    if (existing) setCurrentUser(JSON.parse(existing));
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("stored-user");
+      const token = getStoredToken();
+      const user = getStoredUser();
+      if (!token || !user) {
+        if (useShellStore.getState().currentUser) {
+          setCurrentUser(null);
+        }
+      } else if (!useShellStore.getState().currentUser) {
+        setCurrentUser(user);
+      }
+    }
   }, [setCurrentUser]);
 
   return (

@@ -46,6 +46,17 @@ export const useShellStore = create<ShellState>((set) => ({
   setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
   setCurrentUser: (user) => set({ currentUser: user }),
   logoutUser: () => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("stored-user");
+        localStorage.removeItem("nlp_query_auth_token");
+        localStorage.removeItem("nlp_query_auth_refresh_token");
+        localStorage.removeItem("nlp_query_auth_user");
+        sessionStorage.clear();
+      } catch {
+        // Best-effort
+      }
+    }
     try {
       clearAuth();
     } catch {

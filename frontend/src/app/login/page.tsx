@@ -20,6 +20,7 @@ import { NexusLogo } from "@/components/ui/nexus-logo";
 import {
   loginWithCredentials,
   getStoredUser,
+  getStoredToken,
   handleOAuthCallbackToken,
 } from "@/lib/auth-api";
 import { API_BASE } from "@/lib/api-config";
@@ -117,8 +118,9 @@ export default function LoginPage() {
       return;
     }
 
+    const token = getStoredToken();
     const existing = getStoredUser();
-    if (existing) {
+    if (token && existing) {
       setCurrentUser(existing);
     }
   }, [router, setCurrentUser, setCurrentWorkspace]);

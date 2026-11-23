@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NexusLogo } from "@/components/ui/nexus-logo";
 import { useShellStore } from "@/lib/store";
+import { getStoredToken, getStoredUser } from "@/lib/auth-api";
 import {
   Search,
   Copy,
@@ -779,10 +780,24 @@ const CATEGORIES = [
 ];
 
 export default function DocsPage() {
-  const { currentUser } = useShellStore();
+  const { currentUser, setCurrentUser } = useShellStore();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activeSnippetLang, setActiveSnippetLang] = React.useState<Record<string, CodeLang>>({});
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const token = getStoredToken();
+      const user = getStoredUser();
+      if (!token || !user) {
+        if (useShellStore.getState().currentUser) {
+          setCurrentUser(null);
+        }
+      } else if (!useShellStore.getState().currentUser) {
+        setCurrentUser(user);
+      }
+    }
+  }, [setCurrentUser]);
 
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);

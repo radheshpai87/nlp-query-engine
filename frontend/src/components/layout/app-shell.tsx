@@ -26,6 +26,13 @@ export function AppShell({ children }: AppShellProps) {
 
   React.useEffect(() => {
     if (isStandalone) {
+      const token = getStoredToken();
+      const storedUser = getStoredUser();
+      if (!token || !storedUser) {
+        if (currentUser) {
+          setCurrentUser(null);
+        }
+      }
       setAuthChecked(true);
       return;
     }

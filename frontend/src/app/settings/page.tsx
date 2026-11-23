@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { currentUser, setCurrentUser } = useShellStore();
+  const { currentUser, setCurrentUser, logoutUser } = useShellStore();
 
   const [activeTab, setActiveTab] = React.useState<"profile" | "security">("profile");
 
@@ -93,9 +93,8 @@ export default function SettingsPage() {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.push("/login");
+  const handleLogout = () => {
+    logoutUser();
   };
 
   return (
