@@ -46,9 +46,11 @@ export const metadata: Metadata = {
       "Query heterogeneous databases using natural language with active ambiguity resolution and deterministic, read-only SQL plan compilation.",
     images: [
       {
-        url: "/og-image.png",
+        url: `${siteUrl}/og-image.png`,
+        secureUrl: `${siteUrl}/og-image.png`,
         width: 1200,
         height: 630,
+        type: "image/png",
         alt: "Nexus Query - Natural Language Database Engine",
       },
     ],
@@ -58,7 +60,14 @@ export const metadata: Metadata = {
     title: "Nexus Query | Ambiguity-Aware Natural Language Query Engine",
     description:
       "Ask questions in plain English across PostgreSQL, MongoDB, and Elasticsearch. Instant, explainable answers with zero SQL required.",
-    images: ["/og-image.png"],
+    images: [
+      {
+        url: `${siteUrl}/og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: "Nexus Query - Natural Language Database Engine",
+      },
+    ],
     creator: "@nexusquery",
   },
     robots: {
