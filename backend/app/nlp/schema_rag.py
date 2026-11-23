@@ -136,6 +136,7 @@ class SchemaRAGService:
             "   - Date filter values: For Elasticsearch or MongoDB use relative date math or ISO strings ('now-30d', 'now-6M', '2024-01-01T00:00:00Z'). For PostgreSQL use SQL interval or ISO strings ('CURRENT_DATE - INTERVAL \\'30 days\\'', '2024-01-01').\n"
             "   - 'group_by': list of {'table_alias': 'alias', 'column': 'col_name'}\n"
             "   - 'aggregations': list of {'function': 'count|sum|avg|min|max', 'table_alias': 'alias', 'column': 'col_name', 'alias': 'metric_alias'}\n"
+            "   - IMPORTANT FOR GROUPING: When 'group_by' is used, every metric or calculated column (such as daily_rate, revenue, amount, price) MUST be wrapped in 'aggregations' (e.g. sum, count, avg) rather than 'projections'. Projections should only include the group_by dimension columns.\n"
             "   - 'having': list of {'table_alias': 'alias', 'column': 'col_or_alias', 'operator': 'eq|gt|gte|lt|lte', 'value': val} (for aggregate conditions like count > X or avg < Y)\n"
             "   - 'order_by': list of {'field': 'col_or_alias', 'direction': 'asc|desc'}\n"
             "   - 'limit': integer (default 20)\n"

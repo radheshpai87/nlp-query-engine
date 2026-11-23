@@ -17,6 +17,7 @@ class LogicalPlanOptimizer:
         self._deduplicate_filters(optimized)
         self._deduplicate_sorts(optimized)
         self._ensure_projections(optimized)
+        self._enforce_group_by_projection_consistency(optimized)
 
         return optimized
 
@@ -53,3 +54,64 @@ class LogicalPlanOptimizer:
         # If aggregations exist and projections are empty, project the group by fields
         if plan.aggregations and not plan.projections:
             plan.projections = [copy.deepcopy(g) for g in plan.group_by]
+
+    def _enforce_group_by_projection_consistency(self, plan: LogicalQueryPlan) -> None:
+        """Ensure standard SQL compliance when group_by is present.
+        In SQL (and specifically PostgreSQL), every column in SELECT that is not an
+        aggregate must appear in the GROUP BY clause.
+        If the plan has group_by and a projection column is not in group_by:
+        1. If it represents a metric/numeric value (e.g. rate, amount, price, revenue, total, cost),
+           wrap it in an aggregate function (SUM) so it doesn't fail execution.
+        2. Otherwise (a categorical/dimension field), add it to group_by.
+        """
+        if not plan.group_by:
+            return
+
+        from app.engine.ir.models import AggregateExpression, AggregateFunction
+
+        grouped_cols = {(g.table or "", g.column) for g in plan.group_by}
+        metric_keywords = (
+            "rate",
+            "price",
+            "amount",
+            "revenue",
+            "cost",
+            "total",
+            "fee",
+            "val",
+            "count",
+            "num",
+            "quantity",
+            "score",
+            "salary",
+            "budget",
+            "balance",
+        )
+
+        new_projections = []
+        for p in plan.projections:
+            col_key = (p.table or "", p.column)
+            if col_key in grouped_cols:
+                new_projections.append(p)
+            else:
+                col_name_lower = p.column.lower()
+                if any(k in col_name_lower for k in metric_keywords):
+                    # Metric column: wrap in SUM aggregation if not already aggregated
+                    agg_exists = any(
+                        (a.field and a.field.column == p.column and (a.field.table or "") == (p.table or ""))
+                        for a in plan.aggregations
+                    )
+                    if not agg_exists:
+                        plan.aggregations.append(
+                            AggregateExpression(
+                                function=AggregateFunction.SUM,
+                                field=copy.deepcopy(p),
+                                alias=p.alias or f"total_{p.column}",
+                            )
+                        )
+                else:
+                    # Dimension column: add to group_by so GROUP BY does not fail
+                    plan.group_by.append(copy.deepcopy(p))
+                    new_projections.append(p)
+
+        plan.projections = new_projections

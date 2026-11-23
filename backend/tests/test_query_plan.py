@@ -287,3 +287,48 @@ def test_query_plan_api_routes(
     assert synth_data["workspace_id"] == test_workspace.id
     assert synth_data["sources"][0]["source_name"] == "products"
     assert synth_data["sources"][0]["connection_id"] == conn.id
+
+
+def test_group_by_projection_consistency_optimizer() -> None:
+    """Ensure that metrics in projections during grouping are automatically converted to SUM aggregates."""
+    from app.engine.ir.models import (
+        AggregateExpression,
+        AggregateFunction,
+        ColumnRef,
+        LogicalQueryPlan,
+        SourceNode,
+    )
+    from app.engine.optimizer import LogicalPlanOptimizer
+
+    plan = LogicalQueryPlan(
+        workspace_id="ws-group-by",
+        sources=[SourceNode(connection_id="c1", source_name="rooms", alias="r")],
+        projections=[
+            ColumnRef(table="r", column="room_type"),
+            ColumnRef(table="d", column="building"),
+            ColumnRef(table="r", column="daily_rate"),
+        ],
+        group_by=[
+            ColumnRef(table="r", column="room_type"),
+            ColumnRef(table="d", column="building"),
+        ],
+        aggregations=[
+            AggregateExpression(
+                function=AggregateFunction.COUNT,
+                field=ColumnRef(table="r", column="id"),
+                alias="occupied_rooms",
+            )
+        ],
+    )
+
+    optimizer = LogicalPlanOptimizer()
+    optimized = optimizer.optimize(plan)
+
+    proj_cols = [p.column for p in optimized.projections]
+    assert "daily_rate" not in proj_cols
+    assert "room_type" in proj_cols
+    assert "building" in proj_cols
+
+    agg_names = [a.alias for a in optimized.aggregations]
+    assert "total_daily_rate" in agg_names
+
