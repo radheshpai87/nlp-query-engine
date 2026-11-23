@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.core.auth import WorkspacePermissionChecker
+from app.core.rate_limit import ai_query_rate_limiter, rate_limit_dependency
 from app.engine.generators.models import CompilationResult
 from app.engine.ir.models import (
     LogicalQueryPlan,
@@ -15,7 +16,11 @@ from app.models.workspace import WorkspaceMembership
 from app.nlp.providers.base import BaseLLMProvider
 from app.nlp.providers.factory import get_llm_provider
 
-router = APIRouter(prefix="/workspaces/{workspace_id}/query/plan", tags=["query-plan"])
+router = APIRouter(
+    prefix="/workspaces/{workspace_id}/query/plan",
+    tags=["query-plan"],
+    dependencies=[Depends(rate_limit_dependency(ai_query_rate_limiter))],
+)
 
 
 class SynthesizePlanRequest(BaseModel):

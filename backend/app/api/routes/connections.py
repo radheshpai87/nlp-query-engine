@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.adapters.base import ConnectionTestResult
 from app.core.auth import WorkspacePermissionChecker, get_current_user
 from app.core.exceptions import AppError, ResourceNotFoundError
+from app.core.rate_limit import general_rate_limiter, rate_limit_dependency
 from app.models.connection import (
     DatabaseConnectionCreate,
     DatabaseConnectionResponse,
@@ -14,7 +15,11 @@ from app.models.user import User
 from app.models.workspace import WorkspaceMembership, WorkspaceRole
 from app.services.connection_service import ConnectionService, get_connection_service
 
-router = APIRouter(prefix="/workspaces/{workspace_id}/connections", tags=["connections"])
+router = APIRouter(
+    prefix="/workspaces/{workspace_id}/connections",
+    tags=["connections"],
+    dependencies=[Depends(rate_limit_dependency(general_rate_limiter))],
+)
 
 
 @router.get("", response_model=list[DatabaseConnectionResponse])

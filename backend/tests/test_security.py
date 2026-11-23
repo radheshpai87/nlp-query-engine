@@ -123,12 +123,57 @@ def test_sliding_window_rate_limiter() -> None:
     key = "user-123"
 
     assert limiter.is_allowed(key) is True
+    assert limiter.get_remaining(key) == 1
     assert limiter.is_allowed(key) is True
+    assert limiter.get_remaining(key) == 0
     # 3rd request in same window rejected
     assert limiter.is_allowed(key) is False
 
     # Another key is independent
     assert limiter.is_allowed("user-456") is True
+
+
+def test_rate_limit_dependency_and_client_identifier() -> None:
+    from fastapi import HTTPException
+    from starlette.requests import Request
+    from app.core.rate_limit import get_client_identifier, rate_limit_dependency
+
+    # 1. Test client identifier with Authorization header
+    scope_auth = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/v1/auth/login",
+        "headers": [(b"authorization", b"Bearer test-token-123")],
+    }
+    req_auth = Request(scope_auth)
+    assert get_client_identifier(req_auth) == "auth:Bearer test-token-123"
+
+    # 2. Test client identifier with X-Forwarded-For
+    scope_xff = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/v1/auth/login",
+        "headers": [(b"x-forwarded-for", b"203.0.113.195, 70.41.3.18")],
+    }
+    req_xff = Request(scope_xff)
+    assert get_client_identifier(req_xff) == "ip:203.0.113.195"
+
+    # 3. Test rate limit dependency enforcement and 429 headers
+    test_limiter = SlidingWindowRateLimiter(max_requests=1, window_seconds=60.0)
+    checker = rate_limit_dependency(test_limiter)
+
+    checker(req_auth)  # 1st request allowed
+
+    import pytest
+    with pytest.raises(HTTPException) as exc_info:
+        checker(req_auth)  # 2nd request exceeded
+
+    assert exc_info.value.status_code == 429
+    assert "Rate limit exceeded" in exc_info.value.detail
+    assert exc_info.value.headers["Retry-After"] == "60"
+    assert exc_info.value.headers["X-RateLimit-Limit"] == "1"
+    assert exc_info.value.headers["X-RateLimit-Remaining"] == "0"
+
 
 
 def test_execution_service_blocks_mutating_sql(

@@ -7,12 +7,17 @@ from app.core.auth import WorkspacePermissionChecker, get_current_user
 from app.models.conversation import Conversation, Message
 from app.models.user import User
 from app.models.workspace import WorkspaceMembership
+from app.core.rate_limit import general_rate_limiter, rate_limit_dependency
 from app.services.conversation_service import (
     ConversationService,
     get_conversation_service,
 )
 
-router = APIRouter(prefix="/workspaces/{workspace_id}/conversations", tags=["conversations"])
+router = APIRouter(
+    prefix="/workspaces/{workspace_id}/conversations",
+    tags=["conversations"],
+    dependencies=[Depends(rate_limit_dependency(general_rate_limiter))],
+)
 
 
 class CreateConversationRequest(BaseModel):

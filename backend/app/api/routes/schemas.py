@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.auth import WorkspacePermissionChecker, get_current_user
+from app.core.rate_limit import general_rate_limiter, rate_limit_dependency
 from app.models.schema import (
     SchemaGraphResponse,
     SchemaSearchResult,
@@ -14,7 +15,11 @@ from app.models.user import User
 from app.models.workspace import WorkspaceMembership, WorkspaceRole
 from app.services.schema_service import SchemaService, get_schema_service
 
-router = APIRouter(prefix="/workspaces/{workspace_id}/schemas", tags=["schemas"])
+router = APIRouter(
+    prefix="/workspaces/{workspace_id}/schemas",
+    tags=["schemas"],
+    dependencies=[Depends(rate_limit_dependency(general_rate_limiter))],
+)
 
 
 @router.get("", response_model=list[SchemaSnapshot])

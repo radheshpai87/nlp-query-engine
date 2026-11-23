@@ -3,6 +3,7 @@ from collections import defaultdict
 from collections.abc import Callable
 
 from fastapi import HTTPException, Request, status
+from app.core.config import get_settings
 
 
 class SlidingWindowRateLimiter:
@@ -28,31 +29,72 @@ class SlidingWindowRateLimiter:
         self._history[key].append(now)
         return True
 
+    def get_remaining(self, key: str) -> int:
+        now = time.time()
+        cutoff = now - self.window_seconds
+        valid = [t for t in self._history.get(key, []) if t > cutoff]
+        return max(0, self.max_requests - len(valid))
+
     def reset(self) -> None:
         """Clear rate limit history (useful in tests)."""
         self._history.clear()
 
 
-# Default limiter instances
-execution_rate_limiter = SlidingWindowRateLimiter(max_requests=120, window_seconds=60.0)
-general_rate_limiter = SlidingWindowRateLimiter(max_requests=300, window_seconds=60.0)
+settings = get_settings()
+
+# Default granular limiter instances configured from settings
+ai_query_rate_limiter = SlidingWindowRateLimiter(
+    max_requests=settings.RATE_LIMIT_AI_QUERIES_PER_MINUTE, window_seconds=60.0
+)
+execution_rate_limiter = SlidingWindowRateLimiter(
+    max_requests=settings.RATE_LIMIT_EXECUTION_PER_MINUTE, window_seconds=60.0
+)
+auth_rate_limiter = SlidingWindowRateLimiter(
+    max_requests=settings.RATE_LIMIT_AUTH_PER_MINUTE, window_seconds=60.0
+)
+general_rate_limiter = SlidingWindowRateLimiter(
+    max_requests=settings.RATE_LIMIT_GENERAL_PER_MINUTE, window_seconds=60.0
+)
+
+
+def get_client_identifier(request: Request) -> str:
+    """Extract a robust rate limiting key from Authorization header or IP.
+    Respects X-Forwarded-For and X-Real-IP for proxied requests.
+    """
+    auth_header = request.headers.get("Authorization", "").strip()
+    if auth_header:
+        # Rate limit per unique authenticated user session/token
+        return f"auth:{auth_header}"
+
+    # Unauthenticated: extract real client IP behind reverse proxy / Docker
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    else:
+        client_ip = request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
+
+    return f"ip:{client_ip}"
 
 
 def rate_limit_dependency(
     limiter: SlidingWindowRateLimiter,
 ) -> Callable[[Request], None]:
-    """FastAPI dependency factory enforcing rate limits by IP or Authorization header."""
+    """FastAPI dependency factory enforcing rate limits with standard HTTP 429 and retry headers."""
 
     def check_rate_limit(request: Request) -> None:
-        # Determine tracking key from Authorization token, user, or client IP
-        auth_header = request.headers.get("Authorization", "")
-        client_ip = request.client.host if request.client else "unknown"
-        key = auth_header if auth_header else client_ip
+        key = get_client_identifier(request)
 
         if not limiter.is_allowed(key):
+            remaining = limiter.get_remaining(key)
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Rate limit exceeded: maximum {limiter.max_requests} requests per {int(limiter.window_seconds)} seconds.",
+                detail=f"Rate limit exceeded: maximum {limiter.max_requests} requests per {int(limiter.window_seconds)} seconds. Please wait before retrying.",
+                headers={
+                    "Retry-After": str(int(limiter.window_seconds)),
+                    "X-RateLimit-Limit": str(limiter.max_requests),
+                    "X-RateLimit-Remaining": str(remaining),
+                },
             )
 
     return check_rate_limit
+

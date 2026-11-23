@@ -65,6 +65,12 @@ class Settings(BaseSettings):
     MAX_RESULT_BYTES: int = 10 * 1024 * 1024  # 10 MB
     ALLOW_WRITE_OPERATIONS: bool = False
 
+    # Rate Limiting (Requests per minute per user/IP)
+    RATE_LIMIT_AI_QUERIES_PER_MINUTE: int = 30
+    RATE_LIMIT_EXECUTION_PER_MINUTE: int = 60
+    RATE_LIMIT_AUTH_PER_MINUTE: int = 20
+    RATE_LIMIT_GENERAL_PER_MINUTE: int = 180
+
     # OAuth Providers
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""

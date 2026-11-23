@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.core.auth import WorkspacePermissionChecker, get_current_user
+from app.core.rate_limit import ai_query_rate_limiter, rate_limit_dependency
 from app.models.ambiguity import (
     AmbiguityEvaluationResult,
     ClarificationResolutionRequest,
@@ -17,7 +18,11 @@ from app.services.ambiguity_service import (
     get_ambiguity_service,
 )
 
-router = APIRouter(prefix="/workspaces/{workspace_id}/ambiguity", tags=["ambiguity"])
+router = APIRouter(
+    prefix="/workspaces/{workspace_id}/ambiguity",
+    tags=["ambiguity"],
+    dependencies=[Depends(rate_limit_dependency(ai_query_rate_limiter))],
+)
 
 
 class EvaluateQueryRequest(BaseModel):

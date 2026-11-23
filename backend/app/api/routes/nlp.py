@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.core.auth import WorkspacePermissionChecker, get_current_user
+from app.core.rate_limit import ai_query_rate_limiter, rate_limit_dependency
 from app.engine.ir.models import LogicalQueryPlan
 from app.models.execution import ExecutionResult
 from app.models.user import User
@@ -16,7 +17,11 @@ from app.repositories.schema_repository import (
     get_schema_repository,
 )
 
-router = APIRouter(prefix="/workspaces/{workspace_id}/nlp", tags=["nlp"])
+router = APIRouter(
+    prefix="/workspaces/{workspace_id}/nlp",
+    tags=["nlp"],
+    dependencies=[Depends(rate_limit_dependency(ai_query_rate_limiter))],
+)
 
 
 class ExtractIntentRequest(BaseModel):

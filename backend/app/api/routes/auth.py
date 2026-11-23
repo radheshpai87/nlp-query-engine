@@ -19,9 +19,14 @@ from app.models.user import (
     UserResponse,
     UserUpdate,
 )
+from app.core.rate_limit import auth_rate_limiter, rate_limit_dependency
 from app.services.auth_service import AuthService, get_auth_service
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(
+    prefix="/auth",
+    tags=["auth"],
+    dependencies=[Depends(rate_limit_dependency(auth_rate_limiter))],
+)
 
 
 class LoginRequest(BaseModel):
