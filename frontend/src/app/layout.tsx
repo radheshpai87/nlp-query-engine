@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nexusquery.io";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://nlp.radhesh.me";
 
 export const viewport: Viewport = {
   themeColor: "#080A0E",
