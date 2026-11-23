@@ -447,6 +447,30 @@ class ConversationService:
                 )
             )
 
+    def save_message(
+        self,
+        workspace_id: str,
+        user_id: str,
+        conversation_id: str,
+        message: Message,
+    ) -> Message:
+        """Persist a direct message to a conversation thread."""
+        self.get_conversation(workspace_id, conversation_id, user_id=user_id)
+        self.conversation_repo.update(conversation_id, {})
+        return self.conversation_repo.add_message(message)
+
+    def update_message(
+        self,
+        workspace_id: str,
+        user_id: str,
+        conversation_id: str,
+        message_id: str,
+        update_data: dict[str, Any],
+    ) -> Message | None:
+        """Update an existing message (e.g. execution result or query plan)."""
+        self.get_conversation(workspace_id, conversation_id, user_id=user_id)
+        return self.conversation_repo.message_repo.update(message_id, update_data)
+
 
 def get_conversation_service(
     conversation_repo: ConversationRepository = Depends(get_conversation_repository),

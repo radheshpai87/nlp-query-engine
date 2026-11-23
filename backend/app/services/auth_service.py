@@ -77,9 +77,20 @@ class AuthService:
             role=WorkspaceRole.ADMIN,
         )
 
+        # Automatically grant access to demo databases workspace (ws_default) if present
+        target_ws_id = created_ws.id
+        default_ws = self.workspace_repo.get_by_id("ws_default")
+        if default_ws:
+            self.workspace_repo.add_member(
+                workspace_id="ws_default",
+                user_id=created_user.id,
+                role=WorkspaceRole.MEMBER,
+            )
+            target_ws_id = "ws_default"
+
         # Update user default workspace
-        self.user_repo.update(created_user.id, {"default_workspace_id": created_ws.id})
-        created_user.default_workspace_id = created_ws.id
+        self.user_repo.update(created_user.id, {"default_workspace_id": target_ws_id})
+        created_user.default_workspace_id = target_ws_id
 
         # Generate Access and Refresh Tokens
         access_token = create_access_token(
@@ -101,6 +112,15 @@ class AuthService:
 
         if not user.is_active:
             raise AppError("User account is deactivated")
+
+        # Ensure active users have access to demo databases workspace (ws_default)
+        default_ws = self.workspace_repo.get_by_id("ws_default")
+        if default_ws:
+            self.workspace_repo.add_member(
+                workspace_id="ws_default",
+                user_id=user.id,
+                role=WorkspaceRole.MEMBER,
+            )
 
         access_token = create_access_token(
             {"sub": user.id, "email": user.email, "is_superuser": user.is_superuser},

@@ -167,6 +167,63 @@ export async function postMessage(
   return res.json();
 }
 
+export async function saveMessage(
+  workspaceId: string,
+  conversationId: string,
+  message: {
+    id?: string;
+    role: MessageRole;
+    content: string;
+    clarification?: PendingClarification | null;
+    query_plan?: Record<string, unknown> | null;
+    generated_query?: string | null;
+    target_databases?: string[];
+    execution_result?: ExecutionResult | null;
+    duration_ms?: number | null;
+  },
+  token?: string
+): Promise<Message> {
+  const res = await authFetch(
+    `${API_BASE}/workspaces/${workspaceId}/conversations/${conversationId}/messages/save`,
+    {
+      method: "POST",
+      headers: getHeaders(token),
+      body: JSON.stringify(message),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to save message: ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export async function updateMessage(
+  workspaceId: string,
+  conversationId: string,
+  messageId: string,
+  updateData: {
+    content?: string;
+    query_plan?: Record<string, unknown> | null;
+    generated_query?: string | null;
+    execution_result?: ExecutionResult | null;
+    duration_ms?: number | null;
+  },
+  token?: string
+): Promise<Message> {
+  const res = await authFetch(
+    `${API_BASE}/workspaces/${workspaceId}/conversations/${conversationId}/messages/${messageId}`,
+    {
+      method: "PATCH",
+      headers: getHeaders(token),
+      body: JSON.stringify(updateData),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to update message: ${res.statusText}`);
+  }
+  return res.json();
+}
+
 export async function resolveClarificationInConversation(
   workspaceId: string,
   conversationId: string,

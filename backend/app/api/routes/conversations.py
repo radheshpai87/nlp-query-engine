@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
 from app.core.auth import WorkspacePermissionChecker, get_current_user
-from app.models.conversation import Conversation, Message
+from app.models.ambiguity import PendingClarification
+from app.models.conversation import Conversation, Message, MessageRole
 from app.models.user import User
 from app.models.workspace import WorkspaceMembership
 from app.core.rate_limit import general_rate_limiter, rate_limit_dependency
@@ -35,6 +36,26 @@ class PostMessageRequest(BaseModel):
 class PostMessageResponse(BaseModel):
     user_message: Message
     assistant_message: Message
+
+
+class SaveMessageRequest(BaseModel):
+    id: str | None = Field(default=None, description="Optional client message ID")
+    role: MessageRole = Field(description="Role: user or assistant")
+    content: str = Field(description="Message text content")
+    clarification: PendingClarification | None = None
+    query_plan: dict[str, Any] | None = None
+    generated_query: str | None = None
+    target_databases: list[str] = Field(default_factory=list)
+    execution_result: dict[str, Any] | None = None
+    duration_ms: float | None = None
+
+
+class UpdateMessageRequest(BaseModel):
+    content: str | None = None
+    query_plan: dict[str, Any] | None = None
+    generated_query: str | None = None
+    execution_result: dict[str, Any] | None = None
+    duration_ms: float | None = None
 
 
 class ResolveClarificationInConversationRequest(BaseModel):
@@ -177,3 +198,58 @@ def resolve_clarification(
         custom_input=payload.custom_input,
     )
     return PostMessageResponse(user_message=user_msg, assistant_message=assistant_msg)
+
+
+@router.post("/{conversation_id}/messages/save", response_model=Message)
+def save_message(
+    workspace_id: str,
+    conversation_id: str,
+    payload: SaveMessageRequest,
+    current_user: User = Depends(get_current_user),
+    service: ConversationService = Depends(get_conversation_service),
+    _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker()),
+) -> Message:
+    """Explicitly save a user or assistant message to the conversation history."""
+    msg = Message(
+        conversation_id=conversation_id,
+        role=payload.role,
+        content=payload.content,
+        clarification=payload.clarification,
+        query_plan=payload.query_plan,
+        generated_query=payload.generated_query,
+        target_databases=payload.target_databases,
+        execution_result=payload.execution_result,
+        duration_ms=payload.duration_ms,
+    )
+    if payload.id:
+        msg.id = payload.id
+    return service.save_message(
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        conversation_id=conversation_id,
+        message=msg,
+    )
+
+
+@router.patch("/{conversation_id}/messages/{message_id}", response_model=Message)
+def update_message(
+    workspace_id: str,
+    conversation_id: str,
+    message_id: str,
+    payload: UpdateMessageRequest,
+    current_user: User = Depends(get_current_user),
+    service: ConversationService = Depends(get_conversation_service),
+    _permission: WorkspaceMembership = Depends(WorkspacePermissionChecker()),
+) -> Message:
+    """Update message details (such as execution result) in the conversation history."""
+    update_data = {k: v for k, v in payload.model_dump().items() if v is not None}
+    res = service.update_message(
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        conversation_id=conversation_id,
+        message_id=message_id,
+        update_data=update_data,
+    )
+    if not res:
+        raise HTTPException(status_code=404, detail="Message not found.")
+    return res

@@ -42,7 +42,10 @@ import { executeQueryPlan, ExecutionResult } from "@/lib/execution-api";
 import {
   createConversation,
   listConversations,
+  getConversation,
   getMessages,
+  saveMessage,
+  updateMessage,
   deleteConversation,
   type Conversation,
 } from "@/lib/conversation-api";
@@ -180,7 +183,7 @@ function ChatPageContent() {
       return;
     }
     getMessages(currentWorkspace.id, currentChatId)
-      .then((msgs) => {
+      .then(async (msgs) => {
         if (ignore) return;
         if (Array.isArray(msgs) && msgs.length > 0) {
           const mapped: ChatMessage[] = msgs.map((m) => ({
@@ -190,12 +193,30 @@ function ChatPageContent() {
             clarifications: m.clarification ? [m.clarification] : [],
             plan: m.query_plan || undefined,
             executionResult: m.execution_result || undefined,
-            status: m.execution_result ? "executed" : (m.clarification ? "clarifying" : "conversational"),
+            status: m.execution_result
+              ? "executed"
+              : m.clarification
+              ? "clarifying"
+              : m.query_plan
+              ? "ready"
+              : "conversational",
             timestamp: m.created_at
               ? new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
               : "Just now",
           }));
           setMessages(mapped);
+        } else {
+          // If conversation has no persisted messages yet (e.g. legacy/interrupted), recover query from title
+          try {
+            const conv = await getConversation(currentWorkspace.id, currentChatId);
+            if (conv && conv.title && conv.title !== "New Conversation" && !ignore) {
+              handleSend(conv.title);
+            } else {
+              setMessages([]);
+            }
+          } catch {
+            setMessages([]);
+          }
         }
       })
       .catch((err) => console.error("Error loading chat messages", err));
@@ -259,6 +280,14 @@ function ChatPageContent() {
       }
     }
 
+    if (activeChatId) {
+      saveMessage(currentWorkspace.id, activeChatId, {
+        id: userMsgId,
+        role: "user",
+        content: text,
+      }).catch((e) => console.warn("Failed to persist user message", e));
+    }
+
     try {
       const result: AmbiguityEvaluationResult = await evaluateQueryAmbiguity(
         currentWorkspace.id,
@@ -273,15 +302,24 @@ function ChatPageContent() {
         result.suggested_action === "conversational_response" ||
         result.suggested_action === "guardrail_blocked"
       ) {
+        const assistantText =
+          result.conversational_response ||
+          "I am your dedicated query assistant for the connected databases (PostgreSQL, MongoDB, Elasticsearch).";
+        if (activeChatId) {
+          saveMessage(currentWorkspace.id, activeChatId, {
+            id: assistantMsgId,
+            role: "assistant",
+            content: assistantText,
+          }).catch((e) => console.warn("Failed to persist assistant response", e));
+        }
+
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMsgId
               ? {
                   ...msg,
                   status: result.is_guardrail_blocked ? "guardrail" : "conversational",
-                  content:
-                    result.conversational_response ||
-                    "I am your dedicated query assistant for the connected databases (PostgreSQL, MongoDB, Elasticsearch).",
+                  content: assistantText,
                   clarifications: [],
                   plan: undefined,
                 }
@@ -302,6 +340,22 @@ function ChatPageContent() {
       } catch (err) {
         planError = err instanceof Error ? err.message : "Failed to synthesize query plan.";
         console.warn("Synthesize plan fallback", err);
+      }
+
+      if (activeChatId) {
+        const assistantText =
+          result.is_ambiguous && result.clarifications.length > 0
+            ? "I detected ambiguities in your query. Please clarify the following parameters before proceeding:"
+            : plan
+            ? "I've matched this request to the connected schemas. Review the plan, then run it when you're ready."
+            : planError || `Could not generate a logical query plan for '${text}'. Please check the available database entities.`;
+        saveMessage(currentWorkspace.id, activeChatId, {
+          id: assistantMsgId,
+          role: "assistant",
+          content: assistantText,
+          clarification: result.clarifications?.[0] || null,
+          query_plan: (plan as Record<string, unknown>) || null,
+        }).catch((e) => console.warn("Failed to persist assistant plan", e));
       }
 
       setMessages((prev) =>
@@ -547,6 +601,13 @@ function ChatPageContent() {
         logical_plan: currentPlan,
         natural_query: queryText,
       });
+
+      if (currentChatId) {
+        updateMessage(currentWorkspace.id, currentChatId, message.id, {
+          execution_result: executionResult,
+          query_plan: currentPlan,
+        }).catch((e) => console.warn("Failed to update message execution result", e));
+      }
 
       setMessages((prev) =>
         prev.map((msg) =>

@@ -13,7 +13,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/conversation-api", () => ({
   createConversation: vi.fn().mockResolvedValue({ id: "mock-conv-1", title: "Mock Conversation" }),
   listConversations: vi.fn().mockResolvedValue([]),
+  getConversation: vi.fn().mockResolvedValue(null),
   getMessages: vi.fn().mockResolvedValue([]),
+  saveMessage: vi.fn().mockResolvedValue({}),
+  updateMessage: vi.fn().mockResolvedValue({}),
   deleteConversation: vi.fn().mockResolvedValue(true),
   postMessage: vi.fn(),
 }));

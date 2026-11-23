@@ -12,7 +12,71 @@ from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.schema_repository import SchemaRepository
 
 
+def test_save_and_update_direct_messages(
+    client: TestClient,
+    test_workspace: Workspace,
+    user_auth_headers: dict[str, str],
+) -> None:
+    # 1. Create a conversation
+    create_res = client.post(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations",
+        headers=user_auth_headers,
+        json={"title": "Direct Save Test"},
+    )
+    assert create_res.status_code == 201
+    conv_id = create_res.json()["id"]
+
+    # 2. Save user message
+    save_user_res = client.post(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations/{conv_id}/messages/save",
+        headers=user_auth_headers,
+        json={
+            "role": "user",
+            "content": "Show all doctors",
+        },
+    )
+    assert save_user_res.status_code == 200
+    user_msg_id = save_user_res.json()["id"]
+
+    # 3. Save assistant message
+    save_asst_res = client.post(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations/{conv_id}/messages/save",
+        headers=user_auth_headers,
+        json={
+            "role": "assistant",
+            "content": "Plan synthesized.",
+            "query_plan": {"projections": []},
+        },
+    )
+    assert save_asst_res.status_code == 200
+    asst_msg_id = save_asst_res.json()["id"]
+
+    # 4. Update assistant message with execution result
+    patch_res = client.patch(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations/{conv_id}/messages/{asst_msg_id}",
+        headers=user_auth_headers,
+        json={
+            "execution_result": {"row_count": 5, "rows": []},
+        },
+    )
+    assert patch_res.status_code == 200
+    assert patch_res.json()["execution_result"]["row_count"] == 5
+
+    # 5. Verify get_messages returns both
+    get_msgs_res = client.get(
+        f"/api/v1/workspaces/{test_workspace.id}/conversations/{conv_id}/messages",
+        headers=user_auth_headers,
+    )
+    assert get_msgs_res.status_code == 200
+    msgs = get_msgs_res.json()
+    assert len(msgs) == 2
+    assert msgs[0]["id"] == user_msg_id
+    assert msgs[1]["id"] == asst_msg_id
+    assert msgs[1]["execution_result"]["row_count"] == 5
+
+
 def test_conversation_crud_repository(mock_db: Any) -> None:
+
     repo = ConversationRepository(db=mock_db)
 
     # 1. Create
